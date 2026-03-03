@@ -1,0 +1,600 @@
+{
+  "name": "HowTo-Genie v3.0 — Auto Video Creation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 10 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🎬 Video Pipeline Trigger (Daily 10:30AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -1184,
+        128
+      ],
+      "id": "fc19164e-0c88-423d-b9fd-8e57d3317f09",
+      "typeVersion": 1,
+      "notes": "Runs 2.5 hours after main blog pipeline to pick up today's published post."
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Content Log",
+        "options": {}
+      },
+      "name": "📄 Get Today's Published Post",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -976,
+        128
+      ],
+      "id": "7b90da17-7ec4-4c7a-8b68-ec981535df14",
+      "typeVersion": 4,
+      "notes": "Fetches today's latest published post data from the Content Log sheet."
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/posts?slug={{ $json['WP URL']?.split('/').filter(Boolean).pop() }}&status=publish",
+        "options": {}
+      },
+      "name": "📥 Fetch Full Article Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -784,
+        128
+      ],
+      "id": "4dcef5e6-8205-412e-968d-f163fd726f5d",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "🧠 AI: Generate All Video Scripts",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -576,
+        128
+      ],
+      "id": "4b687100-91f8-4efc-a919-d7def20fd515",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nlet scripts;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  scripts = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  scripts = { parse_error: e.message };\n}\n\n// Build voiceover script for Pictory (full paragraph format)\nconst ytScenes = scripts.youtube_short?.scenes || [];\nconst pictoryScript = ytScenes.map(s => s.voiceover).join(' ');\n\n// Build storyboard text for InVideo\nconst ttScenes = scripts.tiktok_reels?.scenes || [];\nconst invideoStoryboard = ttScenes.map((s, i) => `[${s.time}] ${s.voiceover}`).join('\\n');\n\nreturn [{\n  json: {\n    scripts,\n    pictory_script: pictoryScript,\n    invideo_storyboard: invideoStoryboard,\n    blog_url: scripts.blog_url,\n    article_title: scripts.article_title,\n    youtube_short: scripts.youtube_short,\n    tiktok_reels: scripts.tiktok_reels,\n    explainer: scripts.explainer_video,\n    pinterest_pin: scripts.pinterest_pin\n  }\n}];"
+      },
+      "name": "📝 Parse Video Scripts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -384,
+        128
+      ],
+      "id": "fdbca8e0-e6a4-47fb-9cde-bdf45d883fb7",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://api.pictory.ai/pictoryapis/v1/video/storyboard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_PICTORY_ACCESS_TOKEN"
+            },
+            {
+              "name": "X-Pictory-User-Id",
+              "value": "YOUR_PICTORY_USER_ID"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"videoName\": \"{{ $json.article_title }}\",\n  \"videoDescription\": \"{{ $json.youtube_short?.description || '' }}\",\n  \"language\": \"en\",\n  \"videoWidth\": 1080,\n  \"videoHeight\": 1920,\n  \"scenes\": {{ JSON.stringify(($json.youtube_short?.scenes || []).map((s,i) => ({\n    \"text\": s.voiceover,\n    \"voiceOver\": true,\n    \"splitTextOnNewLine\": false,\n    \"splitTextOnPeriod\": false\n  }))) }}\n}",
+        "options": {}
+      },
+      "name": "🎥 Pictory: Create YT Short",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -176,
+        -32
+      ],
+      "id": "b62af567-f427-4c29-8a36-4bfb050fc19c",
+      "typeVersion": 4.1,
+      "notes": "Pictory API v1. Get credentials at app.pictory.ai/developer. Creates AI video from script."
+    },
+    {
+      "parameters": {
+        "url": "https://api.pictory.ai/pictoryapis/v1/video/storyboard",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_PICTORY_ACCESS_TOKEN"
+            },
+            {
+              "name": "X-Pictory-User-Id",
+              "value": "YOUR_PICTORY_USER_ID"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"videoName\": \"{{ $json.article_title }} - Full Guide\",\n  \"videoDescription\": \"Full explainer video\",\n  \"language\": \"en\",\n  \"videoWidth\": 1920,\n  \"videoHeight\": 1080,\n  \"scenes\": {{ JSON.stringify(($json.explainer?.sections || []).map(s => ({\n    \"text\": s.script,\n    \"voiceOver\": true,\n    \"splitTextOnNewLine\": true,\n    \"splitTextOnPeriod\": true\n  }))) }}\n}",
+        "options": {}
+      },
+      "name": "🎥 Pictory: Create Explainer",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -176,
+        128
+      ],
+      "id": "97004c00-d53c-4deb-aec9-58d83bc20fa3",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "https://api.invideo.io/v2/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_INVIDEO_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.article_title }}\",\n  \"description\": \"{{ $json.tiktok_reels?.caption || '' }}\",\n  \"script\": \"{{ $json.invideo_storyboard }}\",\n  \"aspect_ratio\": \"9:16\",\n  \"style\": \"trendy\",\n  \"voice\": \"en-US-female-1\",\n  \"music\": \"upbeat\",\n  \"captions\": true,\n  \"duration\": 45,\n  \"output_format\": \"mp4\"\n}",
+        "options": {}
+      },
+      "name": "🎬 InVideo: Create TikTok/Reel",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -176,
+        272
+      ],
+      "id": "2faa148d-5b76-480c-92a7-6d9435056775",
+      "typeVersion": 4.1,
+      "notes": "InVideo AI API. Get key at invideo.io/ai/api. Creates TikTok/Reel style video."
+    },
+    {
+      "parameters": {
+        "url": "https://api.klingai.com/v1/videos/text2video",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_KLING_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"kling-v1\",\n  \"prompt\": \"{{ ($json.youtube_short?.scenes?.[0]?.visual || 'Educational tutorial scene, bright clean professional setting, text overlays') + ' Style: modern tutorial video, clean minimal aesthetic, bright lighting' }}\",\n  \"negative_prompt\": \"blurry, dark, text errors, watermark\",\n  \"cfg_scale\": 0.5,\n  \"mode\": \"std\",\n  \"aspect_ratio\": \"9:16\",\n  \"duration\": \"5\",\n  \"camera_control\": {\n    \"type\": \"simple\",\n    \"config\": { \"horizontal\": 0, \"vertical\": 0, \"zoom\": 0 }\n  }\n}",
+        "options": {}
+      },
+      "name": "🤖 Kling AI: Generate B-Roll Clip",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -176,
+        432
+      ],
+      "id": "eef6bc8d-c6dc-4cea-84ab-6bc12ac0e6f2",
+      "typeVersion": 4.1,
+      "notes": "Kling AI text-to-video for cinematic B-roll. Get key at klingai.com/dev. Generates 5s clip."
+    },
+    {
+      "parameters": {
+        "url": "https://api.banana.dev/start/v4/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_BANANA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"modelKey\": \"YOUR_BANANA_MODEL_KEY\",\n  \"startOnly\": false,\n  \"modelInputs\": {\n    \"prompt\": \"{{ ($json.youtube_short?.scenes?.[0]?.visual || $json.article_title) + ', photorealistic, professional tutorial blog, bright studio lighting, 8k, sharp focus' }}\",\n    \"negative_prompt\": \"blurry, watermark, text, distorted, dark\",\n    \"num_inference_steps\": 30,\n    \"guidance_scale\": 7.5,\n    \"width\": 1080,\n    \"height\": 1920,\n    \"num_images_per_prompt\": 3\n  }\n}",
+        "options": {}
+      },
+      "name": "🍌 Banana.dev: Generate Thumbnails",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -176,
+        576
+      ],
+      "id": "9e609d7d-a57c-48ae-b3bf-666121a4896e",
+      "typeVersion": 4.1,
+      "notes": "Banana.dev runs Stable Diffusion as serverless API. Creates custom video thumbnails."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Poll Pictory for job status (it's async)\n// In production, use a Wait + HTTP check loop\nconst pictoryJobId = $('Pictory: Create YT Short').item.json.data?.jobId || \n                     $('Pictory: Create YT Short').item.json.jobId || 'pending';\n                     \nconst invideoJobId = $('InVideo: Create TikTok/Reel').item.json.video_id || \n                     $('InVideo: Create TikTok/Reel').item.json.id || 'pending';\n\nconst klingTaskId = $('Kling AI: Generate B-Roll Clip').item.json.data?.task_id || 'pending';\n\nconst bananaCallId = $('Banana.dev: Generate Thumbnails').item.json.callID || 'pending';\n\nreturn [{\n  json: {\n    pictory_job_id: pictoryJobId,\n    invideo_job_id: invideoJobId,\n    kling_task_id: klingTaskId,\n    banana_call_id: bananaCallId,\n    article_title: $('Parse Video Scripts').item.json.article_title,\n    blog_url: $('Parse Video Scripts').item.json.blog_url,\n    scripts: $('Parse Video Scripts').item.json.scripts,\n    status: 'processing',\n    initiated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "🔄 Collect Job IDs",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        32,
+        224
+      ],
+      "id": "ec1fae12-b022-4fa9-8d47-12f5024dac5e",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "amount": 15,
+        "unit": "minutes"
+      },
+      "name": "⏳ Wait 15 Min (Processing)",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        224,
+        224
+      ],
+      "id": "f33600e7-e2be-4cd4-91ba-8527270241b2",
+      "typeVersion": 1,
+      "webhookId": "video-wait-hook",
+      "notes": "Most video APIs take 5–20 min. Waits before fetching results."
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pictory.ai/pictoryapis/v1/video/jobs/{{ $json.pictory_job_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_PICTORY_ACCESS_TOKEN"
+            },
+            {
+              "name": "X-Pictory-User-Id",
+              "value": "YOUR_PICTORY_USER_ID"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "📥 Fetch Pictory Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        432,
+        80
+      ],
+      "id": "ef9b9b43-15f1-493d-9ca5-7e95569b07d3",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.klingai.com/v1/videos/text2video/{{ $json.kling_task_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_KLING_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "📥 Fetch Kling Result",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        432,
+        224
+      ],
+      "id": "54cc4c14-cefb-4476-9fa2-d01c75f9134d",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "=https://api.banana.dev/check/v4/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_BANANA_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"id\": \"{{ $json.banana_call_id }}\"}",
+        "options": {}
+      },
+      "name": "📥 Fetch Banana Thumbnails",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        432,
+        368
+      ],
+      "id": "f8abfd87-4453-48a1-908f-f4afe5fc0360",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble all video assets and build delivery package\nconst jobData = $('Collect Job IDs').item.json;\nconst pictoryResult = $('Fetch Pictory Result').item.json;\nconst klingResult = $('Fetch Kling Result').item.json;\nconst bananaResult = $('Fetch Banana Thumbnails').item.json;\n\nconst videoPackage = {\n  article_title: jobData.article_title,\n  blog_url: jobData.blog_url,\n  generated_at: new Date().toISOString(),\n  videos: {\n    youtube_short: {\n      url: pictoryResult?.data?.videoURL || pictoryResult?.videoURL || 'processing',\n      thumbnail: bananaResult?.modelOutputs?.[0]?.image_base64 ? 'generated' : 'pending',\n      title: jobData.scripts?.youtube_short?.title,\n      description: jobData.scripts?.youtube_short?.description,\n      tags: jobData.scripts?.youtube_short?.tags,\n      status: pictoryResult?.data?.videoURL ? 'ready' : 'processing'\n    },\n    tiktok_reel: {\n      job_id: jobData.invideo_job_id,\n      caption: jobData.scripts?.tiktok_reels?.caption,\n      hashtags: jobData.scripts?.tiktok_reels?.hashtags,\n      status: 'processing'\n    },\n    broll_clip: {\n      url: klingResult?.data?.video_url || 'processing',\n      status: klingResult?.data?.task_status === 'succeed' ? 'ready' : 'processing'\n    }\n  },\n  scripts_saved: true\n};\n\nreturn [{ json: videoPackage }];"
+      },
+      "name": "📦 Assemble Video Package",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        624,
+        224
+      ],
+      "id": "5bb6f2ef-8c78-413b-88f1-89ad89efad63",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Video Production",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Article Title": "={{ $json.article_title }}",
+            "Blog URL": "={{ $json.blog_url }}",
+            "YT Short URL": "={{ $json.videos.youtube_short.url }}",
+            "YT Short Title": "={{ $json.videos.youtube_short.title }}",
+            "YT Short Status": "={{ $json.videos.youtube_short.status }}",
+            "TikTok Job ID": "={{ $json.videos.tiktok_reel.job_id }}",
+            "TikTok Status": "={{ $json.videos.tiktok_reel.status }}",
+            "B-Roll URL": "={{ $json.videos.broll_clip.url }}",
+            "B-Roll Status": "={{ $json.videos.broll_clip.status }}",
+            "Scripts Saved": "TRUE",
+            "Overall Status": "Processing"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Video Production",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        832,
+        224
+      ],
+      "id": "505cfc4b-d47d-4c8f-8c52-cdf3feae288d",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Reels Scripts",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Article": "={{ $('Parse Video Scripts').item.json.article_title }}",
+            "YT Short Script": "={{ JSON.stringify($('Parse Video Scripts').item.json.scripts?.youtube_short?.scenes) }}",
+            "TikTok Script": "={{ JSON.stringify($('Parse Video Scripts').item.json.scripts?.tiktok_reels?.scenes) }}",
+            "Explainer Script": "={{ JSON.stringify($('Parse Video Scripts').item.json.scripts?.explainer_video?.sections) }}",
+            "Pinterest Script": "={{ JSON.stringify($('Parse Video Scripts').item.json.scripts?.pinterest_pin?.text_slides) }}",
+            "Blog URL": "={{ $('Parse Video Scripts').item.json.blog_url }}",
+            "Platforms": "YT Shorts, TikTok, IG Reels, Pinterest"
+          }
+        },
+        "options": {}
+      },
+      "name": "💾 Save All Scripts to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        832,
+        432
+      ],
+      "id": "94097269-6da0-444c-9cf1-7a5c8ca81432",
+      "typeVersion": 4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🎬 Video Pipeline Trigger (Daily 10:30AM)": {
+      "main": [
+        [
+          {
+            "node": "📄 Get Today's Published Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Get Today's Published Post": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Full Article Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Parse Video Scripts": {
+      "main": [
+        [
+          {
+            "node": "🎥 Pictory: Create YT Short",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎥 Pictory: Create Explainer",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎬 InVideo: Create TikTok/Reel",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🤖 Kling AI: Generate B-Roll Clip",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🍌 Banana.dev: Generate Thumbnails",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💾 Save All Scripts to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎥 Pictory: Create YT Short": {
+      "main": [
+        [
+          {
+            "node": "🔄 Collect Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎬 InVideo: Create TikTok/Reel": {
+      "main": [
+        [
+          {
+            "node": "🔄 Collect Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Kling AI: Generate B-Roll Clip": {
+      "main": [
+        [
+          {
+            "node": "🔄 Collect Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🍌 Banana.dev: Generate Thumbnails": {
+      "main": [
+        [
+          {
+            "node": "🔄 Collect Job IDs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Collect Job IDs": {
+      "main": [
+        [
+          {
+            "node": "⏳ Wait 15 Min (Processing)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏳ Wait 15 Min (Processing)": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Pictory Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📥 Fetch Kling Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📥 Fetch Banana Thumbnails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch Pictory Result": {
+      "main": [
+        [
+          {
+            "node": "📦 Assemble Video Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch Kling Result": {
+      "main": [
+        [
+          {
+            "node": "📦 Assemble Video Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch Banana Thumbnails": {
+      "main": [
+        [
+          {
+            "node": "📦 Assemble Video Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Assemble Video Package": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Video Production",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "506b4b1c-0869-4126-9d4a-a8cbe53f49ff",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "nCj1hE1Ja9q1u19P",
+  "tags": []
+}

@@ -1,0 +1,54 @@
+---
+name: ollama-json-only
+description: When configuring or prompting Ollama (or other local LLMs) in n8n for JSON-only output—model settings, prompt wording, schema enforcement, and validation. Apply when editing workflow JSON that contains Ollama/LLM nodes or when drafting prompts that must return only valid JSON (no markdown, no prose).
+globs:
+  - "**/*workflow*.json"
+  - "**/*.json"
+alwaysApply: false
+---
+
+# Overview
+
+## Default Model
+
+- qwen2.5:7b
+
+## Runtime Settings
+
+- temperature: 0.2
+- top_p: 0.9
+- num_ctx: 4096
+
+## Mandatory Prompt Header
+
+Return only valid JSON.
+No text.
+No markdown.
+No explanations.
+
+## Enforcement Rules
+
+- Always pass a schema.
+- Always set max tokens.
+- Reject responses with:
+  - Leading text
+  - Trailing text
+  - Invalid JSON
+
+## n8n Integration Rules
+
+- One request per task.
+- No multi-turn state.
+- Validate output before use.
+
+## Fallback Strategy
+
+- Retry once with stricter wording.
+- If still invalid, return structured error.
+
+## Forbidden
+
+- Free-form prose.
+- Mixed output types.
+- Implicit formatting.
+

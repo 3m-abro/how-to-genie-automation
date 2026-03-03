@@ -1,0 +1,510 @@
+{
+  "name": "HowTo-Genie v4.0 — Multi-Language Expansion Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 14 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🌍 Translation Pipeline Trigger (2PM Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -1792,
+        304
+      ],
+      "id": "77916498-d434-48e8-9944-978c872602b3",
+      "typeVersion": 1,
+      "notes": "Runs 6 hours after main pipeline to allow English post to be published first."
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Content Log",
+        "options": {}
+      },
+      "name": "📄 Get Today's English Post",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1600,
+        304
+      ],
+      "id": "c03f00a9-2e1b-498a-a10e-c13bc69a42b1",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/posts?slug={{ $json['WP URL']?.split('/').filter(Boolean).pop() }}",
+        "options": {}
+      },
+      "name": "📥 Fetch English Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1392,
+        304
+      ],
+      "id": "7c9a2550-4fd8-4c41-bced-dbf8e36d26bf",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare source article data for translation\nconst post = $input.first().json[0] || $input.first().json;\n\nconst cleanContent = (post?.content?.rendered || '')\n  .replace(/<[^>]*>/g, '\\n')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\nconst sourceData = {\n  post_id: post?.id,\n  title: post?.title?.rendered,\n  content: cleanContent,\n  excerpt: post?.excerpt?.rendered?.replace(/<[^>]*>/g, '').trim(),\n  slug: post?.slug,\n  url: post?.link,\n  categories: post?.categories || [],\n  tags: post?.tags || [],\n  featured_image: post?.featured_media,\n  word_count: cleanContent.split(' ').length,\n  meta_description: post?.yoast_meta?.yoast_wpseo_metadesc || '',\n  focus_keyword: post?.yoast_meta?.yoast_wpseo_focuskw || ''\n};\n\n// Target languages with config\nconst targetLanguages = [\n  { code: 'es', name: 'Spanish', country: 'Spain/LATAM', subdomain: 'es', currency: 'EUR/USD', temp: 0.7 },\n  { code: 'pt-BR', name: 'Portuguese', country: 'Brazil', subdomain: 'pt', currency: 'BRL', temp: 0.7 },\n  { code: 'de', name: 'German', country: 'Germany', subdomain: 'de', currency: 'EUR', temp: 0.6 },\n  { code: 'fr', name: 'French', country: 'France', subdomain: 'fr', currency: 'EUR', temp: 0.7 },\n  { code: 'hi', name: 'Hindi', country: 'India', subdomain: 'hi', currency: 'INR', temp: 0.8 },\n  { code: 'id', name: 'Indonesian', country: 'Indonesia', subdomain: 'id', currency: 'IDR', temp: 0.8 },\n  { code: 'ar', name: 'Arabic', country: 'Saudi Arabia/UAE', subdomain: 'ar', currency: 'SAR/AED', temp: 0.7 },\n  { code: 'ja', name: 'Japanese', country: 'Japan', subdomain: 'ja', currency: 'JPY', temp: 0.6 }\n];\n\nreturn targetLanguages.map(lang => ({\n  json: {\n    ...sourceData,\n    target_language: lang.code,\n    target_name: lang.name,\n    target_country: lang.country,\n    target_subdomain: lang.subdomain,\n    target_currency: lang.currency,\n    translation_temp: lang.temp\n  }\n}));"
+      },
+      "name": "🔀 Split Into 8 Languages",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1200,
+        304
+      ],
+      "id": "3f03af9e-6f38-4e5c-a798-a52ffc4595a3",
+      "typeVersion": 2,
+      "notes": "Creates 8 parallel translation jobs — one per language."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": "={{ $json.translation_temp }}"
+        }
+      },
+      "name": "🌐 AI: Translate + Culturally Adapt",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -992,
+        304
+      ],
+      "id": "625fc96e-29ce-4470-a483-29475381b744",
+      "typeVersion": 1,
+      "notes": "Uses Ollama llama3.2 for native translation. Supports 100+ languages natively."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse translation and prepare for WordPress MultiSite or subdomain\nconst raw = $input.first().json.response || '';\nconst sourceData = $input.first().json;\n\nlet translation;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  translation = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  translation = {\n    translated_title: sourceData.title + ' (' + sourceData.target_name + ')',\n    translated_content: sourceData.content,\n    translated_excerpt: sourceData.excerpt,\n    parse_error: e.message\n  };\n}\n\n// Build localized affiliate links\nconst localAffiliateNetworks = {\n  'es': { primary: 'Digistore24', secondary: 'ClickBank', note: 'Spain + LATAM' },\n  'pt-BR': { primary: 'Hotmart', secondary: 'Monetizze', note: 'Brazil-specific networks' },\n  'de': { primary: 'Digistore24', secondary: 'CopeCart', note: 'German market leaders' },\n  'fr': { primary: 'Digistore24', secondary: '1TPE', note: 'French networks' },\n  'hi': { primary: 'vCommission', secondary: 'AdmitAd', note: 'Indian networks' },\n  'id': { primary: 'Ratakan', secondary: 'Involve Asia', note: 'Indonesian networks' },\n  'ar': { primary: 'Admitad', secondary: 'ArabClicks', note: 'Arabic affiliate networks' },\n  'ja': { primary: 'A8.net', secondary: 'ValueCommerce', note: 'Top Japanese networks' }\n};\n\nconst affiliateConfig = localAffiliateNetworks[sourceData.target_language] || \n  { primary: 'ClickBank', secondary: 'JVZoo', note: 'International fallback' };\n\nconst translatedPost = {\n  source_post_id: sourceData.post_id,\n  language_code: sourceData.target_language,\n  language_name: sourceData.target_name,\n  country: sourceData.target_country,\n  subdomain: sourceData.target_subdomain,\n  currency: sourceData.target_currency,\n  \n  title: translation.translated_title,\n  content: translation.translated_content,\n  excerpt: translation.translated_excerpt,\n  meta_description: translation.translated_meta_description,\n  slug: translation.translated_slug,\n  keywords: translation.local_keywords || [],\n  \n  affiliate_networks: affiliateConfig,\n  translation_quality: translation.translation_quality_score || 0,\n  cultural_adaptations: translation.cultural_adaptations_made || [],\n  \n  wp_url: `https://${sourceData.target_subdomain}.howtogenie.com/`,\n  hreflang_tag: sourceData.target_language,\n  \n  status: 'ready_to_publish',\n  translated_at: new Date().toISOString()\n};\n\nreturn [{ json: translatedPost }];"
+      },
+      "name": "🔧 Build Localized Post",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -800,
+        304
+      ],
+      "id": "6336da2e-e844-4aa4-94e8-6044d8da3dd2",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "💰 AI: Find Local Affiliate Products",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -592,
+        304
+      ],
+      "id": "3e755851-2fdf-428d-bbc7-47247321c50f",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {},
+      "name": "🔀 Route by Language",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -400,
+        304
+      ],
+      "id": "1f003cdb-361d-4df5-badd-1b786e191021",
+      "typeVersion": 1,
+      "notes": "Routes to language-specific WordPress installations (subdomains or multisite)."
+    },
+    {
+      "parameters": {
+        "url": "=https://es.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"excerpt\": \"{{ $json.excerpt }}\",\n  \"lang\": \"es\",\n  \"meta\": {\n    \"_yoast_wpseo_title\": \"{{ $json.title }}\",\n    \"_yoast_wpseo_metadesc\": \"{{ $json.meta_description }}\"\n  }\n}",
+        "options": {}
+      },
+      "name": "🇪🇸 Publish to Spanish Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        0
+      ],
+      "id": "0ae3dc6f-2728-4ab2-8b3a-7c26462c431a",
+      "typeVersion": 4.1,
+      "notes": "Spanish subdomain: es.howtogenie.com"
+    },
+    {
+      "parameters": {
+        "url": "=https://pt.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"pt-BR\"\n}",
+        "options": {}
+      },
+      "name": "🇧🇷 Publish to Portuguese Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        112
+      ],
+      "id": "d617304e-9f41-4748-b546-2c02fb2d74c9",
+      "typeVersion": 4.1,
+      "notes": "Portuguese subdomain: pt.howtogenie.com"
+    },
+    {
+      "parameters": {
+        "url": "=https://de.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"de\"\n}",
+        "options": {}
+      },
+      "name": "🇩🇪 Publish to German Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        208
+      ],
+      "id": "7c0ece5a-42f0-4020-a4e9-6362efe6a554",
+      "typeVersion": 4.1,
+      "notes": "German subdomain: de.howtogenie.com — Highest AdSense CPM!"
+    },
+    {
+      "parameters": {
+        "url": "=https://fr.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"fr\"\n}",
+        "options": {}
+      },
+      "name": "🇫🇷 Publish to French Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        304
+      ],
+      "id": "2f343fd8-e0ff-49f3-a7ad-2e58db0c4d52",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "=https://hi.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"hi\"\n}",
+        "options": {}
+      },
+      "name": "🇮🇳 Publish to Hindi Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        400
+      ],
+      "id": "5b45e1a1-a6d4-4f8f-9989-a049966463f0",
+      "typeVersion": 4.1,
+      "notes": "Hindi subdomain: hi.howtogenie.com — 600M+ potential readers"
+    },
+    {
+      "parameters": {
+        "url": "=https://id.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"id\"\n}",
+        "options": {}
+      },
+      "name": "🇮🇩 Publish to Indonesian Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        512
+      ],
+      "id": "5716eba4-7fcb-4061-8090-81db0108b647",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "=https://ar.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"ar\"\n}",
+        "options": {}
+      },
+      "name": "🇸🇦 Publish to Arabic Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        608
+      ],
+      "id": "18102941-9fe9-4d77-a256-6cb594e1e354",
+      "typeVersion": 4.1,
+      "notes": "Arabic subdomain: ar.howtogenie.com — Gulf states = high purchasing power"
+    },
+    {
+      "parameters": {
+        "url": "=https://ja.howtogenie.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $json.title }}\",\n  \"content\": \"{{ $json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $json.slug }}\",\n  \"status\": \"publish\",\n  \"lang\": \"ja\"\n}",
+        "options": {}
+      },
+      "name": "🇯🇵 Publish to Japanese Site",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -192,
+        704
+      ],
+      "id": "d67e2fe8-314b-4387-ac4e-cbbd95e67f74",
+      "typeVersion": 4.1,
+      "notes": "Japanese subdomain: ja.howtogenie.com — Highest affiliate payouts in Asia"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Multilingual Content",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "English Post ID": "={{ $('Build Localized Post').item.json.source_post_id }}",
+            "Language": "={{ $('Build Localized Post').item.json.language_name }}",
+            "Country": "={{ $('Build Localized Post').item.json.country }}",
+            "Translated Title": "={{ $('Build Localized Post').item.json.title }}",
+            "URL": "={{ $('Build Localized Post').item.json.wp_url }}{{ $('Build Localized Post').item.json.slug }}",
+            "Translation Quality": "={{ $('Build Localized Post').item.json.translation_quality }}%",
+            "Local Keywords": "={{ $('Build Localized Post').item.json.keywords.join(', ') }}",
+            "Affiliate Networks": "={{ $('Build Localized Post').item.json.affiliate_networks.primary }}, {{ $('Build Localized Post').item.json.affiliate_networks.secondary }}",
+            "Cultural Adaptations": "={{ $('Build Localized Post').item.json.cultural_adaptations.length }}",
+            "Status": "Published"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Translated Posts",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        16,
+        304
+      ],
+      "id": "3edd1e40-9381-46c7-bdae-b1f587ec037f",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Add hreflang tags to ALL versions (critical for international SEO)\nconst allVersions = $input.all().map(item => item.json);\n\nconst hreflangLinks = allVersions.map(v => ({\n  lang: v.language_code,\n  url: `${v.wp_url}${v.slug}`\n}));\n\n// Also add the English original\nhreflangLinks.unshift({\n  lang: 'en',\n  url: $('Fetch English Article').item.json[0]?.link || 'https://howtogenie.com'\n});\n\n// Generate hreflang HTML tags\nconst hreflangHTML = hreflangLinks\n  .map(link => `<link rel=\"alternate\" hreflang=\"${link.lang}\" href=\"${link.url}\" />`)\n  .join('\\n');\n\nreturn [{\n  json: {\n    hreflang_tags: hreflangHTML,\n    total_languages: hreflangLinks.length,\n    languages: hreflangLinks.map(l => l.lang).join(', '),\n    instruction: 'Add these hreflang tags to <head> of ALL language versions for proper SEO'\n  }\n}];"
+      },
+      "name": "🔗 Generate Hreflang Tags",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        208,
+        304
+      ],
+      "id": "b0459d16-871b-4339-85e5-424c80f73fcf",
+      "typeVersion": 2,
+      "notes": "Critical for international SEO. Tells Google which language versions exist."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🌍 Translation Pipeline Trigger (2PM Daily)": {
+      "main": [
+        [
+          {
+            "node": "📄 Get Today's English Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Get Today's English Post": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch English Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch English Article": {
+      "main": [
+        [
+          {
+            "node": "🔀 Split Into 8 Languages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route by Language": {
+      "main": [
+        [
+          {
+            "node": "🇪🇸 Publish to Spanish Site",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🇧🇷 Publish to Portuguese Site",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🇩🇪 Publish to German Site",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🇫🇷 Publish to French Site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇪🇸 Publish to Spanish Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇧🇷 Publish to Portuguese Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇩🇪 Publish to German Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇫🇷 Publish to French Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇮🇳 Publish to Hindi Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇮🇩 Publish to Indonesian Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇸🇦 Publish to Arabic Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🇯🇵 Publish to Japanese Site": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Translated Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Log Translated Posts": {
+      "main": [
+        [
+          {
+            "node": "🔗 Generate Hreflang Tags",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e8cbce43-5c1f-4b7f-894f-afb7fde736ed",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "cjQeOUIEVWaxZbZ7",
+  "tags": []
+}

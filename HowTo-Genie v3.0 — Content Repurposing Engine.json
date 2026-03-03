@@ -1,0 +1,317 @@
+{
+  "name": "HowTo-Genie v3.0 — Content Repurposing Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 12 * * *"
+            }
+          ]
+        }
+      },
+      "name": "⚙️ Repurposing Trigger (Noon Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -928,
+        224
+      ],
+      "id": "686655db-38a6-4b15-86fc-5e1b9aefb4d5",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Content Log",
+        "options": {}
+      },
+      "name": "📄 Get Today's Post Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -736,
+        224
+      ],
+      "id": "c23188f1-b490-438c-af5f-0438bd923f3b",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/posts?slug={{ $json['WP URL']?.split('/').filter(Boolean).pop() }}",
+        "options": {}
+      },
+      "name": "📥 Fetch Full Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -528,
+        224
+      ],
+      "id": "25b9bde3-6226-49c8-8dd3-75a6a50959c6",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Clean and prepare article for repurposing\nconst post = $input.first().json[0] || $input.first().json;\nconst rawContent = post?.content?.rendered || post?.content || '';\n\n// Strip HTML tags\nconst cleanContent = rawContent\n  .replace(/<[^>]*>/g, ' ')\n  .replace(/&nbsp;/g, ' ')\n  .replace(/&amp;/g, '&')\n  .replace(/&lt;/g, '<')\n  .replace(/&gt;/g, '>')\n  .replace(/\\s+/g, ' ')\n  .trim();\n\n// Extract key sections\nconst title = post?.title?.rendered || 'Article';\nconst url = post?.link || 'https://howtogenie.com';\nconst excerpt = post?.excerpt?.rendered?.replace(/<[^>]*>/g,'').trim() || cleanContent.substring(0,200);\nconst wordCount = cleanContent.split(' ').length;\n\n// Extract headings for structure\nconst headingMatches = rawContent.match(/<h[23][^>]*>(.*?)<\\/h[23]>/gi) || [];\nconst headings = headingMatches.map(h => h.replace(/<[^>]*>/g,'').trim());\n\nreturn [{ json: {\n  title,\n  url,\n  excerpt,\n  clean_content: cleanContent.substring(0, 5000), // Limit for AI context\n  word_count: wordCount,\n  headings,\n  post_id: post?.id,\n  categories: post?.categories || [],\n  tags: post?.tags || []\n}}];"
+      },
+      "name": "🧹 Clean & Extract Article",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -336,
+        224
+      ],
+      "id": "ecc120ac-199b-4914-894a-3b7334cbdaa5",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.85
+        }
+      },
+      "name": "🐦 AI: Create Twitter Thread",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        -80
+      ],
+      "id": "19f44fe2-2512-4265-8f6d-ec9a1c3ed30f",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.75
+        }
+      },
+      "name": "💼 AI: Create LinkedIn Article",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        80
+      ],
+      "id": "46d9a2fe-df1b-42d0-8781-3f4ffebaf0d3",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "📸 AI: Create IG Carousel",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        224
+      ],
+      "id": "4dd81d8a-bde2-4ea9-8309-f247ba9c9dc4",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.75
+        }
+      },
+      "name": "🎙️ AI: Create Podcast Script",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        384
+      ],
+      "id": "4a6ac655-4823-4c44-97ed-86a4a01a75a0",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🌐 AI: Create Community Content",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        528
+      ],
+      "id": "ac4f48bb-b9c5-4f91-9569-6625c7c56e79",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all 10 repurposed content assets\nconst article = $('Clean & Extract Article').item.json;\n\nconst parseAI = (raw) => {\n  try {\n    const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n    return JSON.parse(match ? (match[1] || match[0]) : raw);\n  } catch(e) { return { error: e.message }; }\n};\n\nconst twitter = parseAI($('AI: Create Twitter Thread').item.json.response);\nconst linkedin = parseAI($('AI: Create LinkedIn Article').item.json.response);\nconst carousel = parseAI($('AI: Create IG Carousel').item.json.response);\nconst podcast = parseAI($('AI: Create Podcast Script').item.json.response);\nconst community = parseAI($('AI: Create Community Content').item.json.response);\n\nconst contentPackage = {\n  source_article: { title: article.title, url: article.url, word_count: article.word_count },\n  generated_at: new Date().toISOString(),\n  assets: {\n    asset_1_twitter_thread: { type: 'Twitter Thread', tweets: twitter.tweets?.length || 0, data: twitter },\n    asset_2_linkedin_article: { type: 'LinkedIn Article', words: linkedin.article_body?.split(' ').length || 0, data: linkedin },\n    asset_3_ig_carousel: { type: 'Instagram Carousel', slides: carousel.slides?.length || 0, data: carousel },\n    asset_4_podcast_script: { type: 'Podcast Script', duration: podcast.duration_estimate, data: podcast },\n    asset_5_quora_answer: { type: 'Quora Answer', data: community?.quora },\n    asset_6_reddit_post: { type: 'Reddit Post', data: community?.reddit },\n    asset_7_facebook_group: { type: 'Facebook Group Post', data: community?.facebook_group },\n    asset_8_medium_post: { type: 'Medium Republication', data: community?.medium },\n    asset_9_email_snippet: { type: 'Newsletter Snippet', text: linkedin.opening_hook + '...' },\n    asset_10_pinterest_infographic: { type: 'Pinterest Board', data: carousel.slides?.slice(0,5) }\n  },\n  total_assets: 10,\n  total_platforms: ['Twitter/X','LinkedIn','Instagram','Podcast','Quora','Reddit','Facebook Group','Medium','Newsletter','Pinterest']\n};\n\nreturn [{ json: contentPackage }];"
+      },
+      "name": "📦 Assemble 10 Content Assets",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        80,
+        224
+      ],
+      "id": "2408a97d-c71a-4858-aa20-c7d880b72211",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Repurposed Content",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Source Article": "={{ $json.source_article.title }}",
+            "Source URL": "={{ $json.source_article.url }}",
+            "Twitter Tweets": "={{ $json.assets.asset_1_twitter_thread.tweets }}",
+            "LinkedIn Words": "={{ $json.assets.asset_2_linkedin_article.words }}",
+            "IG Slides": "={{ $json.assets.asset_3_ig_carousel.slides }}",
+            "Podcast Duration": "={{ $json.assets.asset_4_podcast_script.duration }}",
+            "Total Assets": "={{ $json.total_assets }}",
+            "Platforms": "={{ $json.total_platforms.join(', ') }}",
+            "Status": "Generated",
+            "Full JSON": "={{ JSON.stringify($json.assets).substring(0,5000) }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log to Repurposed Content Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        272,
+        224
+      ],
+      "id": "67d529eb-9e72-48ca-8f5f-ea03b715114f",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Twitter Queue",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Article": "={{ $json.source_article.title }}",
+            "Tweet 1 (Hook)": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[0]?.text }}",
+            "Tweet 2": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[1]?.text }}",
+            "Tweet 3": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[2]?.text }}",
+            "Thread Count": "={{ $json.assets.asset_1_twitter_thread.tweets }}",
+            "Status": "Ready to Post"
+          }
+        },
+        "options": {}
+      },
+      "name": "🐦 Save Twitter Thread Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        272,
+        80
+      ],
+      "id": "f6a04420-216a-43b5-aea4-f01453afaaa5",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Podcast Queue",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Episode Title": "={{ $json.assets.asset_4_podcast_script.data?.episode_title }}",
+            "Duration": "={{ $json.assets.asset_4_podcast_script.duration }}",
+            "Script Preview": "={{ $json.assets.asset_4_podcast_script.data?.full_script?.substring(0,500) }}",
+            "Show Notes": "={{ $json.assets.asset_4_podcast_script.data?.show_notes }}",
+            "Blog URL": "={{ $json.source_article.url }}",
+            "Status": "Script Ready — Record Now"
+          }
+        },
+        "options": {}
+      },
+      "name": "🎙️ Save Podcast Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        272,
+        384
+      ],
+      "id": "e2b49d79-8323-434c-ba3f-b7e0a3503249",
+      "typeVersion": 4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⚙️ Repurposing Trigger (Noon Daily)": {
+      "main": [
+        [
+          {
+            "node": "📄 Get Today's Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Get Today's Post Data": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Full Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📥 Fetch Full Article": {
+      "main": [
+        [
+          {
+            "node": "🧹 Clean & Extract Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Assemble 10 Content Assets": {
+      "main": [
+        [
+          {
+            "node": "📊 Log to Repurposed Content Sheet",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🐦 Save Twitter Thread Queue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🎙️ Save Podcast Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "c7ea02d8-9cd4-4ee3-9ae3-961fb9449554",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "L0LWCdVwb5wqBkBL",
+  "tags": []
+}

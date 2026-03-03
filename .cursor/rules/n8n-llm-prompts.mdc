@@ -1,0 +1,96 @@
+---
+description: "LLM prompt standards for n8n: JSON-only output, exact response schemas, and templates for extraction, content creation, social posts, and code. Use when editing n8n workflows with AI/LLM nodes or writing/refining prompts for those nodes."
+globs: ["**/*workflow*.json", "**/workflows/**/*.json"]
+alwaysApply: false
+---
+# Overview
+
+## Global Rules
+
+- Output JSON only.
+- No markdown.
+- No explanations.
+- No extra keys.
+
+## Extraction Template
+
+Output JSON only.
+Follow this schema exactly.
+
+Schema:
+{
+  "success": true,
+  "data": {
+    "entities": [],
+    "summary": ""
+  },
+  "error": null
+}
+
+Instructions:
+- Extract entities from input.
+- Keep original wording.
+- Do not infer missing data.
+
+## Content Creation Template
+
+Output JSON only.
+Follow this schema exactly.
+
+Schema:
+{
+  "success": true,
+  "data": {
+    "title": "",
+    "body": "",
+    "hashtags": []
+  },
+  "error": null
+}
+
+Instructions:
+- Write for the specified platform.
+- Keep tone neutral.
+- No emojis unless requested.
+
+## Social Media Posting Template
+
+Output JSON only.
+Follow this schema exactly.
+
+Schema:
+{
+  "success": true,
+  "data": {
+    "post": "",
+    "cta": "",
+    "schedule": ""
+  },
+  "error": null
+}
+
+Instructions:
+- Respect character limits.
+- No URLs unless provided.
+- No assumptions.
+
+## Coding Template
+
+Output JSON only.
+Follow this schema exactly.
+
+Schema:
+{
+  "success": true,
+  "data": {
+    "language": "",
+    "code": ""
+  },
+  "error": null
+}
+
+Instructions:
+- Produce runnable code.
+- No comments unless requested.
+- No placeholders.
+

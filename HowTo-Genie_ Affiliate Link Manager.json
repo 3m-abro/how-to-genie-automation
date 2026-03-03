@@ -1,0 +1,89 @@
+{
+  "name": "HowTo-Genie: Affiliate Link Manager",
+  "nodes": [
+    {
+      "parameters": {
+        "jsCode": "// Affiliate Link Database\n// Update these with your actual affiliate links\n\nconst affiliateDB = {\n  clickbank: {\n    base_url: 'https://your-clickbank-id.vendor.hop.clickbank.net',\n    tracking_id: 'YOUR_CLICKBANK_ID'\n  },\n  jvzoo: {\n    base_url: 'https://jvzoo.com/b/',\n    tracking_id: 'YOUR_JVZOO_ID'\n  },\n  muncheye: {\n    scrape_url: 'https://muncheye.com/category/all-launches',\n    note: 'Monitor for new product launches daily'\n  }\n};\n\n// Product categories and their affiliate matches\nconst productCategories = {\n  tech_tools: [\n    { name: 'SEO Tool', link: 'YOUR_AFFILIATE_LINK', commission: '40%' },\n    { name: 'Hosting', link: 'YOUR_AFFILIATE_LINK', commission: '65%' }\n  ],\n  business: [\n    { name: 'Email Marketing', link: 'YOUR_AFFILIATE_LINK', commission: '30%' },\n    { name: 'Course Platform', link: 'YOUR_AFFILIATE_LINK', commission: '50%' }\n  ],\n  productivity: [\n    { name: 'Project Management', link: 'YOUR_AFFILIATE_LINK', commission: '25%' },\n    { name: 'AI Writing Tool', link: 'YOUR_AFFILIATE_LINK', commission: '40%' }\n  ]\n};\n\nreturn [{ json: { affiliateDB, productCategories } }];"
+      },
+      "name": "Affiliate Link Database",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -576,
+        -16
+      ],
+      "id": "83c38be0-6060-4a26-a85e-02f07ecfafb0",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "https://muncheye.com/feed",
+        "options": {}
+      },
+      "name": "Fetch Muncheye Launches",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -368,
+        -112
+      ],
+      "id": "f12fbdd8-2086-4b2e-a2a6-b5c72c0b84c3",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "url": "https://www.cbengine.com/feeds/cbengine.xml",
+        "options": {}
+      },
+      "name": "Fetch CBEngine Products",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -368,
+        96
+      ],
+      "id": "52fbdba3-a2d1-4955-8a83-621cc2ece0cc",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "name": "AI: Analyze Affiliate Products",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -128,
+        -16
+      ],
+      "id": "3beaa309-0957-4116-8c1f-53a4417a5f62",
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Affiliate Link Database": {
+      "main": [
+        [
+          {
+            "node": "Fetch Muncheye Launches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "05336867-555d-44ec-b39b-07c24721ad04",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "moVk3PQrXB3dpoMr",
+  "tags": []
+}

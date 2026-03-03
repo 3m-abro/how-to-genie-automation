@@ -1,0 +1,67 @@
+---
+description: "JSON contract and schema rules for n8n workflows: LLM output schemas, success/error response shape, validation in IF/Code nodes, and strict typing (no partial objects or implicit defaults)."
+globs:
+  - "**/*workflow*.json"
+  - "**/*.json"
+alwaysApply: false
+---
+# Overview
+
+## Mandatory Behavior
+
+- Every LLM call must define a schema.
+- Reject output if:
+  - Any field is missing.
+  - Any extra field exists.
+  - Types do not match.
+- Empty values must be explicit.
+  - Use "" for strings.
+  - Use [] for arrays.
+  - Use null only if allowed.
+
+## Example Schema Pattern
+
+{
+  "success": true,
+  "data": {
+    "title": "",
+    "summary": "",
+    "items": []
+  },
+  "error": null
+}
+
+## Validation Rules
+
+- success is boolean.
+- data is null when success is false.
+- error is null when success is true.
+- Never mix data and error.
+
+## n8n Enforcement Pattern
+
+- LLM node returns JSON.
+- IF node checks:
+  - success === true
+- Code node validates:
+  - Object keys
+  - Array types
+  - String types
+- Fail fast on mismatch.
+
+## Failure Output Schema
+
+{
+  "success": false,
+  "data": null,
+  "error": {
+    "code": "",
+    "message": ""
+  }
+}
+
+## Forbidden
+
+- Partial objects.
+- Implicit defaults.
+- Human-readable errors.

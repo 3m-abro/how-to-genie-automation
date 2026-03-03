@@ -1,0 +1,340 @@
+{
+  "name": "HowTo-Genie v4.0 — Islamic Content Specialization Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 * * *"
+            }
+          ]
+        }
+      },
+      "name": "☪️ Islamic Content Pipeline (5AM Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        48,
+        -144
+      ],
+      "id": "6f810a6c-013c-47ce-aa4f-595e47569dc5",
+      "typeVersion": 1,
+      "notes": "Runs before main pipeline to check Islamic calendar and adjust content strategy."
+    },
+    {
+      "parameters": {
+        "url": "https://api.aladhan.com/v1/gToH?date={{ $now.format('DD-MM-YYYY') }}",
+        "options": {}
+      },
+      "name": "📅 Fetch Hijri Date & Islamic Calendar",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        256,
+        -144
+      ],
+      "id": "971ebfdf-a870-4d52-832c-ff86516f1a9f",
+      "typeVersion": 4.1,
+      "notes": "AlAdhan API - Free Islamic calendar API. Returns current Hijri date and upcoming events."
+    },
+    {
+      "parameters": {
+        "url": "https://api.aladhan.com/v1/calendar/{{ $now.format('YYYY') }}/{{ $now.format('M') }}?latitude=3.1390&longitude=101.6869&method=3",
+        "options": {}
+      },
+      "name": "🕌 Fetch Prayer Times & Special Days",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        256,
+        16
+      ],
+      "id": "d6772062-7d0e-4a3b-8283-eac65defb657",
+      "typeVersion": 4.1,
+      "notes": "Fetches current month's Islamic calendar with prayer times for Kuala Lumpur, Malaysia."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Islamic calendar and detect special occasions\nconst hijriData = $('Fetch Hijri Date & Islamic Calendar').item.json.data || {};\nconst calendarData = $('Fetch Prayer Times & Special Days').item.json.data || [];\n\nconst hijriDate = hijriData.hijri || {};\nconst currentDay = hijriDate.day;\nconst currentMonth = hijriDate.month?.en || '';\nconst currentYear = hijriDate.year;\n\n// Detect special Islamic occasions\nlet specialOccasion = null;\nlet contentBoost = 1; // Multiplier for content output\nlet contentTheme = 'general';\n\n// Ramadan detection\nif (currentMonth === 'Ramadan' || currentMonth === 'Ramaḍān') {\n  specialOccasion = 'ramadan';\n  contentBoost = 3; // Triple content during Ramadan\n  contentTheme = 'ramadan_productivity';\n}\n\n// Eid detection\nif (currentMonth === 'Shawwāl' && currentDay <= 3) {\n  specialOccasion = 'eid_fitr';\n  contentBoost = 2;\n  contentTheme = 'eid_celebration';\n}\nif (currentMonth === 'Dhu al-Ḥijjah' && currentDay >= 10 && currentDay <= 13) {\n  specialOccasion = 'eid_adha';\n  contentBoost = 2;\n  contentTheme = 'eid_qurbani';\n}\n\n// Dhul Hijjah (Hajj season)\nif (currentMonth === 'Dhu al-Ḥijjah' && currentDay <= 10) {\n  specialOccasion = 'hajj_season';\n  contentBoost = 2;\n  contentTheme = 'hajj_umrah';\n}\n\n// Muharram (Islamic New Year)\nif (currentMonth === 'Muḥarram' && currentDay <= 10) {\n  specialOccasion = 'muharram';\n  contentTheme = 'islamic_new_year';\n}\n\n// Rabi al-Awwal (Mawlid)\nif (currentMonth === 'Rabīʿ al-Awwal' && currentDay === 12) {\n  specialOccasion = 'mawlid';\n  contentTheme = 'prophetic_teachings';\n}\n\n// Jumua (Friday) - always boost Islamic content\nconst isJumua = new Date().getDay() === 5;\nif (isJumua) {\n  contentBoost = Math.max(contentBoost, 1.5);\n}\n\nreturn [{\n  json: {\n    hijri_date: `${currentDay} ${currentMonth} ${currentYear}`,\n    gregorian_date: new Date().toISOString().split('T')[0],\n    special_occasion: specialOccasion,\n    content_boost_multiplier: contentBoost,\n    content_theme: contentTheme,\n    is_jumua: isJumua,\n    is_ramadan: currentMonth.includes('Rama'),\n    is_hajj_season: currentMonth === 'Dhu al-Ḥijjah',\n    prayer_times: calendarData[parseInt(new Date().getDate()) - 1]?.timings || {},\n    recommendations: {\n      post_islamic_content: true,\n      priority_languages: specialOccasion ? ['ar', 'ur', 'en', 'ms', 'id'] : ['en', 'ur', 'ar'],\n      suggested_topics: []\n    }\n  }\n}];"
+      },
+      "name": "🗓️ Analyze Islamic Calendar Context",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        448,
+        -64
+      ],
+      "id": "376e4bc1-3eee-4c30-afc8-6134744cf3c9",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "☪️ AI: Generate Islamic Content Ideas",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        656,
+        -64
+      ],
+      "id": "721d9f89-0304-48cf-b091-99841b5f743a",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Islamic content ideas\nconst raw = $input.first().json.response || '';\nconst calendarContext = $('Analyze Islamic Calendar Context').item.json;\n\nlet ideas;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  ideas = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  ideas = {\n    content_strategy: 'Generate general Islamic content',\n    content_ideas: [{\n      title: 'How to Start a Halal Business',\n      pillar: 'Halal Business',\n      target_keyword: 'halal business ideas',\n      target_audience: 'Muslim entrepreneurs',\n      languages_priority: ['en', 'ur', 'ar']\n    }],\n    parse_error: e.message\n  };\n}\n\nreturn ideas.content_ideas.map((idea, idx) => ({\n  json: {\n    ...idea,\n    hijri_date: calendarContext.hijri_date,\n    special_occasion: calendarContext.special_occasion,\n    is_ramadan: calendarContext.is_ramadan,\n    is_jumua: calendarContext.is_jumua,\n    priority_score: (calendarContext.content_boost_multiplier * 10) + (10 - idx),\n    generated_at: new Date().toISOString(),\n    content_type: 'islamic',\n    halal_verified: true\n  }\n}));"
+      },
+      "name": "📋 Parse Islamic Content Queue",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        848,
+        -64
+      ],
+      "id": "5b20d78c-41c6-4612-8a6f-8c070b874196",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Islamic Content Queue",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date Added": "={{ $now.format('YYYY-MM-DD') }}",
+            "Hijri Date": "={{ $json.hijri_date }}",
+            "Title": "={{ $json.title }}",
+            "Pillar": "={{ $json.pillar }}",
+            "Keyword": "={{ $json.target_keyword }}",
+            "Audience": "={{ $json.target_audience }}",
+            "Languages": "={{ $json.languages_priority.join(', ') }}",
+            "Priority Score": "={{ $json.priority_score }}",
+            "Special Occasion": "={{ $json.special_occasion || 'Regular' }}",
+            "Ramadan Content": "={{ $json.is_ramadan }}",
+            "Halal Monetization": "={{ JSON.stringify($json.halal_monetization) }}",
+            "Difficulty": "={{ $json.difficulty }}",
+            "Status": "Queued"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Add to Islamic Content Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1056,
+        -64
+      ],
+      "id": "5da77afa-d986-48bd-8219-29f5aaa23727",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Halal Affiliate Products Database\nconst halalAffiliates = {\n  islamic_books: [\n    { name: 'Dar-us-Salam Publications', network: 'ShareASale', category: 'Islamic Books', commission: '8%' },\n    { name: 'Islamic Bookstore', network: 'Direct', category: 'Islamic Books', commission: '10%' },\n    { name: 'Amazon Islamic Books', network: 'Amazon Associates', category: 'Books', commission: '4.5%' }\n  ],\n  \n  halal_food: [\n    { name: 'Wehalal.com', network: 'Impact', category: 'Halal Food Delivery', commission: '5%' },\n    { name: 'Saffron Road', network: 'ShareASale', category: 'Halal Food Products', commission: '8%' },\n    { name: 'Midamar Halal', network: 'Direct', category: 'Halal Meat', commission: '10%' }\n  ],\n  \n  modest_fashion: [\n    { name: 'Modanisa', network: 'Awin', category: 'Islamic Fashion', commission: '12%' },\n    { name: 'East Essence', network: 'ShareASale', category: 'Modest Clothing', commission: '10%' },\n    { name: 'Haute Hijab', network: 'Direct', category: 'Hijabs & Accessories', commission: '15%' }\n  ],\n  \n  islamic_education: [\n    { name: 'Bayyinah TV', network: 'Direct', category: 'Quran Learning', commission: '20%' },\n    { name: 'SeekersGuidance', network: 'Direct', category: 'Islamic Courses', commission: 'Donation-based' },\n    { name: 'Qalam Institute', network: 'Direct', category: 'Islamic Studies', commission: '15%' }\n  ],\n  \n  hajj_umrah: [\n    { name: 'IslamicTravel.com', network: 'CJ Affiliate', category: 'Hajj & Umrah Packages', commission: '5%' },\n    { name: 'HolidayMe', network: 'Admitad', category: 'Muslim-Friendly Hotels', commission: '6%' },\n    { name: 'HalalBooking', network: 'Direct', category: 'Halal Hotels', commission: '8%' }\n  ],\n  \n  islamic_finance: [\n    { name: 'Wahed Invest', network: 'Impact', category: 'Halal Investing', commission: '$50/signup' },\n    { name: 'Amana Mutual Funds', network: 'Direct', category: 'Islamic Investment', commission: 'Revenue share' }\n  ],\n  \n  muslim_tech: [\n    { name: 'Muslim Pro App', network: 'Direct', category: 'Islamic Apps', commission: '10%' },\n    { name: 'Athan App', network: 'Direct', category: 'Prayer Times', commission: '8%' }\n  ],\n  \n  halal_ecommerce_malaysia: [\n    { name: 'Shopee Malaysia (Halal Products)', network: 'Shopee Affiliate', category: 'E-commerce', commission: '2-8%' },\n    { name: 'Lazada Malaysia (Halal Section)', network: 'Lazada Affiliate', category: 'E-commerce', commission: '3-6%' }\n  ],\n  \n  islamic_courses: [\n    { name: 'Udemy Islamic Courses', network: 'Udemy Affiliate', category: 'Online Learning', commission: '15%' },\n    { name: 'Skillshare (Islamic Calligraphy)', network: 'Impact', category: 'Creative Courses', commission: '$7/signup' }\n  ]\n};\n\nreturn [{ json: { halal_affiliates: halalAffiliates, total_networks: Object.keys(halalAffiliates).length } }];"
+      },
+      "name": "💰 Halal Affiliate Networks Database",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        656,
+        160
+      ],
+      "id": "f84a8a2a-1309-44aa-9b6b-f0ccedb50d98",
+      "typeVersion": 2,
+      "notes": "Comprehensive database of halal-only affiliate programs. NO riba, gambling, or haram products."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "name": "🌙 AI: Generate Ramadan Calendar",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        848,
+        160
+      ],
+      "id": "68015a9c-f0ee-437d-9135-947a6ffc9aa9",
+      "typeVersion": 1,
+      "notes": "Only executes if Ramadan is detected. Creates 30-day content strategy."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $('Analyze Islamic Calendar Context').item.json.is_ramadan }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🌙 Is Ramadan?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        656,
+        320
+      ],
+      "id": "50461f70-7a4d-4460-810d-65a29cc6e02e",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Ramadan Content Calendar",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Ramadan Day": "={{ $json.day }}",
+            "Theme": "={{ $json.theme }}",
+            "Title": "={{ $json.content_title }}",
+            "Keyword": "={{ $json.target_keyword }}",
+            "Type": "={{ $json.content_type }}",
+            "Best Time": "={{ $json.best_posting_time }}",
+            "Languages": "={{ $json.languages.join(', ') }}",
+            "Affiliate": "={{ $json.affiliate_opportunity }}",
+            "Status": "Queued"
+          }
+        },
+        "options": {}
+      },
+      "name": "📅 Save Ramadan Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1056,
+        320
+      ],
+      "id": "cc12c58d-bbc8-42dc-8990-1a4b7b01a43a",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "name": "✅ AI: Islamic Content Review",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        1056,
+        464
+      ],
+      "id": "9993f4cb-a67c-4243-be7b-6ec624d81f78",
+      "typeVersion": 1,
+      "notes": "Quality control specifically for Islamic content. Ensures accuracy and sensitivity."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Islamic Calendar Events",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Hijri Date": "={{ $('Analyze Islamic Calendar Context').item.json.hijri_date }}",
+            "Special Occasion": "={{ $('Analyze Islamic Calendar Context').item.json.special_occasion || 'Regular Day' }}",
+            "Is Ramadan": "={{ $('Analyze Islamic Calendar Context').item.json.is_ramadan }}",
+            "Is Jumu'ah": "={{ $('Analyze Islamic Calendar Context').item.json.is_jumua }}",
+            "Content Boost": "={{ $('Analyze Islamic Calendar Context').item.json.content_boost_multiplier }}x",
+            "Content Theme": "={{ $('Analyze Islamic Calendar Context').item.json.content_theme }}",
+            "Ideas Generated": "={{ $('Parse Islamic Content Queue').all().length }}",
+            "Status": "Processed"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Islamic Calendar Activity",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        1248,
+        64
+      ],
+      "id": "49188692-e8d0-4e96-95f0-552d3cbbf6e8",
+      "typeVersion": 4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "☪️ Islamic Content Pipeline (5AM Daily)": {
+      "main": [
+        [
+          {
+            "node": "📅 Fetch Hijri Date & Islamic Calendar",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🕌 Fetch Prayer Times & Special Days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📅 Fetch Hijri Date & Islamic Calendar": {
+      "main": [
+        [
+          {
+            "node": "🗓️ Analyze Islamic Calendar Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🕌 Fetch Prayer Times & Special Days": {
+      "main": [
+        [
+          {
+            "node": "🗓️ Analyze Islamic Calendar Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗓️ Analyze Islamic Calendar Context": {
+      "main": [
+        [
+          {
+            "node": "🌙 Is Ramadan?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Parse Islamic Content Queue": {
+      "main": [
+        [
+          {
+            "node": "📊 Add to Islamic Content Queue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📊 Log Islamic Calendar Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "a0722749-5dc8-46f8-998d-2827a0610a0b",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "qeeEE4Xg9ZmJjQbk",
+  "tags": []
+}

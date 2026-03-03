@@ -1,0 +1,349 @@
+{
+  "name": "HowTo-Genie v4.0 — SEO Interlinking Intelligence Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3 * * 0"
+            }
+          ]
+        }
+      },
+      "name": "🔗 Weekly Interlinking Scan (Sunday 3AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -2160,
+        -16
+      ],
+      "id": "116cdf1a-9549-4358-8b23-ee5653dea22c",
+      "typeVersion": 1,
+      "notes": "Runs weekly to rebuild internal linking network as content library grows."
+    },
+    {
+      "parameters": {
+        "operation": "readRange",
+        "documentId": "YOUR_GOOGLE_SHEET_ID"
+      },
+      "name": "📊 Load All Published Posts",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1968,
+        -16
+      ],
+      "id": "b51c5abb-c326-4013-8769-818cbf35f23e",
+      "typeVersion": 4,
+      "notes": "Fetches entire content library (all languages, all posts)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build content index with metadata\nconst allPosts = $input.all().slice(1); // Skip header row\n\nconst contentIndex = allPosts.map((item, idx) => {\n  const row = item.json;\n  return {\n    id: idx + 1,\n    title: row['Title'],\n    url: row['WP URL'],\n    keyword: row['Keyword'],\n    tags: (row['Tags'] || '').split(',').map(t => t.trim()),\n    categories: (row['Categories'] || '').split(',').map(c => c.trim()),\n    language: 'en', // Will enhance with multilingual data\n    published_date: row['Date']\n  };\n});\n\n// Calculate content clusters by category and tags\nconst clusters = {};\ncontentIndex.forEach(post => {\n  post.categories.forEach(cat => {\n    if (!clusters[cat]) clusters[cat] = [];\n    clusters[cat].push(post.id);\n  });\n});\n\nreturn [{\n  json: {\n    total_posts: contentIndex.length,\n    content_index: contentIndex,\n    clusters: clusters,\n    languages: ['en', 'es', 'pt-BR', 'de', 'fr', 'hi', 'id', 'ar', 'ja'],\n    scan_date: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "🗂️ Build Content Index",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1760,
+        -16
+      ],
+      "id": "cf68a765-e732-4f48-b2ae-5ec96e495504",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {}
+      },
+      "name": "🔄 Split Into Batches (10 posts)",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [
+        -1568,
+        -16
+      ],
+      "id": "12182401-58c0-4b16-907f-86fa055f9006",
+      "typeVersion": 3,
+      "notes": "Processes 10 posts at a time to avoid overloading Ollama."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "name": "🧠 AI: Analyze Linking Opportunities",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -1360,
+        -16
+      ],
+      "id": "8038f2f5-9287-42eb-b9bb-323df0483477",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI recommendations and build link injection plan\nconst raw = $input.first().json.response || '';\nconst postData = $input.first().json.content_index[0];\n\nlet linkPlan;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  linkPlan = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  linkPlan = {\n    current_post_id: postData?.id,\n    recommended_links: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_id: linkPlan.current_post_id,\n    post_title: postData?.title,\n    post_url: postData?.url,\n    topical_cluster: linkPlan.topical_cluster,\n    cluster_role: linkPlan.cluster_role,\n    orphan_risk: linkPlan.orphan_risk,\n    links_to_add: linkPlan.recommended_links || [],\n    total_links: linkPlan.recommended_links?.length || 0,\n    analysis_date: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "📋 Parse Link Recommendations",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1168,
+        -16
+      ],
+      "id": "0bba6a28-446d-4683-a410-43f15306f6a2",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.post_url }}",
+        "options": {}
+      },
+      "name": "📥 Fetch Current Post Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -960,
+        -16
+      ],
+      "id": "28d70601-ce3b-458f-b0eb-ac9bc164a293",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "name": "🔗 AI: Inject Links Naturally",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -768,
+        -16
+      ],
+      "id": "d818f211-91f4-44ac-8758-829b1d8691f9",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse injected content\nconst raw = $input.first().json.response || '';\nconst postData = $('Parse Link Recommendations').item.json;\n\nlet injectionResult;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  injectionResult = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  injectionResult = {\n    updated_content: $('Fetch Current Post Content').item.json,\n    links_injected: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_id: postData.post_id,\n    post_url: postData.post_url,\n    updated_content: injectionResult.updated_content,\n    links_injected: injectionResult.links_injected || [],\n    total_links_added: injectionResult.total_links_added || 0,\n    link_density_check: injectionResult.link_density_check,\n    natural_flow_score: injectionResult.natural_flow_score || 0,\n    ready_to_update: injectionResult.total_links_added > 0,\n    updated_at: new Date().toISOString()\n  }\n}];"
+      },
+      "name": "✅ Validate Link Injection",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -560,
+        -16
+      ],
+      "id": "7f3bafc1-5820-4e81-9c14-c64ce6e0e103",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.ready_to_update }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🚦 Ready to Update?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -368,
+        -16
+      ],
+      "id": "779746a5-20d4-4d53-bd93-9a34074a9a32",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.post_url.replace('//', '//your-blog.com/').split('?')[0] }}/",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"{{ $json.updated_content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\"\n}",
+        "options": {}
+      },
+      "name": "🔄 Update WordPress Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -160,
+        -112
+      ],
+      "id": "394419de-3ebb-49cb-bad1-76e8465510ec",
+      "typeVersion": 4.1,
+      "notes": "Updates post content via WordPress REST API with new internal links."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Internal Linking Log",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
+            "Post ID": "={{ $json.post_id }}",
+            "Post URL": "={{ $json.post_url }}",
+            "Links Added": "={{ $json.total_links_added }}",
+            "Link Density": "={{ $json.link_density_check }}",
+            "Flow Score": "={{ $json.natural_flow_score }}",
+            "Injected Links": "={{ JSON.stringify($json.links_injected).substring(0, 500) }}",
+            "Status": "Updated"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Linking Updates",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        48,
+        -112
+      ],
+      "id": "b0853b84-f1d4-4295-861b-9b27b8049983",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "name": "🎯 AI: Topical Authority Analysis",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -1568,
+        192
+      ],
+      "id": "da2b235f-eb6b-44bd-ad46-e5337a7a9ea4",
+      "typeVersion": 1,
+      "notes": "Runs once per scan to identify strategic content opportunities."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "SEO Strategy",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Health Score": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).content_health_score }}",
+            "Total Clusters": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).total_clusters_identified }}",
+            "Orphan Pages": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).orphan_pages_detected }}",
+            "Pillar Opportunities": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).pillar_post_opportunities.length }}",
+            "Content Gaps": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).content_gaps.join(', ') }}",
+            "Strategic Recommendations": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).strategic_recommendations.substring(0, 500) }}",
+            "Full Analysis": "={{ $json.response.substring(0, 2000) }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📈 Log SEO Strategy Analysis",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1360,
+        192
+      ],
+      "id": "6b043a94-7a4f-477e-96f5-bf3c8b2a905c",
+      "typeVersion": 4
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🔗 Weekly Interlinking Scan (Sunday 3AM)": {
+      "main": [
+        [
+          {
+            "node": "📊 Load All Published Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Load All Published Posts": {
+      "main": [
+        [
+          {
+            "node": "🗂️ Build Content Index",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗂️ Build Content Index": {
+      "main": [
+        [
+          {
+            "node": "🔄 Split Into Batches (10 posts)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Parse Link Recommendations": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Current Post Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Validate Link Injection": {
+      "main": [
+        [
+          {
+            "node": "🚦 Ready to Update?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚦 Ready to Update?": {
+      "main": [
+        [
+          {
+            "node": "🔄 Update WordPress Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Update WordPress Post": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Linking Updates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "499567da-4d51-468d-9401-9d87e72dafa8",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "GnSSiZ83onbD05TZ",
+  "tags": []
+}

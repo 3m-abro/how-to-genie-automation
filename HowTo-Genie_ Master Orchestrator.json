@@ -1,0 +1,392 @@
+{
+  "name": "HowTo-Genie: Master Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "name": "Daily Trigger - 9am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -2688,
+        112
+      ],
+      "id": "3b04ecf2-1c53-4f6a-ae7f-edf69a6f1c7e",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "Agent 1: Research & Topic Discovery",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -2496,
+        112
+      ],
+      "id": "a48aae2e-a87d-4762-88a2-d34d59c22352",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse the AI response and validate\nconst aiResponse = $input.first().json.response;\n\nlet topicData;\ntry {\n  // Extract JSON from markdown code blocks if present\n  const jsonMatch = aiResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                    aiResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    topicData = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    topicData = JSON.parse(aiResponse);\n  }\n  \n  // Validate required fields\n  if (!topicData.topic || !topicData.primary_keyword) {\n    throw new Error('Missing required fields');\n  }\n  \n  // Add metadata\n  topicData.generated_at = new Date().toISOString();\n  topicData.status = 'pending_approval';\n  topicData.workflow_id = $workflow.id;\n  \n  return [{ json: topicData }];\n  \n} catch (error) {\n  // If parsing fails, create a fallback topic\n  return [{\n    json: {\n      topic: \"How to Start a Profitable Blog in 2024\",\n      primary_keyword: \"start a blog\",\n      secondary_keywords: [\"blogging for beginners\", \"make money blogging\"],\n      search_volume_estimate: \"high\",\n      competition: \"medium\",\n      affiliate_products: [],\n      monetization_potential: \"high\",\n      content_angle: \"Step-by-step guide with monetization focus\",\n      generated_at: new Date().toISOString(),\n      status: 'fallback_topic',\n      error: error.message\n    }\n  }];\n}"
+      },
+      "name": "Parse & Validate Topic",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -2288,
+        112
+      ],
+      "id": "92ad76ad-8ede-4233-b83b-e1bb60166ca6",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8,
+          "numPredict": 3000
+        }
+      },
+      "name": "Agent 2: Content Writer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -2096,
+        112
+      ],
+      "id": "7b46c99f-d8bf-4b66-bebb-2fd2a8b9fd55",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "name": "Agent 3: SEO & Monetization",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -1888,
+        112
+      ],
+      "id": "e7011fba-4714-4739-9369-b00baa84bffa",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse SEO agent output and prepare for publishing\nconst seoResponse = $input.first().json.response;\n\nlet optimizedData;\ntry {\n  const jsonMatch = seoResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                    seoResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    optimizedData = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    optimizedData = JSON.parse(seoResponse);\n  }\n  \n  // Prepare WordPress-ready payload\n  const wpPayload = {\n    title: optimizedData.seo.title,\n    content: optimizedData.optimized_content,\n    slug: optimizedData.seo.slug,\n    status: 'draft', // Change to 'publish' when ready\n    categories: optimizedData.seo.categories,\n    tags: optimizedData.seo.tags,\n    meta: {\n      description: optimizedData.seo.meta_description,\n      focus_keyword: optimizedData.seo.focus_keyword\n    },\n    featured_image_alt: optimizedData.seo.image_alt_texts[0],\n    monetization: optimizedData.monetization,\n    published_at: new Date().toISOString()\n  };\n  \n  return [{ json: wpPayload }];\n  \n} catch (error) {\n  // Return original content if parsing fails\n  return [{\n    json: {\n      title: $('Parse & Validate Topic').item.json.topic,\n      content: $('Agent 2: Content Writer').item.json.response,\n      status: 'draft',\n      error: error.message\n    }\n  }];\n}"
+      },
+      "name": "Prepare WordPress Payload",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1696,
+        112
+      ],
+      "id": "a1cb063b-b71f-4ce0-8512-71d54fed4d38",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.6
+        }
+      },
+      "name": "Agent 5: Quality Control",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -1488,
+        112
+      ],
+      "id": "8fadc5ba-52d5-4d62-8fc7-1af6fd8e20ea",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.response }}",
+              "operation": "contains",
+              "value2": "\"approved\": true"
+            }
+          ]
+        }
+      },
+      "name": "Content Approved?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -1296,
+        112
+      ],
+      "id": "3f412799-17f7-4f88-83cd-0fb8bd330a5b",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "title",
+              "value": "={{ $('Prepare WordPress Payload').item.json.title }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $('Prepare WordPress Payload').item.json.content }}"
+            },
+            {
+              "name": "status",
+              "value": "publish"
+            },
+            {
+              "name": "slug",
+              "value": "={{ $('Prepare WordPress Payload').item.json.slug }}"
+            },
+            {
+              "name": "categories",
+              "value": "={{ $('Prepare WordPress Payload').item.json.categories }}"
+            },
+            {
+              "name": "tags",
+              "value": "={{ $('Prepare WordPress Payload').item.json.tags }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Publish to WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1088,
+        16
+      ],
+      "id": "175be5d8-5b34-4c7c-b3df-85e69be59998",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.9
+        }
+      },
+      "name": "Agent 4: Social Media Creator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -896,
+        16
+      ],
+      "id": "b01a8b8c-f977-4adf-93d9-afba298ac497",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse social media content\nconst socialResponse = $input.first().json.response;\n\nlet socialPosts;\ntry {\n  const jsonMatch = socialResponse.match(/```json\\n([\\s\\S]*?)\\n```/) || \n                    socialResponse.match(/\\{[\\s\\S]*\\}/);\n  \n  if (jsonMatch) {\n    socialPosts = JSON.parse(jsonMatch[1] || jsonMatch[0]);\n  } else {\n    socialPosts = JSON.parse(socialResponse);\n  }\n  \n  // Create separate items for each platform\n  return [\n    { \n      json: { \n        platform: 'twitter', \n        content: socialPosts.twitter.text,\n        hashtags: socialPosts.twitter.hashtags,\n        blog_url: $('Publish to WordPress').item.json.link\n      } \n    },\n    { \n      json: { \n        platform: 'linkedin', \n        content: socialPosts.linkedin.text,\n        blog_url: $('Publish to WordPress').item.json.link\n      } \n    },\n    { \n      json: { \n        platform: 'facebook', \n        content: socialPosts.facebook.text,\n        blog_url: $('Publish to WordPress').item.json.link\n      } \n    }\n  ];\n  \n} catch (error) {\n  return [{\n    json: {\n      platform: 'error',\n      error: error.message\n    }\n  }];\n}"
+      },
+      "name": "Parse Social Posts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -688,
+        16
+      ],
+      "id": "9d282361-8e53-43f2-b258-761ca2a1b86d",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {},
+      "name": "Route to Twitter",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -496,
+        16
+      ],
+      "id": "4982dac6-38f1-40c9-9da8-946b3c3c4577",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content + '\\n\\n' + $json.blog_url + '\\n\\n' + $json.hashtags.join(' ') }}",
+        "additionalFields": {}
+      },
+      "name": "Post to Twitter",
+      "type": "n8n-nodes-base.twitter",
+      "position": [
+        -288,
+        -96
+      ],
+      "id": "ae6e77b4-4a29-4d0f-91e4-c8c22f4fd18b",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.content + '\\n\\n' + $json.blog_url }}",
+        "additionalFields": {}
+      },
+      "name": "Post to LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "position": [
+        -288,
+        16
+      ],
+      "id": "20b9998d-d45f-44ab-b648-cea7e13db6d8",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "pageId": "YOUR_FACEBOOK_PAGE_ID",
+        "message": "={{ $json.content }}",
+        "link": "={{ $json.blog_url }}"
+      },
+      "name": "Post to Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "position": [
+        -288,
+        112
+      ],
+      "id": "8cd4179e-f2dc-47e4-8f23-db8223102f6a",
+      "typeVersion": 1,
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        }
+      },
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -96,
+        16
+      ],
+      "id": "917cd50c-a8ed-4f3c-bf74-62f156bcc5cb",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "amount": 24
+      },
+      "name": "Wait 24 Hours",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        112,
+        16
+      ],
+      "id": "17900d90-27e3-4c6e-ba21-0d3deb243c40",
+      "typeVersion": 1,
+      "webhookId": "wait-webhook-id"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Content Approved?": {
+      "main": [
+        [
+          {
+            "node": "Publish to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Social Posts": {
+      "main": [
+        [
+          {
+            "node": "Route to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Post to Twitter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Post to LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to Twitter": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Post to LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Wait 24 Hours",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "14b0dccd-9402-4762-8b2f-96bc52fd6705",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "Ll6A9yLRNwNKcxMp",
+  "tags": []
+}

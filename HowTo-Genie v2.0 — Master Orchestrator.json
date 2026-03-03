@@ -1,0 +1,787 @@
+{
+  "name": "HowTo-Genie v2.0 — Master Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🕗 Daily Trigger 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -4080,
+        224
+      ],
+      "id": "1b859cb1-38f6-4863-a9ba-7d198a43bb33",
+      "typeVersion": 1,
+      "notes": "Fires every day at 8AM. Change cron expression to adjust schedule."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "name": "🧠 Agent 0: Prompt Engineer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -3888,
+        224
+      ],
+      "id": "22168f74-c176-423b-a99f-82b455497fc7",
+      "typeVersion": 1,
+      "notes": "Master orchestrator agent. Generates all downstream agent prompts dynamically."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nlet prompts;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  prompts = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  prompts = {\n    run_id: new Date().toISOString().slice(0,10) + '-001',\n    research_prompt: 'Find a trending how-to topic with affiliate potential.',\n    writer_prompt: 'Write a 2800-word how-to article for beginners.',\n    humanizer_prompt: 'Rewrite this article to sound like a human expert blogger.',\n    seo_prompt: 'Generate SEO metadata, tags, slug, and affiliate links.',\n    image_prompt: 'bright educational blog hero image minimal style',\n    social_prompt: 'Create viral posts for FB IG TikTok Pinterest YT Shorts.',\n    qc_prompt: 'Review content for quality, SEO, and monetization compliance.',\n    comment_prompt: 'Moderate and respond to blog comments professionally.',\n    parse_error: e.message\n  };\n}\nprompts.generated_at = new Date().toISOString();\nreturn [{ json: prompts }];"
+      },
+      "name": "📋 Parse Prompt Package",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -3680,
+        224
+      ],
+      "id": "e4aac495-eaee-4fee-ab0a-814278ea708d",
+      "typeVersion": 2,
+      "notes": "Parses and validates the prompt package. Falls back to defaults on error."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "🔍 Agent 1: Research & Topic",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -3488,
+        224
+      ],
+      "id": "f197b8ce-5ca4-4e44-9091-4c2076fe313e",
+      "typeVersion": 1,
+      "notes": "Finds best monetizable topic using prompt from Prompt Engineer."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nlet topic;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  topic = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  topic = {\n    topic: 'How to Start Affiliate Marketing as a Complete Beginner',\n    primary_keyword: 'affiliate marketing for beginners',\n    secondary_keywords: ['make money affiliate marketing','affiliate programs','passive income'],\n    lsi_keywords: ['commission','product promotion','referral link'],\n    search_intent: 'informational',\n    estimated_volume: 'high',\n    competition: 'medium',\n    affiliate_products: [\n      { name: 'CB University', network: 'ClickBank', commission: '75%', affiliate_link: 'YOUR_LINK', placement_suggestion: 'after intro' },\n      { name: 'DS24 Course', network: 'Digistore24', commission: '50%', affiliate_link: 'YOUR_DS24_LINK', placement_suggestion: 'mid article' }\n    ],\n    monetization_score: 9,\n    parse_error: e.message\n  };\n}\ntopic.run_id = $('Parse Prompt Package').item.json.run_id;\ntopic.validated_at = new Date().toISOString();\nreturn [{ json: topic }];"
+      },
+      "name": "✅ Parse & Validate Topic",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -3280,
+        224
+      ],
+      "id": "dab992a1-5a45-42ad-aecf-0eb94404ac35",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8,
+          "numPredict": 4000
+        }
+      },
+      "name": "✍️ Agent 2: Content Writer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -3088,
+        224
+      ],
+      "id": "fd21660b-3ba8-494e-95bd-6697b5952bda",
+      "typeVersion": 1,
+      "notes": "Writes full 2800+ word article using Prompt Engineer's detailed brief."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.9,
+          "numPredict": 4000
+        }
+      },
+      "name": "🫂 Agent 3: Humanizer",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -2880,
+        224
+      ],
+      "id": "a616a995-d05c-42e8-b27d-c01a34f0ad58",
+      "typeVersion": 1,
+      "notes": "Transforms AI-sounding content into natural human expert writing."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.4,
+          "numPredict": 2000
+        }
+      },
+      "name": "🎯 Agent 4: SEO & Monetization",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -2688,
+        224
+      ],
+      "id": "3a280ef5-0eab-4b93-8d1b-e573930a19f4",
+      "typeVersion": 1,
+      "notes": "Generates full SEO package including schema markup, meta, and all affiliate CTAs."
+    },
+    {
+      "parameters": {
+        "jsCode": "const seoRaw = $('Agent 4: SEO & Monetization').item.json.response || '';\nconst humanizedContent = $('Agent 3: Humanizer').item.json.response || '';\nconst topicData = $('Parse & Validate Topic').item.json;\n\nlet seoData;\ntry {\n  const match = seoRaw.match(/```json\\n([\\s\\S]*?)\\n```/) || seoRaw.match(/(\\{[\\s\\S]*\\})/);\n  seoData = JSON.parse(match ? (match[1] || match[0]) : seoRaw);\n} catch(e) {\n  seoData = {\n    seo: { title: topicData.topic, meta_description: '', slug: topicData.primary_keyword.replace(/ /g,'-'), tags: topicData.secondary_keywords || [], categories: ['Tutorials'], focus_keyword: topicData.primary_keyword, schema_type: 'HowTo' },\n    monetization: { disclosure: 'This post contains affiliate links.', adsense_zones: [], affiliate_ctas: [] },\n    parse_error: e.message\n  };\n}\n\n// Build final assembled article with all zones injected\nlet finalContent = seoData.monetization.disclosure + '\\n\\n' + humanizedContent;\n\n// Replace ad zone markers with shortcode-style placeholders\nfinalContent = finalContent\n  .replace('[AD_ZONE_TOP]', '<!-- ADSENSE_TOP_AD -->')\n  .replace('[AD_ZONE_MID]', '<!-- ADSENSE_MID_AD --> <!-- ADSTERRA_NATIVE -->')\n  .replace('[AD_ZONE_BOTTOM]', '<!-- ADSENSE_BOTTOM_AD -->');\n\n// Replace affiliate CTA markers\n(seoData.monetization.affiliate_ctas || []).forEach(cta => {\n  const marker = `[AFFILIATE_CTA: ${cta.product}`;\n  const buttonHtml = `<div class=\"affiliate-cta\" style=\"background:#f8f9fa;padding:20px;border-left:4px solid ${cta.button_color || '#FF6B35'};margin:20px 0\">\n    <p><strong>${cta.anchor_text}</strong></p>\n    <a href=\"${cta.affiliate_link}\" target=\"_blank\" rel=\"noopener\" style=\"background:${cta.button_color || '#FF6B35'};color:white;padding:12px 24px;text-decoration:none;border-radius:4px;display:inline-block\">${cta.button_text}</a>\n  </div>`;\n  finalContent = finalContent.replace(new RegExp(`\\\\[AFFILIATE_CTA: ${cta.product}[^\\\\]]*\\\\]`, 'g'), buttonHtml);\n});\n\nconst wpPayload = {\n  title: seoData.seo.title || topicData.topic,\n  content: finalContent,\n  slug: seoData.seo.slug,\n  status: 'draft',\n  tags: seoData.seo.tags || [],\n  categories: seoData.seo.categories || ['Tutorials'],\n  meta_description: seoData.seo.meta_description,\n  focus_keyword: seoData.seo.focus_keyword,\n  schema_markup: seoData.schema_markup || {},\n  og_title: seoData.seo.og_title || seoData.seo.title,\n  og_description: seoData.seo.og_description || seoData.seo.meta_description,\n  image_alt_texts: seoData.seo.image_alt_texts || [],\n  monetization_summary: {\n    affiliate_products: topicData.affiliate_products?.length || 0,\n    ad_zones: 3,\n    networks: [...new Set((topicData.affiliate_products || []).map(p => p.network))]\n  },\n  run_id: topicData.run_id\n};\n\nreturn [{ json: wpPayload }];"
+      },
+      "name": "🔧 Assemble Final Article",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -2480,
+        224
+      ],
+      "id": "2e152334-0d6d-48c5-9f82-ddffce5c09f2",
+      "typeVersion": 2,
+      "notes": "Merges humanized content + SEO data + affiliate CTAs + ad zones into WordPress-ready payload."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "name": "🛡️ Agent 5: Quality Control",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -2288,
+        224
+      ],
+      "id": "f7130b86-6547-40ef-8aab-416335ec6308",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.response }}",
+              "operation": "contains",
+              "value2": "\"approved\": true"
+            }
+          ]
+        }
+      },
+      "name": "✅ QC Approved?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -2080,
+        224
+      ],
+      "id": "8f6bb2f0-cc82-4a01-91eb-1704f0e6f60e",
+      "typeVersion": 1,
+      "notes": "Routes to image finder if approved, or logs rejection if not."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Pexels API search query from topic data\nconst topic = $('Parse & Validate Topic').item.json;\nconst wpPayload = $('Assemble Final Article').item.json;\n\n// Extract image suggestions from content\nconst imageMatches = wpPayload.content.match(/\\[IMAGE_SUGGESTION: ([^\\]]+)\\]/g) || [];\nconst imageSuggestions = imageMatches.map(m => m.replace('[IMAGE_SUGGESTION: ', '').replace(']', ''));\n\n// Build smart search queries\nconst queries = [\n  imageSuggestions[0] || topic.primary_keyword,\n  topic.topic.replace('How to ', '').split(' ').slice(0,3).join(' '),\n  topic.secondary_keywords?.[0] || 'tutorial learning'\n];\n\nreturn [{ json: { \n  queries,\n  primary_query: queries[0],\n  topic_keyword: topic.primary_keyword,\n  run_id: topic.run_id\n}}];"
+      },
+      "name": "🖼️ Build Image Queries",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1888,
+        128
+      ],
+      "id": "da799e06-9d9b-43a4-9369-a015456c8255",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://api.pexels.com/v1/search?query={{ encodeURIComponent($json.primary_query) }}&per_page=5&orientation=landscape&size=large",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "YOUR_PEXELS_API_KEY"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "📸 Search Pexels",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1680,
+        32
+      ],
+      "id": "42d8a276-2bf1-4f30-8771-121905351b70",
+      "typeVersion": 4.1,
+      "notes": "Free stock images from Pexels. Get API key at pexels.com/api"
+    },
+    {
+      "parameters": {
+        "url": "=https://pixabay.com/api/?key=YOUR_PIXABAY_KEY&q={{ encodeURIComponent($('Build Image Queries').item.json.primary_query) }}&image_type=photo&orientation=horizontal&per_page=5&safesearch=true",
+        "options": {}
+      },
+      "name": "📸 Search Pixabay (Fallback)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1680,
+        176
+      ],
+      "id": "9633125f-1c56-4818-a16d-bab3e91d6076",
+      "typeVersion": 4.1,
+      "notes": "Fallback to Pixabay if Pexels returns no results. Free API at pixabay.com/api/docs/"
+    },
+    {
+      "parameters": {
+        "jsCode": "const pexelsData = $('Search Pexels').item.json;\nconst pixabayData = $('Search Pixabay (Fallback)').item.json;\nconst queryData = $('Build Image Queries').item.json;\n\nlet imageUrl = null;\nlet imageSource = null;\nlet photographer = null;\nlet imagePageUrl = null;\n\n// Try Pexels first\nif (pexelsData.photos && pexelsData.photos.length > 0) {\n  const photo = pexelsData.photos[0];\n  imageUrl = photo.src.large2x || photo.src.large;\n  imageSource = 'pexels';\n  photographer = photo.photographer;\n  imagePageUrl = photo.url;\n}\n// Try Pixabay as fallback\nelse if (pixabayData.hits && pixabayData.hits.length > 0) {\n  const photo = pixabayData.hits[0];\n  imageUrl = photo.largeImageURL || photo.webformatURL;\n  imageSource = 'pixabay';\n  photographer = photo.user;\n  imagePageUrl = photo.pageURL;\n}\n\n// Set flag for Stable Diffusion fallback\nconst needsGeneration = !imageUrl;\n\nreturn [{ json: {\n  imageUrl,\n  imageSource,\n  photographer,\n  imagePageUrl,\n  needsGeneration,\n  query: queryData.primary_query,\n  alt_text: `${queryData.topic_keyword} - HowTo-Genie`,\n  credit_text: imageSource ? `Photo by ${photographer} on ${imageSource}` : null\n}}];"
+      },
+      "name": "🔀 Select Best Image",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1488,
+        96
+      ],
+      "id": "7276c62b-53d5-4331-8a8c-b496069f192e",
+      "typeVersion": 2,
+      "notes": "Picks best image from Pexels or Pixabay. Flags for AI generation if none found."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.needsGeneration }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🤔 Need AI Image?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -1280,
+        96
+      ],
+      "id": "390dec5b-9418-47fa-9478-17081a3c1e47",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "bakllava"
+            },
+            {
+              "name": "prompt",
+              "value": "=Generate a description for a photorealistic blog featured image about: {{ $('Build Image Queries').item.json.primary_query }}. Style: professional, bright, editorial, suitable for a how-to blog. Colors: vibrant but clean. No text in image."
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "🎨 Generate Image (Ollama/SD)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -1088,
+        32
+      ],
+      "id": "68ac7af9-865e-4024-8548-9a10558c8d08",
+      "typeVersion": 4.1,
+      "notes": "Uses Ollama BakLLaVA or connect to local Stable Diffusion WebUI API at localhost:7860/sdapi/v1/txt2img"
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"title\": \"{{ $('Assemble Final Article').item.json.title }}\",\n  \"content\": \"{{ $('Assemble Final Article').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"slug\": \"{{ $('Assemble Final Article').item.json.slug }}\",\n  \"status\": \"publish\",\n  \"meta\": {\n    \"_yoast_wpseo_title\": \"{{ $('Assemble Final Article').item.json.title }}\",\n    \"_yoast_wpseo_metadesc\": \"{{ $('Assemble Final Article').item.json.meta_description }}\",\n    \"_yoast_wpseo_focuskw\": \"{{ $('Assemble Final Article').item.json.focus_keyword }}\"\n  }\n}",
+        "options": {}
+      },
+      "name": "📝 Publish to WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -880,
+        128
+      ],
+      "id": "03c89924-1441-421e-9765-f59748ce0f67",
+      "typeVersion": 4.1,
+      "notes": "Publishes to WordPress via REST API. Requires Application Password credential."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.9,
+          "numPredict": 3000
+        }
+      },
+      "name": "📱 Agent 6: Social Media + Reels",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -688,
+        128
+      ],
+      "id": "de201e1a-26c5-46b0-a265-e06325c434fd",
+      "typeVersion": 1,
+      "notes": "Creates platform-specific viral content for FB, IG, TikTok, Pinterest, YT Shorts + universal reel script."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nlet posts;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  posts = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  posts = { parse_error: e.message, raw_response: raw.substring(0, 500) };\n}\n\nconst blogUrl = $('Publish to WordPress').item.json.link || 'https://howtogenie.com';\n\n// Return all platforms as separate items for parallel posting\nreturn [\n  { json: { platform: 'facebook', content: posts.facebook?.post + '\\n\\n' + posts.facebook?.hashtags?.join(' '), blog_url: blogUrl, raw: posts.facebook }},\n  { json: { platform: 'instagram', content: posts.instagram?.caption + '\\n\\n' + posts.instagram?.hashtags?.join(' '), blog_url: blogUrl, raw: posts.instagram }},\n  { json: { platform: 'tiktok', content: posts.tiktok?.script, caption: posts.tiktok?.caption, hashtags: posts.tiktok?.hashtags, blog_url: blogUrl, raw: posts.tiktok }},\n  { json: { platform: 'pinterest', content: posts.pinterest?.description, title: posts.pinterest?.title, blog_url: blogUrl, raw: posts.pinterest }},\n  { json: { platform: 'youtube_shorts', content: posts.youtube_shorts?.script, title: posts.youtube_shorts?.title, description: posts.youtube_shorts?.description, blog_url: blogUrl, raw: posts.youtube_shorts }},\n  { json: { platform: 'reels_script', content: JSON.stringify(posts.reels_universal_script, null, 2), blog_url: blogUrl, raw: posts.reels_universal_script }}\n];"
+      },
+      "name": "🔀 Parse & Route Social Posts",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -480,
+        128
+      ],
+      "id": "055864cc-178a-41f2-837a-980b42a40687",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {},
+      "name": "🔀 Platform Router",
+      "type": "n8n-nodes-base.switch",
+      "position": [
+        -288,
+        128
+      ],
+      "id": "828c43cd-7e01-485b-9f8e-24a016ae1fc1",
+      "typeVersion": 1,
+      "notes": "Routes each social post to its platform node."
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "pageId": "YOUR_FACEBOOK_PAGE_ID",
+        "message": "={{ $json.content }}",
+        "link": "={{ $json.blog_url }}"
+      },
+      "name": "📘 Post to Facebook",
+      "type": "n8n-nodes-base.facebook",
+      "position": [
+        -80,
+        -80
+      ],
+      "id": "8e7ab20e-0c6e-4568-ac9f-98cbf9b0ca39",
+      "typeVersion": 1,
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "url": "https://graph.instagram.com/v18.0/YOUR_IG_USER_ID/media",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "caption",
+              "value": "={{ $json.content }}"
+            },
+            {
+              "name": "image_url",
+              "value": "={{ $('Select Best Image').item.json.imageUrl }}"
+            },
+            {
+              "name": "access_token",
+              "value": "YOUR_INSTAGRAM_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "📸 Post to Instagram",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -80,
+        32
+      ],
+      "id": "ffb9d8fd-49a2-43cf-8c25-5e4e9ee90058",
+      "typeVersion": 4.1,
+      "notes": "Posts via Instagram Graph API. Requires Facebook Business account + IG Professional account."
+    },
+    {
+      "parameters": {
+        "url": "https://open.tiktokapis.com/v2/post/publish/video/init/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_TIKTOK_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"post_info\": {\n    \"title\": \"{{ $json.caption + ' ' + ($json.hashtags || []).join(' ') }}\",\n    \"privacy_level\": \"PUBLIC_TO_EVERYONE\",\n    \"disable_duet\": false,\n    \"disable_stitch\": false,\n    \"video_cover_timestamp_ms\": 1000\n  },\n  \"source_info\": {\n    \"source\": \"URL_UPLOAD\",\n    \"video_url\": \"YOUR_TIKTOK_VIDEO_URL\"\n  }\n}",
+        "options": {}
+      },
+      "name": "🎵 Schedule TikTok",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -80,
+        128
+      ],
+      "id": "19570eb1-50d7-4aec-9081-3e2f24bb3cc5",
+      "typeVersion": 4.1,
+      "notes": "TikTok Content Posting API v2. Saves script to Google Sheets for manual video creation."
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "boardId": "YOUR_PINTEREST_BOARD_ID",
+        "imageUrl": "={{ $('Select Best Image').item.json.imageUrl }}",
+        "note": "={{ $json.content }}",
+        "link": "={{ $json.blog_url }}",
+        "title": "={{ $json.title }}"
+      },
+      "name": "📌 Post to Pinterest",
+      "type": "n8n-nodes-base.pinterest",
+      "position": [
+        -80,
+        224
+      ],
+      "id": "7160496d-e5ca-4cb4-ad67-5a47a1319043",
+      "typeVersion": 1,
+      "credentials": {}
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "YT Shorts Queue",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Title": "={{ $json.title }}",
+            "Script": "={{ $json.content }}",
+            "Description": "={{ $json.description }}",
+            "Blog URL": "={{ $json.blog_url }}",
+            "Status": "Needs Recording"
+          }
+        },
+        "options": {}
+      },
+      "name": "🎬 Queue YT Short Script",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -80,
+        320
+      ],
+      "id": "2a1de594-ba7d-465e-bcf3-fe86057f496a",
+      "typeVersion": 4,
+      "notes": "YT Shorts require video upload via YouTube Data API. Scripts queued here for creation."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Reels Scripts",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Blog Title": "={{ $('Assemble Final Article').item.json.title }}",
+            "Reel Script": "={{ $json.content }}",
+            "Blog URL": "={{ $json.blog_url }}",
+            "Platforms": "IG Reels, TikTok, YT Shorts",
+            "Status": "Script Ready"
+          }
+        },
+        "options": {}
+      },
+      "name": "📋 Save Reel Script",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -80,
+        432
+      ],
+      "id": "3b374529-7824-4f76-9b63-d796e908c265",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/comments?post={{ $('Publish to WordPress').item.json.id }}&status=hold&per_page=20",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "options": {}
+      },
+      "name": "💬 Fetch Pending Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -688,
+        384
+      ],
+      "id": "ec7abeba-7a33-4dae-af3f-51bf411f6bfb",
+      "typeVersion": 4.1,
+      "notes": "Fetches unapproved comments from WordPress. Run this separately on a 2-hour schedule."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "🧞 Agent 7: Comment Moderator",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -480,
+        384
+      ],
+      "id": "9b0e8c51-3fab-4de1-a08f-1200451d661e",
+      "typeVersion": 1,
+      "notes": "Reviews, classifies, and generates replies for all pending comments."
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nlet decisions;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\[[\\s\\S]*\\])/);\n  decisions = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  decisions = [];\n}\n\n// Return only approve_and_reply actions\nreturn decisions\n  .filter(d => d.action === 'approve_and_reply' && d.reply)\n  .map(d => ({ json: d }));"
+      },
+      "name": "🔀 Filter Comment Actions",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -288,
+        384
+      ],
+      "id": "7c42866f-a051-4501-83c2-cfad54ca3e93",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "=https://your-blog.com/wp-json/wp/v2/comments",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"post\": {{ $('Publish to WordPress').item.json.id }},\n  \"parent\": {{ $json.comment_id }},\n  \"content\": \"{{ $json.reply }}\",\n  \"status\": \"approved\"\n}",
+        "options": {}
+      },
+      "name": "✉️ Post Comment Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -80,
+        384
+      ],
+      "id": "efb8129d-299c-4d0e-9f1c-06af0d07f800",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Content Log",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Run ID": "={{ $('Parse & Validate Topic').item.json.run_id }}",
+            "Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
+            "Title": "={{ $('Assemble Final Article').item.json.title }}",
+            "Keyword": "={{ $('Parse & Validate Topic').item.json.primary_keyword }}",
+            "WP URL": "={{ $('Publish to WordPress').item.json.link }}",
+            "WP Post ID": "={{ $('Publish to WordPress').item.json.id }}",
+            "Categories": "={{ $('Assemble Final Article').item.json.categories.join(', ') }}",
+            "Tags": "={{ $('Assemble Final Article').item.json.tags.join(', ') }}",
+            "Affiliate Networks": "={{ $('Assemble Final Article').item.json.monetization_summary.networks.join(', ') }}",
+            "Image Source": "={{ $('Select Best Image').item.json.imageSource }}",
+            "QC Score": "={{ $('Agent 5: Quality Control').item.json.response.match(/\"quality_score\": (\\d+)/)?.[1] || 'N/A' }}",
+            "FB Posted": "TRUE",
+            "IG Posted": "TRUE",
+            "TikTok Queued": "TRUE",
+            "Pinterest Posted": "TRUE",
+            "YT Short Queued": "TRUE",
+            "Status": "Live"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        128,
+        176
+      ],
+      "id": "46a3a0e7-1126-4626-b5cc-b1b7d8b87a71",
+      "typeVersion": 4,
+      "notes": "Master content log. Track all posts, performance, and monetization."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "✅ QC Approved?": {
+      "main": [
+        [
+          {
+            "node": "🖼️ Build Image Queries",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🖼️ Build Image Queries": {
+      "main": [
+        [
+          {
+            "node": "📸 Search Pexels",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Search Pexels": {
+      "main": [
+        [
+          {
+            "node": "🔀 Select Best Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Search Pixabay (Fallback)": {
+      "main": [
+        [
+          {
+            "node": "🔀 Select Best Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Select Best Image": {
+      "main": [
+        [
+          {
+            "node": "🤔 Need AI Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤔 Need AI Image?": {
+      "main": [
+        [
+          {
+            "node": "🎨 Generate Image (Ollama/SD)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📝 Publish to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎨 Generate Image (Ollama/SD)": {
+      "main": [
+        [
+          {
+            "node": "📝 Publish to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Parse & Route Social Posts": {
+      "main": [
+        [
+          {
+            "node": "🔀 Platform Router",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Platform Router": {
+      "main": [
+        [],
+        [
+          {
+            "node": "📸 Post to Instagram",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🎵 Schedule TikTok",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📸 Post to Instagram": {
+      "main": [
+        [
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Filter Comment Actions": {
+      "main": [
+        [
+          {
+            "node": "✉️ Post Comment Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "41d7b568-6fa8-4b06-928a-7db7705d5bb3",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "I8PPRXOekRYyhUjl",
+  "tags": []
+}

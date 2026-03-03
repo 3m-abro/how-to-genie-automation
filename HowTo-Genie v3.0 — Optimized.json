@@ -1,0 +1,359 @@
+{
+  "name": "HowTo-Genie v3.0 — Optimized",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * *"
+            }
+          ]
+        }
+      },
+      "id": "e6f92d56-ba65-4450-b39b-d9eb88d2fc23",
+      "name": "🕗 Daily Trigger 8AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -288,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Log",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "bbf0a236-439a-479a-b3c2-b8aa1820a571",
+      "name": "📡 Load Existing Topics",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -80,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://www.reddit.com/r/Entrepreneur+productivity+personalfinance+webdev/hot.json?limit=10&t=day",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "HowToGenie/1.0"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "619cf31e-bfb7-435e-be28-2cbbfece65c4",
+      "name": "📡 Fetch Reddit Trending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        -112
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const posts=$('📡 Fetch Reddit Trending').item.json?.data?.children||[];const trending=posts.slice(0,8).map(p=>p.data.title).join('\\n');const rows=$('📡 Load Existing Topics').all().map(i=>i.json.Keyword||'').filter(Boolean);return[{json:{reddit_context:trending||'none',existing_keywords:rows.join(', '),today:new Date().toISOString()}}];"
+      },
+      "id": "89c8661c-e52c-4259-bbf6-10571ffd2a2a",
+      "name": "🔧 Build Research Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        128,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"llama3.2:latest\",\"messages\":[{\"role\":\"user\",\"content\":\"Generate one high intent how-to topic using this context:\\n\\nReddit:\\n{{ $('🔧 Build Research Context').item.json.reddit_context }}\\n\\nAvoid these:\\n{{ $('🔧 Build Research Context').item.json.existing_keywords }}\\n\\nReturn JSON {topic,primary_keyword,secondary_keywords,affiliate_angle,outline}\"}],\"stream\":false,\"options\":{\"temperature\":0.6}}",
+        "options": {}
+      },
+      "id": "0f10d247-76e6-4c5a-a1c6-581e15dc2999",
+      "name": "🔍 Topic Research",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        320,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$input.first().json.message?.content||'';let topic;try{topic=JSON.parse(raw.match(/\\{[\\s\\S]*\\}/)[0]);}catch(e){topic={topic:\"How to Build a Profitable Online Business in 2025\",primary_keyword:\"build online business\",secondary_keywords:[\"make money online\"],affiliate_angle:\"business tools\",outline:[\"Intro\",\"Steps\",\"Tools\",\"Mistakes\",\"Conclusion\"]};}topic.slug=topic.primary_keyword.toLowerCase().replace(/[^\\w\\s-]/g,'').replace(/\\s+/g,'-').substring(0,70);return[{json:topic}];"
+      },
+      "id": "532a1f02-76a7-423c-94ee-5b5ed8b17704",
+      "name": "✅ Parse Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        528,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/chat",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"model\":\"llama3.2:latest\",\"messages\":[{\"role\":\"user\",\"content\":\"Write 2500-3000 word HTML how-to article about {{ $('✅ Parse Topic').item.json.topic }}. Include disclosure paragraph at top, H1,H2,H3 structure, FAQ and 3 affiliate CTAs.\"}],\"stream\":false,\"options\":{\"temperature\":0.7,\"num_predict\":2500}}",
+        "options": {}
+      },
+      "id": "05c26916-ccef-4bc0-b163-b94db4464277",
+      "name": "✍️ Write Article",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        720,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const html=$input.first().json.message?.content||'';const words=html.replace(/<[^>]*>/g,' ').split(/\\s+/).filter(Boolean).length;return[{json:{content:html,word_count:words}}];"
+      },
+      "id": "0ca280e3-6c96-4167-9adb-dadd8e1fbbfa",
+      "name": "🔧 Assemble Article",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://your-blog.com/wp-json/wp/v2/posts",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"title\":\"{{ $('✅ Parse Topic').item.json.topic }}\",\"content\":\"{{ $('🔧 Assemble Article').item.json.content }}\",\"slug\":\"{{ $('✅ Parse Topic').item.json.slug }}\",\"status\":\"publish\"}",
+        "options": {}
+      },
+      "id": "9d90943c-e572-487d-bcdb-13023456e085",
+      "name": "📄 Publish to WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://indexing.googleapis.com/v3/urlNotifications:publish",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"url\":\"{{ $('📄 Publish to WordPress').item.json.link }}\",\"type\":\"URL_UPDATED\"}",
+        "options": {}
+      },
+      "id": "a577bf4c-0b9c-4d00-8a62-8ff9a3ee3458",
+      "name": "🔍 Request Google Indexing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1328,
+        -16
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Content Log",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "379b522d-7788-4e3c-bcd1-d4f8ceefe579",
+      "name": "📊 Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1520,
+        96
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ALERT_HANDLER_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "options": {}
+      },
+      "id": "7dadca29-11a3-41c1-aa8a-677646181710",
+      "name": "✅ Send Success Alert",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1728,
+        96
+      ]
+    }
+  ],
+  "connections": {
+    "🕗 Daily Trigger 8AM": {
+      "main": [
+        [
+          {
+            "node": "📡 Load Existing Topics",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📡 Fetch Reddit Trending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📡 Load Existing Topics": {
+      "main": [
+        [
+          {
+            "node": "🔧 Build Research Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📡 Fetch Reddit Trending": {
+      "main": [
+        [
+          {
+            "node": "🔧 Build Research Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Build Research Context": {
+      "main": [
+        [
+          {
+            "node": "🔍 Topic Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Topic Research": {
+      "main": [
+        [
+          {
+            "node": "✅ Parse Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Parse Topic": {
+      "main": [
+        [
+          {
+            "node": "✍️ Write Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✍️ Write Article": {
+      "main": [
+        [
+          {
+            "node": "🔧 Assemble Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Assemble Article": {
+      "main": [
+        [
+          {
+            "node": "📄 Publish to WordPress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Publish to WordPress": {
+      "main": [
+        [
+          {
+            "node": "🔍 Request Google Indexing",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Log to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "✅ Send Success Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  }
+}

@@ -1,0 +1,403 @@
+{
+  "name": "HowTo-Genie v3.0 — Email Newsletter Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "newsletter-signup",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "📬 Webhook: New Subscriber",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        -800,
+        176
+      ],
+      "id": "6bba4810-096f-4fa4-8b5e-060f86239205",
+      "typeVersion": 1,
+      "webhookId": "newsletter-signup-hook",
+      "notes": "Embed this webhook URL in your WordPress opt-in forms, popups, and lead magnets."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and enrich subscriber data\nconst body = $input.first().json.body || $input.first().json;\n\nconst email = (body.email || '').toLowerCase().trim();\nconst name = (body.name || body.first_name || 'Friend').trim();\nconst source = body.source || body.utm_source || 'website';\nconst leadMagnet = body.lead_magnet || body.offer || 'free-guide';\nconst articleSlug = body.article_slug || '';\nconst tags = [];\n\n// Auto-tag based on source\nif (source.includes('facebook')) tags.push('source:facebook');\nif (source.includes('instagram')) tags.push('source:instagram');\nif (source.includes('organic')) tags.push('source:organic');\nif (articleSlug) tags.push('content:blog-reader');\nif (leadMagnet) tags.push(`magnet:${leadMagnet}`);\ntags.push('status:new-subscriber');\n\n// Email validation\nconst emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailRegex.test(email)) {\n  return [{ json: { valid: false, error: 'Invalid email', original: body }}];\n}\n\n// Determine welcome sequence based on entry point\nlet sequence = 'general';\nif (articleSlug.includes('affiliate')) sequence = 'affiliate';\nelse if (articleSlug.includes('seo') || articleSlug.includes('blog')) sequence = 'blogging';\nelse if (articleSlug.includes('business')) sequence = 'business';\nelse if (articleSlug.includes('tech') || articleSlug.includes('tool')) sequence = 'tech';\n\nconst subscriber = {\n  valid: true,\n  email,\n  first_name: name.split(' ')[0],\n  full_name: name,\n  source,\n  lead_magnet: leadMagnet,\n  article_slug: articleSlug,\n  tags,\n  sequence,\n  subscribed_at: new Date().toISOString(),\n  ip: $input.first().json.headers?.['x-forwarded-for'] || 'unknown'\n};\n\nreturn [{ json: subscriber }];"
+      },
+      "name": "🔍 Validate & Tag Subscriber",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -608,
+        176
+      ],
+      "id": "c0970dea-ab80-4416-835d-924d3d89f86b",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.valid }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "✅ Valid Email?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -400,
+        176
+      ],
+      "id": "d0be8f72-5d81-4988-b8b2-38949774cebd",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://api.convertkit.com/v3/subscribers",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_secret\": \"YOUR_CONVERTKIT_API_SECRET\",\n  \"email\": \"{{ $json.email }}\",\n  \"first_name\": \"{{ $json.first_name }}\",\n  \"tags\": {{ JSON.stringify($json.tags) }},\n  \"fields\": {\n    \"source\": \"{{ $json.source }}\",\n    \"sequence\": \"{{ $json.sequence }}\",\n    \"subscribed_at\": \"{{ $json.subscribed_at }}\"\n  }\n}",
+        "options": {}
+      },
+      "name": "📧 Add to ConvertKit",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -208,
+        80
+      ],
+      "id": "9aef49b8-86dc-46df-931a-923d586e5281",
+      "typeVersion": 4.1,
+      "notes": "ConvertKit API. Replace with MailerLite/ActiveCampaign if preferred. See alternatives below."
+    },
+    {
+      "parameters": {
+        "url": "https://api.mailerlite.com/api/v2/subscribers",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-MailerLite-ApiKey",
+              "value": "YOUR_MAILERLITE_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"email\": \"{{ $json.email }}\",\n  \"name\": \"{{ $json.full_name }}\",\n  \"fields\": {\n    \"source\": \"{{ $json.source }}\",\n    \"sequence\": \"{{ $json.sequence }}\"\n  },\n  \"groups\": [\"YOUR_GROUP_ID\"],\n  \"status\": \"active\"\n}",
+        "options": {}
+      },
+      "name": "📧 Add to MailerLite (Alt)",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -208,
+        224
+      ],
+      "id": "56de0e85-711d-429c-ad85-3f3fca530eb7",
+      "typeVersion": 4.1,
+      "notes": "Alternative to ConvertKit. Free up to 1,000 subscribers."
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🤖 AI: Write Welcome Email 1",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        0,
+        80
+      ],
+      "id": "be9457c6-3392-4c72-b6c3-3ff4d8311966",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🤖 AI: Write Welcome Email 2",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        0,
+        224
+      ],
+      "id": "3b738061-3718-429a-bdde-24663af08553",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🤖 AI: Write Welcome Email 3",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        0,
+        368
+      ],
+      "id": "bac7718f-18d6-4303-be1b-6577b5d3f637",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🤖 AI: Write Welcome Emails 4+5",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        0,
+        528
+      ],
+      "id": "bc5f210d-9027-440a-970f-fbb660778a89",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "// Collect all email content and build sequence payload\nconst subscriber = $('Validate & Tag Subscriber').item.json;\n\nconst parseEmail = (raw) => {\n  try {\n    const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n    return JSON.parse(match ? (match[1] || match[0]) : raw);\n  } catch(e) { return { error: e.message, raw: raw.substring(0,200) }; }\n};\n\nconst email1 = parseEmail($('AI: Write Welcome Email 1').item.json.response);\nconst email2 = parseEmail($('AI: Write Welcome Email 2').item.json.response);\nconst email3 = parseEmail($('AI: Write Welcome Email 3').item.json.response);\nconst emails45 = parseEmail($('AI: Write Welcome Emails 4+5').item.json.response);\n\nconst sequence = [\n  { ...email1, sequence_position: 1, send_delay_days: 0 },\n  { ...email2, sequence_position: 2, send_delay_days: 2 },\n  { ...email3, sequence_position: 3, send_delay_days: 4 },\n  { ...emails45.email_4, sequence_position: 4 },\n  { ...emails45.email_5, sequence_position: 5 }\n];\n\nreturn sequence.map(email => ({\n  json: {\n    subscriber_email: subscriber.email,\n    subscriber_name: subscriber.first_name,\n    ...email\n  }\n}));"
+      },
+      "name": "📦 Build Email Sequence",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        208,
+        272
+      ],
+      "id": "9b15e4ec-ac5f-41f4-a157-2ef102a3dcbf",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Email Sequences",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $json.subscriber_email }}",
+            "Name": "={{ $json.subscriber_name }}",
+            "Position": "={{ $json.sequence_position }}",
+            "Subject": "={{ $json.subject }}",
+            "Send Delay (Days)": "={{ $json.send_delay_days }}",
+            "Status": "Queued",
+            "Created At": "={{ $now.format('YYYY-MM-DD HH:mm') }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Sequence to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        400,
+        272
+      ],
+      "id": "233d6eb5-151d-4caf-9756-61a93a0bbeb7",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 2"
+            }
+          ]
+        }
+      },
+      "name": "📅 Weekly Digest Trigger (Tuesdays 9AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -800,
+        576
+      ],
+      "id": "9507e3b1-d287-4caf-801b-228f2b281070",
+      "typeVersion": 1,
+      "notes": "Fires every Tuesday at 9AM for the weekly digest newsletter."
+    },
+    {
+      "parameters": {
+        "url": "https://your-blog.com/wp-json/wp/v2/posts?per_page=5&orderby=date&order=desc&status=publish",
+        "options": {}
+      },
+      "name": "📰 Fetch Latest 5 Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -608,
+        576
+      ],
+      "id": "5539ceca-1ec5-4e16-8b6b-af22a096d294",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.8
+        }
+      },
+      "name": "🤖 AI: Write Weekly Digest",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -400,
+        576
+      ],
+      "id": "ff722df9-bed3-4fd9-9bd3-1c3641e8586f",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://api.convertkit.com/v3/broadcasts",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"api_secret\": \"YOUR_CONVERTKIT_API_SECRET\",\n  \"subject\": \"{{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).subject }}\",\n  \"content\": \"{{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).body_html }}\",\n  \"published_at\": \"{{ $now.toISOString() }}\",\n  \"send_at\": \"{{ $now.toISOString() }}\"\n}",
+        "options": {}
+      },
+      "name": "📤 Send Weekly Digest via ConvertKit",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -208,
+        576
+      ],
+      "id": "b6a2379a-a461-403b-8911-accd59824e63",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Subscribers",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $('Validate & Tag Subscriber').item.json.subscribed_at }}",
+            "Email": "={{ $('Validate & Tag Subscriber').item.json.email }}",
+            "Name": "={{ $('Validate & Tag Subscriber').item.json.full_name }}",
+            "Source": "={{ $('Validate & Tag Subscriber').item.json.source }}",
+            "Sequence": "={{ $('Validate & Tag Subscriber').item.json.sequence }}",
+            "Tags": "={{ $('Validate & Tag Subscriber').item.json.tags.join(', ') }}",
+            "Lead Magnet": "={{ $('Validate & Tag Subscriber').item.json.lead_magnet }}",
+            "Status": "Active"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Subscriber to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -208,
+        368
+      ],
+      "id": "d84e5a78-c574-43bb-a3a9-0d82d59082e4",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ success: true, message: 'Welcome to HowTo-Genie! Check your inbox.', subscriber: $('Validate & Tag Subscriber').item.json.email }) }}",
+        "options": {}
+      },
+      "name": "✅ Send Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        0,
+        -32
+      ],
+      "id": "bd2fc6d9-c0dc-46b7-bb50-39393678afda",
+      "typeVersion": 1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "📬 Webhook: New Subscriber": {
+      "main": [
+        [
+          {
+            "node": "🔍 Validate & Tag Subscriber",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Validate & Tag Subscriber": {
+      "main": [
+        [
+          {
+            "node": "✅ Valid Email?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Valid Email?": {
+      "main": [
+        [
+          {
+            "node": "📧 Add to ConvertKit",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📧 Add to MailerLite (Alt)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📊 Log Subscriber to Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "✅ Send Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📦 Build Email Sequence": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Sequence to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📅 Weekly Digest Trigger (Tuesdays 9AM)": {
+      "main": [
+        [
+          {
+            "node": "📰 Fetch Latest 5 Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "87f08763-77f4-4eb2-a8f2-d39842aa7155",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "Q1tHAOgWW9fmGJwu",
+  "tags": []
+}

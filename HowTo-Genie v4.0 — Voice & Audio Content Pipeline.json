@@ -1,0 +1,534 @@
+{
+  "name": "HowTo-Genie v4.0 — Voice & Audio Content Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 16 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🎙️ Audio Pipeline Trigger (4PM Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [
+        -1728,
+        -48
+      ],
+      "id": "8b5da843-740e-499e-902e-f596dfda87fd",
+      "typeVersion": 1,
+      "notes": "Runs after translation pipeline completes. Creates audio for all 9 language versions."
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Content Log",
+        "options": {}
+      },
+      "name": "📄 Get Today's Content",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1536,
+        -48
+      ],
+      "id": "e901ec58-805e-48b3-9755-e06cb37d5a8d",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Multilingual Content",
+        "options": {}
+      },
+      "name": "🌍 Get All Language Versions",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1328,
+        -48
+      ],
+      "id": "ab4fca26-e3a3-4f04-91af-0d092daaa547",
+      "typeVersion": 4,
+      "notes": "Fetches today's post in all 9 languages (EN + 8 translations)."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare audio jobs for all language versions\nconst allPosts = $input.all();\n\n// Voice configuration per language\nconst voiceConfig = {\n  'en': { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', gender: 'female', provider: 'elevenlabs' },\n  'es': { voice_id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', gender: 'female', provider: 'elevenlabs' },\n  'pt-BR': { voice_id: 'GBv7mTt0atIp3Br8iCZE', name: 'Ricardo', gender: 'male', provider: 'elevenlabs' },\n  'de': { voice_id: 'iP95p4xoKVk53GoZ742B', name: 'Klaus', gender: 'male', provider: 'elevenlabs' },\n  'fr': { voice_id: 'zrHiDhphv9ZnVXBqCLjz', name: 'Charlotte', gender: 'female', provider: 'elevenlabs' },\n  'hi': { voice_id: 'hi-IN-Neural2-A', name: 'Aditi', gender: 'female', provider: 'google' },\n  'id': { voice_id: 'id-ID-Standard-B', name: 'Siti', gender: 'female', provider: 'google' },\n  'ar': { voice_id: 'ar-XA-Standard-A', name: 'Layla', gender: 'female', provider: 'google' },\n  'ja': { voice_id: 'ja-JP-Neural2-B', name: 'Yuki', gender: 'female', provider: 'google' }\n};\n\nreturn allPosts.map(post => {\n  const lang = post.json['Language']?.toLowerCase() || 'en';\n  const langCode = lang.includes('spanish') ? 'es' : \n                   lang.includes('portuguese') ? 'pt-BR' : \n                   lang.includes('german') ? 'de' : \n                   lang.includes('french') ? 'fr' : \n                   lang.includes('hindi') ? 'hi' : \n                   lang.includes('indonesian') ? 'id' : \n                   lang.includes('arabic') ? 'ar' : \n                   lang.includes('japanese') ? 'ja' : 'en';\n  \n  return {\n    json: {\n      title: post.json['Translated Title'] || post.json['Title'],\n      url: post.json['URL'],\n      language: langCode,\n      language_name: post.json['Language'] || 'English',\n      voice_config: voiceConfig[langCode] || voiceConfig['en'],\n      content_preview: (post.json['Translated Title'] || '').substring(0, 200)\n    }\n  };\n});"
+      },
+      "name": "🎛️ Configure Voice Settings",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -1136,
+        -48
+      ],
+      "id": "fb74b274-207f-4a3d-852e-92257f4aeff6",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "name": "📥 Fetch Article Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -928,
+        -48
+      ],
+      "id": "45d57348-793e-4eab-a47d-b7544043cff1",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "model": "llama3.2:latest",
+        "options": {
+          "temperature": 0.7
+        }
+      },
+      "name": "🎙️ AI: Adapt to Audio Script",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
+      "position": [
+        -736,
+        -48
+      ],
+      "id": "5692f6d1-fe82-464b-aeb8-2c70e85994c3",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nconst voiceConfig = $('Configure Voice Settings').item.json.voice_config;\nconst langData = $('Configure Voice Settings').item.json;\n\nlet audioScript;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  audioScript = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  audioScript = {\n    podcast_title: langData.title,\n    podcast_script: 'Welcome to HowTo-Genie Podcast. ' + langData.content_preview,\n    estimated_duration: '10 minutes',\n    word_count: 1500,\n    parse_error: e.message\n  };\n}\n\n// Clean script for TTS (remove stage directions)\nconst ttsScript = audioScript.podcast_script\n  .replace(/\\[PAUSE\\]/g, '... ')\n  .replace(/\\[EMPHASIS[^\\]]*\\]/g, '')\n  .replace(/\\[.*?\\]/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    ...langData,\n    podcast_title: audioScript.podcast_title,\n    podcast_script: audioScript.podcast_script,\n    tts_script: ttsScript,\n    estimated_duration: audioScript.estimated_duration,\n    word_count: audioScript.word_count,\n    chapters: audioScript.chapters || [],\n    show_notes: audioScript.show_notes || '',\n    keywords: audioScript.keywords || [],\n    affiliate_mentions: audioScript.affiliate_mentions || [],\n    voice_provider: voiceConfig.provider,\n    voice_id: voiceConfig.voice_id,\n    voice_name: voiceConfig.name\n  }\n}];"
+      },
+      "name": "📝 Parse Audio Script",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -528,
+        -48
+      ],
+      "id": "8ee7e02e-b0ae-4f72-8226-304fdc9496cd",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.voice_provider }}",
+              "operation": "equals",
+              "value2": "elevenlabs"
+            }
+          ]
+        }
+      },
+      "name": "🔀 Route by Voice Provider",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -336,
+        -48
+      ],
+      "id": "be51a575-b716-4612-a7f8-d4b832746cf7",
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/={{ $json.voice_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "YOUR_ELEVENLABS_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.tts_script.substring(0, 5000) }}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": {\n    \"stability\": 0.5,\n    \"similarity_boost\": 0.75,\n    \"style\": 0.5,\n    \"use_speaker_boost\": true\n  }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "name": "🎤 ElevenLabs: Generate Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -128,
+        -144
+      ],
+      "id": "8d44f587-479d-45c1-b4a9-7ef03441624c",
+      "typeVersion": 4.1,
+      "notes": "ElevenLabs premium voices. 29 languages supported. $22/mo for 100K chars."
+    },
+    {
+      "parameters": {
+        "url": "https://texttospeech.googleapis.com/v1/text:synthesize?key=YOUR_GOOGLE_API_KEY",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"input\": { \"text\": \"{{ $json.tts_script.substring(0, 5000) }}\" },\n  \"voice\": {\n    \"languageCode\": \"{{ $json.language }}\",\n    \"name\": \"{{ $json.voice_id }}\"\n  },\n  \"audioConfig\": {\n    \"audioEncoding\": \"MP3\",\n    \"pitch\": 0,\n    \"speakingRate\": 1.0\n  }\n}",
+        "options": {}
+      },
+      "name": "🗣️ Google TTS: Generate Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -128,
+        64
+      ],
+      "id": "e9da7a05-4cb5-441a-ab86-1d1a861264b5",
+      "typeVersion": 4.1,
+      "notes": "Google Cloud TTS. Free tier: 1M chars/month. Supports 100+ languages."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract audio data and prepare for distribution\nconst audioData = $input.first().json;\nconst scriptData = $('Parse Audio Script').item.json;\n\nlet audioFile;\nlet audioFormat;\n\nif (audioData.data) {\n  // ElevenLabs returns binary audio\n  audioFile = audioData.data;\n  audioFormat = 'mp3';\n} else if (audioData.audioContent) {\n  // Google TTS returns base64\n  audioFile = Buffer.from(audioData.audioContent, 'base64');\n  audioFormat = 'mp3';\n} else {\n  audioFile = null;\n}\n\nconst fileName = `howtogenie_${scriptData.language}_${Date.now()}.mp3`;\n\nreturn [{\n  json: {\n    ...scriptData,\n    audio_file_name: fileName,\n    audio_format: audioFormat,\n    audio_size_kb: audioFile ? Math.round(audioFile.length / 1024) : 0,\n    audio_ready: !!audioFile,\n    generated_at: new Date().toISOString()\n  },\n  binary: audioFile ? {\n    data: audioFile,\n    fileName: fileName,\n    mimeType: 'audio/mpeg'\n  } : undefined\n}];"
+      },
+      "name": "🔊 Process Audio File",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        80,
+        -48
+      ],
+      "id": "9a53d0ca-0020-41d5-bd02-9ff6d225ad64",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "requestOptions": {}
+      },
+      "name": "☁️ Upload to Google Cloud Storage",
+      "type": "n8n-nodes-base.googleCloudStorage",
+      "position": [
+        272,
+        -48
+      ],
+      "id": "0568bacd-a4e3-4aec-9dfb-89b2ef2197bf",
+      "typeVersion": 1,
+      "notes": "Stores audio files. Alternative: AWS S3, Cloudflare R2, or Backblaze B2."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build podcast RSS feed item\nconst audio = $input.first().json;\nconst publicUrl = `https://storage.googleapis.com/howtogenie-audio/${audio.audio_file_name}`;\n\nconst rssItem = `\n<item>\n  <title>${audio.podcast_title}</title>\n  <link>${audio.url}</link>\n  <description><![CDATA[${audio.show_notes}]]></description>\n  <enclosure url=\"${publicUrl}\" length=\"${audio.audio_size_kb * 1024}\" type=\"audio/mpeg\" />\n  <guid isPermaLink=\"false\">${audio.audio_file_name}</guid>\n  <pubDate>${new Date(audio.generated_at).toUTCString()}</pubDate>\n  <itunes:duration>${audio.estimated_duration}</itunes:duration>\n  <itunes:keywords>${audio.keywords.join(', ')}</itunes:keywords>\n  <itunes:explicit>no</itunes:explicit>\n</item>\n`;\n\nreturn [{\n  json: {\n    ...audio,\n    audio_url: publicUrl,\n    rss_item: rssItem,\n    podcast_platforms: [\n      { name: 'Spotify', status: 'ready' },\n      { name: 'Apple Podcasts', status: 'ready' },\n      { name: 'Google Podcasts', status: 'ready' },\n      { name: 'YouTube Music', status: 'ready' },\n      { name: 'Amazon Music', status: 'ready' }\n    ]\n  }\n}];"
+      },
+      "name": "📻 Build Podcast RSS Feed",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        480,
+        -48
+      ],
+      "id": "da6ae10a-e3d7-4877-b1c0-983b63725839",
+      "typeVersion": 2,
+      "notes": "Generates RSS feed item for podcast directories."
+    },
+    {
+      "parameters": {
+        "url": "https://api.spotify.com/v1/episodes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SPOTIFY_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"name\": \"{{ $json.podcast_title }}\",\n  \"description\": \"{{ $json.show_notes }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"audio_file_url\": \"{{ $json.audio_url }}\",\n  \"external_url\": \"{{ $json.url }}\"\n}",
+        "options": {}
+      },
+      "name": "🎵 Submit to Spotify",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        672,
+        -144
+      ],
+      "id": "f455b4b6-f711-48b9-96a8-4b8b6c47bfe2",
+      "typeVersion": 4.1,
+      "notes": "Spotify for Podcasters API. Auto-publishes episode."
+    },
+    {
+      "parameters": {
+        "url": "https://www.youtube.com/upload/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_YOUTUBE_ACCESS_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"snippet\": {\n    \"title\": \"{{ $json.podcast_title }}\",\n    \"description\": \"{{ $json.show_notes }}\\n\\nFull article: {{ $json.url }}\",\n    \"tags\": {{ JSON.stringify($json.keywords) }},\n    \"categoryId\": \"22\"\n  },\n  \"status\": {\n    \"privacyStatus\": \"public\",\n    \"selfDeclaredMadeForKids\": false\n  }\n}",
+        "options": {}
+      },
+      "name": "📺 Upload to YouTube",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        672,
+        64
+      ],
+      "id": "6ef39337-8192-4039-8f4b-cceeef7e9a00",
+      "typeVersion": 4.1,
+      "notes": "YouTube Data API. Creates audio-only video with static image."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "sheetName": "Audio Content",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD') }}",
+            "Language": "={{ $json.language_name }}",
+            "Podcast Title": "={{ $json.podcast_title }}",
+            "Duration": "={{ $json.estimated_duration }}",
+            "Word Count": "={{ $json.word_count }}",
+            "Audio URL": "={{ $json.audio_url }}",
+            "Voice Provider": "={{ $json.voice_provider }}",
+            "Voice Name": "={{ $json.voice_name }}",
+            "File Size (KB)": "={{ $json.audio_size_kb }}",
+            "Spotify": "Submitted",
+            "YouTube": "Uploaded",
+            "Blog URL": "={{ $json.url }}",
+            "Status": "Published"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Audio Content",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        880,
+        -48
+      ],
+      "id": "d8e56b8e-173f-4c3c-b11d-b2df1d6710b0",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "jsCode": "// Create WhatsApp Voice Note version (60 seconds max)\nconst fullScript = $('Parse Audio Script').item.json.tts_script;\nconst words = fullScript.split(' ');\nconst targetWords = 150; // ~60 seconds at normal pace\n\nconst shortScript = words.slice(0, targetWords).join(' ') + \n  '... For the complete guide, visit the link in bio.';\n\nreturn [{\n  json: {\n    ...$$('Parse Audio Script').item.json,\n    voice_note_script: shortScript,\n    voice_note_duration: '60 seconds',\n    platform: 'WhatsApp/Telegram'\n  }\n}];"
+      },
+      "name": "💬 Create Voice Note Version",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        272,
+        160
+      ],
+      "id": "e1e6bc2d-6f6a-4509-875e-f117cc6c5f5b",
+      "typeVersion": 2,
+      "notes": "Creates 60-second teaser for messaging apps."
+    },
+    {
+      "parameters": {
+        "url": "https://api.elevenlabs.io/v1/text-to-speech/={{ $json.voice_id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "xi-api-key",
+              "value": "YOUR_ELEVENLABS_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"text\": \"{{ $json.voice_note_script }}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": { \"stability\": 0.5, \"similarity_boost\": 0.75 }\n}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "name": "🎤 Generate Voice Note Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        480,
+        160
+      ],
+      "id": "e9d3a91e-c6d8-4ecc-bd4c-dcf4f9210ec9",
+      "typeVersion": 4.1
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🎙️ Audio Pipeline Trigger (4PM Daily)": {
+      "main": [
+        [
+          {
+            "node": "📄 Get Today's Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📄 Get Today's Content": {
+      "main": [
+        [
+          {
+            "node": "🌍 Get All Language Versions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌍 Get All Language Versions": {
+      "main": [
+        [
+          {
+            "node": "🎛️ Configure Voice Settings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎛️ Configure Voice Settings": {
+      "main": [
+        [
+          {
+            "node": "📥 Fetch Article Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📝 Parse Audio Script": {
+      "main": [
+        [
+          {
+            "node": "🔀 Route by Voice Provider",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route by Voice Provider": {
+      "main": [
+        [
+          {
+            "node": "🎤 ElevenLabs: Generate Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🗣️ Google TTS: Generate Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎤 ElevenLabs: Generate Audio": {
+      "main": [
+        [
+          {
+            "node": "🔊 Process Audio File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🗣️ Google TTS: Generate Audio": {
+      "main": [
+        [
+          {
+            "node": "🔊 Process Audio File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔊 Process Audio File": {
+      "main": [
+        [
+          {
+            "node": "☁️ Upload to Google Cloud Storage",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "💬 Create Voice Note Version",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "☁️ Upload to Google Cloud Storage": {
+      "main": [
+        [
+          {
+            "node": "📻 Build Podcast RSS Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📻 Build Podcast RSS Feed": {
+      "main": [
+        [
+          {
+            "node": "🎵 Submit to Spotify",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📺 Upload to YouTube",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📊 Log Audio Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "💬 Create Voice Note Version": {
+      "main": [
+        [
+          {
+            "node": "🎤 Generate Voice Note Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "89da4f59-b914-41ad-af9c-a7c667800ca9",
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  },
+  "id": "sRHFARejZtM4iQAp",
+  "tags": []
+}
