@@ -1,5 +1,17 @@
 # 🧞‍♂️ HowTo-Genie v2.0 — Setup & Architecture Guide
 
+## Central Ollama agent (v2.2+)
+
+In **HowTo-Genie v2.2 — Master Orchestrator**, all 8 agents call a **single** sub-workflow instead of 8 separate HTTP calls to Ollama:
+
+1. **Import** `HowTo-Genie — Ollama Agent (Central).json` into n8n.
+2. In the central workflow: set **Ollama credential** on the “Ollama Chat Model” node (or leave `YOUR_OLLAMA_CREDENTIAL_ID` and create an Ollama credential with that ID).
+3. In the **Master Orchestrator**: in every “Execute Workflow” node that runs an agent (Agents 0–7), set **Workflow** to the imported central workflow (or replace placeholder `OLLAMA_AGENT_CENTRAL_WORKFLOW_ID` with the real workflow ID from the central workflow’s URL).
+
+The central sub-workflow expects input items with: `user_message`, `system_message`, `model`, `temperature`, `num_predict`. It returns `{ message: { content: "..." } }` so existing Parse nodes keep working.
+
+---
+
 ## 🗺️ System Overview
 
 ```

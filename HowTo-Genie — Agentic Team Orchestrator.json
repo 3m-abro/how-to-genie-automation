@@ -1,0 +1,325 @@
+{
+  "name": "HowTo-Genie — Agentic Team Orchestrator",
+  "nodes": [
+    {
+      "id": "trigger-agentic",
+      "name": "Schedule — Agentic Team",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 3,5,6,8,9,10,12,14,15,16,18,21 * * *"
+            }
+          ]
+        }
+      },
+      "notes": "Runs at 3,5,6,8,9,10,12,14,15,16,18,21. Set Context picks which agent runs."
+    },
+    {
+      "id": "code-set-context",
+      "name": "Set Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0],
+      "parameters": {
+        "jsCode": "const now = new Date();\nconst hour = now.getHours();\nconst day = now.getDay();\nconst isTuesday = day === 2;\nconst isSunday = day === 0;\n\nlet runType = 'none';\nif (hour === 3 && isSunday) runType = 'seo';\nelse if (hour === 5) runType = 'islamic';\nelse if (hour === 6) runType = 'ab_test';\nelse if (hour === 8) runType = 'main';\nelse if (hour === 9) runType = isTuesday ? 'email' : 'competitor';\nelse if (hour === 10) runType = 'whatsapp';\nelse if (hour === 12) runType = 'repurpose';\nelse if (hour === 14) runType = 'multilang';\nelse if (hour === 15 || hour === 21) runType = 'competitor';\nelse if (hour === 16) runType = 'voice';\nelse if (hour === 18) runType = 'ab_test';\n\nreturn [{\n  json: {\n    runHour: hour,\n    runDay: day,\n    runType,\n    timestamp: now.toISOString(),\n    date: now.toISOString().split('T')[0]\n  }\n}];"
+      },
+      "notes": "Maps hour/day to runType. Replace workflow IDs below with your n8n workflow IDs."
+    },
+    {
+      "id": "switch-route",
+      "name": "Route by Agent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [480, 0],
+      "parameters": {
+        "mode": "expression",
+        "outputNumber": 13,
+        "outputIndexExpression": "={{ $json.runType === 'islamic' ? 0 : $json.runType === 'ab_test' ? 1 : $json.runType === 'main' ? 2 : $json.runType === 'email' ? 3 : $json.runType === 'whatsapp' ? 4 : $json.runType === 'repurpose' ? 5 : $json.runType === 'video' ? 6 : $json.runType === 'multilang' ? 7 : $json.runType === 'competitor' ? 8 : $json.runType === 'viral' ? 9 : $json.runType === 'voice' ? 10 : $json.runType === 'seo' ? 11 : 12 }}",
+        "options": {}
+      },
+      "notes": "Outputs 0-11 = agent, 12 = none. If your n8n version uses different param names, set Mode to Expression, Number of Outputs = 13, and paste the expression from the note in README."
+    },
+    {
+      "id": "exec-islamic",
+      "name": "Exec: Islamic Content",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, -600],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_ISLAMIC_ENGINE_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-ab",
+      "name": "Exec: A/B Testing",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, -480],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_AB_TESTING_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-main",
+      "name": "Exec: Master Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, -360],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_MASTER_ORCHESTRATOR_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-email",
+      "name": "Exec: Email Newsletter",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, -240],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_EMAIL_NEWSLETTER_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-whatsapp",
+      "name": "Exec: WhatsApp & Telegram",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, -120],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_WHATSAPP_TELEGRAM_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-repurpose",
+      "name": "Exec: Content Repurposing",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 0],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_REPURPOSING_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-video",
+      "name": "Exec: Auto Video",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 120],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_AUTO_VIDEO_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-multilang",
+      "name": "Exec: Multi-Language",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 240],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_MULTILANG_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-competitor",
+      "name": "Exec: Competitor & Trend",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 360],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_COMPETITOR_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-viral",
+      "name": "Exec: Viral Amplifier",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 480],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_VIRAL_AMPLIFIER_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-voice",
+      "name": "Exec: Voice & Audio",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 600],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_VOICE_AUDIO_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "exec-seo",
+      "name": "Exec: SEO Interlinking",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [720, 720],
+      "parameters": {
+        "source": "database",
+        "workflowId": "REPLACE_WITH_SEO_INTERLINKING_ID",
+        "mode": "once",
+        "options": { "waitForSubWorkflow": true }
+      }
+    },
+    {
+      "id": "code-noop",
+      "name": "No Op (no agent this hour)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [720, 840],
+      "parameters": {
+        "jsCode": "return $input.all();"
+      }
+    },
+    {
+      "id": "code-add-meta",
+      "name": "Add Orchestration Meta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 0],
+      "parameters": {
+        "jsCode": "const ctx = $('Set Context').item.json;\nconst item = $input.first().json;\nreturn [{\n  json: {\n    ...item,\n    workflowName: ctx.runType,\n    runType: ctx.runType,\n    runHour: ctx.runHour,\n    timestamp: ctx.timestamp,\n    date: ctx.date,\n    status: ctx.runType === 'none' ? 'skipped' : 'completed'\n  }\n}];"
+      }
+    },
+    {
+      "id": "sheets-log",
+      "name": "Log to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.2,
+      "position": [1200, 0],
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "mode": "id", "value": "YOUR_ORCHESTRATOR_LOG_SHEET_ID" },
+        "sheetName": { "__rl": true, "mode": "name", "value": "Agentic Team Log" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $json.date }}",
+            "Run Hour": "={{ $json.runHour }}",
+            "Agent": "={{ $json.runType }}",
+            "Status": "={{ $json.status }}",
+            "Timestamp": "={{ $json.timestamp }}"
+          }
+        },
+        "options": {}
+      },
+      "notes": "Optional. Set documentId/sheetName or disable to skip logging."
+    }
+  ],
+  "connections": {
+    "Schedule — Agentic Team": {
+      "main": [[{ "node": "Set Context", "type": "main", "index": 0 }]]
+    },
+    "Set Context": {
+      "main": [[{ "node": "Route by Agent", "type": "main", "index": 0 }]]
+    },
+    "Route by Agent": {
+      "main": [
+        [{ "node": "Exec: Islamic Content", "type": "main", "index": 0 }],
+        [{ "node": "Exec: A/B Testing", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Master Orchestrator", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Email Newsletter", "type": "main", "index": 0 }],
+        [{ "node": "Exec: WhatsApp & Telegram", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Content Repurposing", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Auto Video", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Multi-Language", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Competitor & Trend", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Viral Amplifier", "type": "main", "index": 0 }],
+        [{ "node": "Exec: Voice & Audio", "type": "main", "index": 0 }],
+        [{ "node": "Exec: SEO Interlinking", "type": "main", "index": 0 }],
+        [{ "node": "No Op (no agent this hour)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Exec: Islamic Content": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: A/B Testing": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Master Orchestrator": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Email Newsletter": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: WhatsApp & Telegram": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Content Repurposing": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Auto Video": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Multi-Language": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Competitor & Trend": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Viral Amplifier": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: Voice & Audio": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Exec: SEO Interlinking": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "No Op (no agent this hour)": {
+      "main": [[{ "node": "Add Orchestration Meta", "type": "main", "index": 0 }]]
+    },
+    "Add Orchestration Meta": {
+      "main": [[{ "node": "Log to Google Sheets", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
