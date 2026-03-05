@@ -1,0 +1,394 @@
+{
+  "name": "System Health Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🕘 Daily Health Check (9:05AM)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        -896,
+        368
+      ],
+      "id": "bcf167cf-f351-4887-8335-7cc18886fccd",
+      "notes": "Fires 5 min after orchestrator. Verifies everything ran."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check all critical workflows ran in last 25 hours\nconst execData = $input.first().json;\nconst executions = execData.data || [];\n\nconst now = new Date();\nconst threshold = 25 * 60 * 60 * 1000; // 25 hours in ms\n\nconst results = [];\nlet allHealthy = true;\n\n// Check if orchestrator ran\nif (executions.length === 0) {\n  results.push({ workflow: 'Master Orchestrator', status: 'MISSED', last_run: 'Never or >25hrs ago' });\n  allHealthy = false;\n} else {\n  const lastRun = new Date(executions[0].startedAt);\n  const age = now - lastRun;\n  const status = age < threshold ? 'OK' : 'MISSED';\n  if (status === 'MISSED') allHealthy = false;\n  results.push({ \n    workflow: 'Master Orchestrator', \n    status, \n    last_run: lastRun.toISOString(),\n    age_hours: Math.round(age / 3600000)\n  });\n}\n\n// Disk space check via VPS (approximate - adjust path)\nconst diskWarning = false; // Will be checked in next node\n\nreturn [{ json: {\n  all_healthy: allHealthy,\n  check_time: now.toISOString(),\n  results,\n  summary: allHealthy ? 'All systems nominal' : `${results.filter(r=>r.status==='MISSED').length} workflow(s) missed their schedule`\n}}];"
+      },
+      "name": "📊 Evaluate Health Status",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        368
+      ],
+      "id": "89dfa8b6-19cc-499b-b226-ec01a376744a"
+    },
+    {
+      "parameters": {
+        "url": "={{$json.OLLAMA_URL}}/api/tags",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "name": "🤖 Ping Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -224,
+        560
+      ],
+      "id": "81bd96e8-1cba-415c-aae1-794f85fd15aa",
+      "notes": "Checks if Ollama is responsive. Returns list of loaded models."
+    },
+    {
+      "parameters": {
+        "url": "={{$json.WORDPRESS_URL}}/wp-json/wp/v2/posts?per_page=1&status=publish",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "name": "🌐 Ping WordPress",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        -224,
+        176
+      ],
+      "id": "48679bde-71b4-4622-a876-df765505dd20",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// Assemble full health report\nconst healthStatus = $('📊 Evaluate Health Status').item.json;\n\nlet ollamaOk = false;\nlet wpOk = false;\n\ntry {\n  const ollama = $('🤖 Ping Ollama').item.json;\n  ollamaOk = Array.isArray(ollama.models) || ollama.models !== undefined;\n} catch(e) { ollamaOk = false; }\n\ntry {\n  const wp = $('🌐 Ping WordPress').item.json;\n  wpOk = Array.isArray(wp) && wp.length > 0;\n} catch(e) { wpOk = false; }\n\nconst services = [\n  { name: 'Master Orchestrator', status: healthStatus.results[0]?.status || 'UNKNOWN' },\n  { name: 'Ollama AI Engine', status: ollamaOk ? 'OK' : 'DOWN' },\n  { name: 'WordPress Site', status: wpOk ? 'OK' : 'DOWN' }\n];\n\nconst critical = services.filter(s => s.status === 'DOWN' || s.status === 'MISSED');\nconst allGreen = critical.length === 0;\n\nconst reportLines = services.map(s => `${s.status === 'OK' ? '✅' : '🔴'} ${s.name}: ${s.status}`).join('\\n');\n\nreturn [{ json: {\n  all_green: allGreen,\n  services,\n  critical_count: critical.length,\n  report: reportLines,\n  check_time: healthStatus.check_time,\n  alert_needed: !allGreen\n}}];"
+      },
+      "name": "📋 Build Health Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        368
+      ],
+      "id": "90f8e139-7107-41aa-aa29-26af7a27ff22"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.alert_needed }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🚨 Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        224,
+        368
+      ],
+      "id": "198504b1-1a0a-4923-8087-2ca281d627e9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $('⚙️ Load Config').item.json.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}\",\n  \"text\": \"✅ *HowTo-Genie Daily Health Check*\\n\\n{{ $('📋 Build Health Report').item.json.report }}\\n\\n_{{ $('📋 Build Health Report').item.json.check_time }}_\",\n  \"parse_mode\": \"Markdown\"\n}",
+        "options": {}
+      },
+      "name": "📱 Send Daily Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        448,
+        464
+      ],
+      "id": "7e4695e1-83da-4caa-8683-c585fcacb192",
+      "notes": "Sends a daily status message even when all green. Remove this node if you only want alerts on failure."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MODERATION_LOG_TAB }}",
+          "mode": "id"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "name": "📊 Log Health to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        672,
+        464
+      ],
+      "id": "51b10a52-46db-4d3e-8b4f-6a17e5bb8c53",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo-Genie - Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "UuyF6a4KyZpZ7jQ3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/UuyF6a4KyZpZ7jQ3",
+          "cachedResultName": "Alert Handler"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        448,
+        272
+      ],
+      "id": "cfa1f778-d290-49b0-afdc-46c09861b5e5",
+      "name": "📲 Fire Alert"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+          "cachedResultName": "⚙️ Config Loader"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -672,
+        368
+      ],
+      "id": "fb725226-aff2-42fb-a5b8-33d60f4cb830",
+      "name": "⚙️ Load Config"
+    },
+    {
+      "parameters": {
+        "resource": "execution",
+        "returnAll": true,
+        "filters": {
+          "workflowId": {
+            "__rl": true,
+            "value": "FgkEWCRTsz2Uk6GS",
+            "mode": "list",
+            "cachedResultName": "🤖 HowTo-Genie Orchestrator v3 (#FgkEWCRTsz2Uk6GS)"
+          }
+        },
+        "options": {
+          "activeWorkflows": false
+        },
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-base.n8n",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        368
+      ],
+      "id": "878db32d-9c3f-4db5-b62b-0efd4a14f7bd",
+      "name": "🔍 Check Orchestrator Last Run",
+      "alwaysOutputData": true,
+      "credentials": {
+        "n8nApi": {
+          "id": "WeN1GsrtKBlZH9BD",
+          "name": "n8n account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "🕘 Daily Health Check (9:05AM)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Evaluate Health Status": {
+      "main": [
+        [
+          {
+            "node": "📋 Build Health Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🤖 Ping Ollama": {
+      "main": [
+        [
+          {
+            "node": "📋 Build Health Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Ping WordPress": {
+      "main": [
+        [
+          {
+            "node": "📋 Build Health Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Build Health Report": {
+      "main": [
+        [
+          {
+            "node": "🚨 Alert Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚨 Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "📲 Fire Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "📱 Send Daily Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📱 Send Daily Status": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Health to Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📊 Log Health to Sheets": {
+      "main": [
+        []
+      ]
+    },
+    "📲 Fire Alert": {
+      "main": [
+        []
+      ]
+    },
+    "⚙️ Load Config": {
+      "main": [
+        [
+          {
+            "node": "🤖 Ping Ollama",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🌐 Ping WordPress",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "🔍 Check Orchestrator Last Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Check Orchestrator Last Run": {
+      "main": [
+        [
+          {
+            "node": "📊 Evaluate Health Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  }
+}

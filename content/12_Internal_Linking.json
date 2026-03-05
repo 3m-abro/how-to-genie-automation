@@ -1,0 +1,330 @@
+{
+  "name": "\ud83d\udd17 Internal Linking",
+  "nodes": [
+    {
+      "id": "355ba9f2",
+      "name": "\u26a1 Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "f7a511dd",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "ad2ffd11",
+      "name": "\ud83d\udce5 Get New Post Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst input = $('\u26a1 Entry').item.json;\nreturn [{ json: {\n  new_post_id:    input.post_id    || '',\n  new_post_title: input.post_title || '',\n  new_post_url:   input.post_url   || '',\n  new_keyword:    input.keyword    || ''\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "5bc42a08",
+      "name": "\ud83d\udcda Fetch Recent WP Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/posts?per_page=50&status=publish&orderby=date&order=desc",
+        "options": {
+          "timeout": 20000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "a81698f6",
+      "name": "\ud83e\udde0 Find Link Candidates",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst posts      = Array.isArray($input.first().json) ? $input.first().json : [];\nconst newData    = $('\ud83d\udce5 Get New Post Data').item.json;\nconst newTitle   = (newData.new_post_title || '').toLowerCase();\nconst newKw      = (newData.new_keyword    || '').toLowerCase();\nconst newId      = parseInt(newData.new_post_id);\n\n// Find older posts where content is topically related to new post keyword\nconst candidates = posts\n  .filter(p => p.id !== newId)\n  .map(p => {\n    const content = (p.content?.rendered || '').replace(/<[^>]*>/g, ' ').toLowerCase();\n    const title   = (p.title?.rendered   || '').toLowerCase();\n    const url     = p.link || '';\n    const pid     = p.id;\n\n    // Score: does the old post mention the new keyword?\n    const kwHits    = (content.match(new RegExp(newKw.replace(/[^a-z0-9 ]/g,'\\\\$&'), 'g')) || []).length;\n    const titleHit  = title.includes(newKw) ? 5 : 0;\n    const score     = kwHits + titleHit;\n\n    return { pid, title: p.title?.rendered || '', url, content_preview: content.substring(0, 500), score };\n  })\n  .filter(p => p.score > 0)\n  .sort((a, b) => b.score - a.score)\n  .slice(0, 8);\n\nreturn [{ json: { candidates, new_post: newData, total_candidates: candidates.length } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "6d31958c",
+      "name": "\ud83d\udd17 Candidates Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "795172bf",
+              "leftValue": "={{ $json.total_candidates > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f8a5f847",
+      "name": "\ud83e\udde0 Ollama: Suggest Link Placements",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL }}/api/chat",
+        "options": {
+          "timeout": 120000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_MODEL_FAST || 'mistral' }}\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"You are an SEO specialist. For each candidate post below, suggest the best sentence or paragraph where we could add an internal link to the new article.\\n\\nNEW ARTICLE: \\\"{{ $json.new_post.new_post_title }}\\\"\\nURL: {{ $json.new_post.new_post_url }}\\nKeyword: {{ $json.new_post.new_keyword }}\\n\\nCANDIDATES:\\n{{ $json.candidates.map((c,i) => i+1+'. [ID:'+c.pid+'] '+c.title+'\\nPreview: '+c.content_preview).join('\\n\\n') }}\\n\\nReturn JSON array:\\n[{\\n  \\\"post_id\\\": 123,\\n  \\\"post_title\\\": \\\"..\\\",\\n  \\\"post_url\\\": \\\"..\\\",\\n  \\\"anchor_text\\\": \\\"best 3-5 word anchor text for the link\\\",\\n  \\\"suggested_placement\\\": \\\"quote the sentence where the link should go\\\"\\n}]\\n\\nOnly include posts where the link would feel natural. Return ONLY JSON.\"\n  }],\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.3 }\n}"
+      }
+    },
+    {
+      "id": "ec4db07c",
+      "name": "\ud83d\udccb Parse Link Suggestions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst raw  = $input.first().json.message?.content || '[]';\nconst data = $('\ud83e\udde0 Find Link Candidates').item.json;\nlet links  = [];\ntry {\n  const match = raw.match(/\\[([\\s\\S]*?)\\](?!\\s*[a-z])/i);\n  links = JSON.parse(match ? '[' + match[1] + ']' : raw);\n} catch(e) {\n  links = data.candidates.slice(0,3).map(c => ({\n    post_id: c.pid, post_title: c.title, post_url: c.url,\n    anchor_text: data.new_post.new_keyword,\n    suggested_placement: 'Add near first mention of ' + data.new_post.new_keyword\n  }));\n}\n\n// Build Telegram message for review\nconst lines = links.map((l, i) =>\n  `${i+1}. <b>${l.post_title}</b>\\n   Anchor: \"${l.anchor_text}\"\\n   Where: ${l.suggested_placement?.substring(0, 80)}...\\n   Post: ${l.post_url}`\n).join('\\n\\n');\n\nconst msg = `\ud83d\udd17 <b>Internal Linking Suggestions</b>\\n\\nNew article: <b>${data.new_post.new_post_title}</b>\\n\\n${links.length} posts to update:\\n\\n${lines}\\n\\n\ud83d\udccb Full details saved to Internal Links Log sheet.`;\n\nreturn [{ json: {\n  links,\n  telegram_message: msg,\n  new_post: data.new_post,\n  chat_id: $('\u2699\ufe0f Load Config').item.json.TELEGRAM_CHAT_ID || $vars.TELEGRAM_CHAT_ID\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "a4979542",
+      "name": "\ud83d\udcf1 Send Link Suggestions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "8fa8abce",
+      "name": "\u2702\ufe0f Flatten Links for Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst d = $input.first().json;\nreturn (d.links || []).map(l => ({ json: {\n  New_Article_Title:   d.new_post.new_post_title,\n  New_Article_URL:     d.new_post.new_post_url,\n  Target_Post_ID:      l.post_id,\n  Target_Post_Title:   l.post_title,\n  Target_Post_URL:     l.post_url,\n  Anchor_Text:         l.anchor_text,\n  Suggested_Placement: l.suggested_placement,\n  Status:              'Pending',\n  Date_Suggested:      new Date().toISOString().split('T')[0]\n}}));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "5ec07595",
+      "name": "\ud83d\udcca Log to Internal Links",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        2000,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.INTERNAL_LINKS_TAB || 'Internal Links Log' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "\u26a1 Entry": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Get New Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce5 Get New Post Data": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcda Fetch Recent WP Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcda Fetch Recent WP Posts": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\udde0 Find Link Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\udde0 Find Link Candidates": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd17 Candidates Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd17 Candidates Found?": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\udde0 Ollama: Suggest Link Placements",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\udde0 Ollama: Suggest Link Placements": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Parse Link Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Parse Link Suggestions": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Send Link Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Send Link Suggestions": {
+      "main": [
+        [
+          {
+            "node": "\u2702\ufe0f Flatten Links for Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2702\ufe0f Flatten Links for Sheet": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Log to Internal Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

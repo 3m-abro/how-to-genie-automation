@@ -1,0 +1,46 @@
+key,value
+BLOG_NAME,HowTo Genie
+BLOG_NICHE,how-to guides and tutorials
+WORDPRESS_URL,https://your-blog.com
+GOOGLE_SHEET_ID,your_spreadsheet_id
+OLLAMA_URL,http://YOUR_VPS_IP:11434
+OLLAMA_MODEL_FAST,mistral
+OLLAMA_MODEL_SMART,llama3
+BLOG_IDEA_TAB,Blog Idea Backlog
+AFFILIATE_TAB,Affiliate Programs
+AFFILIATE_LINKS_TAB,Affiliate Link Registry
+SOCIAL_QUEUE_TAB,Social Queue
+INTERNAL_LINKS_TAB,Internal Links Log
+MODERATION_LOG_TAB,Moderation Log
+VIDEO_LOG_TAB,Video Log
+SEED_KEYWORDS_TAB,Seed Keywords
+FACEBOOK_POST_DAYS,"1,3,5"
+FACEBOOK_POST_HOUR,10
+INSTAGRAM_POST_HOUR,12
+PINTEREST_POST_HOUR,14
+TIKTOK_POST_HOUR,18
+YOUTUBE_POST_HOUR,16
+MIN_WORD_COUNT,2500
+QC_MIN_SCORE,7
+CONTENT_REFRESH_DAYS,90
+CONTENT_REFRESH_MAX_WEEKLY,5
+MIN_CLICKBANK_COMMISSION,50
+MIN_CLICKBANK_GRAVITY,20
+MIN_AI_AFFILIATE_SCORE,7
+HALAL_FILTER_KEYWORDS,"alcohol,gambling,pork,adult,dating,lottery,forex,riba,haram"
+NICHES,"productivity,home improvement,personal finance,health and wellness,technology"
+REDDIT_SUBREDDITS,"productivity,personalfinance,homeimprovement,DIY,technology,LifeProTips"
+TOPIC_BACKLOG_MAX,50
+TOPIC_SCORE_MIN,6
+SOCIAL_PLATFORMS,"facebook,instagram,pinterest"
+VIDEO_PLATFORMS,"tiktok,youtube"
+VIDEO_VOICE,en_us_001
+HALAL_FILTER_ENABLED,true
+USE_BLOTATO_FOR_INLINE_IMAGES,false
+AD_CAMPAIGNS_ENABLED,false
+TRANSLATION_ENABLED,false
+WHATSAPP_ENABLED,false
+VOICE_PROVIDER,local
+EMAIL_PROVIDER,mailerlite
+COMPETITOR_RSS_FEEDS,"https://competitor1.com/feed,https://competitor2.com/feed"
+TIMEZONE,Asia/Kuala_Lumpur

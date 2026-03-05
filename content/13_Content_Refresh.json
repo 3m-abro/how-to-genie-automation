@@ -1,0 +1,364 @@
+{
+  "name": "\u267b\ufe0f Content Refresh",
+  "nodes": [
+    {
+      "id": "d8e2a52b",
+      "name": "\ud83d\uddd3 Weekly Sunday 6AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 6 * * 0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "524d6666",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "a8f8ff30",
+      "name": "\ud83d\udcda Fetch All WP Posts",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/posts?per_page=100&status=publish&orderby=date&order=asc",
+        "options": {
+          "timeout": 20000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "eb044550",
+      "name": "\ud83d\udd0d Find Stale Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst posts    = Array.isArray($input.first().json) ? $input.first().json : [];\nconst now      = new Date();\nconst DAYS_OLD = 90;\n\nconst stale = posts\n  .filter(p => {\n    const modified = new Date(p.modified || p.date || 0);\n    const ageDays  = (now - modified) / (1000 * 60 * 60 * 24);\n    return ageDays >= DAYS_OLD;\n  })\n  .map(p => ({\n    post_id:       p.id,\n    title:         p.title?.rendered || '',\n    url:           p.link || '',\n    modified:      p.modified || p.date,\n    content:       (p.content?.rendered || '').replace(/<[^>]*>/g, ' ').trim().substring(0, 2000),\n    excerpt:       (p.excerpt?.rendered || '').replace(/<[^>]*>/g, '').trim(),\n    age_days:      Math.floor((now - new Date(p.modified || p.date)) / (1000 * 60 * 60 * 24))\n  }))\n  .sort((a, b) => b.age_days - a.age_days)\n  .slice(0, 5);   // refresh max 5 per week\n\nreturn [{ json: { stale_posts: stale, count: stale.length } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "cc7e689d",
+      "name": "\ud83d\udcf0 Stale Posts Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "0de60582",
+              "leftValue": "={{ $json.count > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "700e194e",
+      "name": "\u2702\ufe0f Split Stale Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nreturn $input.first().json.stale_posts.map(p => ({ json: p }));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c2542e49",
+      "name": "\ud83e\udde0 Ollama: Refresh Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL }}/api/chat",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"You are an SEO content editor. Update this article to be fresh, accurate and high-ranking for {{ new Date().getFullYear() }}.\\n\\nARTICLE TITLE: {{ $json.title }}\\nURL: {{ $json.url }}\\nAGE: {{ $json.age_days }} days old\\n\\nCURRENT CONTENT (first 2000 chars):\\n{{ $json.content }}\\n\\nTasks:\\n1. Update any year references to {{ new Date().getFullYear() }}\\n2. Add a fresh introductory paragraph acknowledging this is an updated guide\\n3. Refresh the conclusion with a current CTA\\n4. Improve the meta description\\n5. Add 2-3 new FAQ items if missing\\n\\nReturn JSON:\\n{\\n  \\\"updated_intro\\\": \\\"new 2-3 sentence intro paragraph\\\",\\n  \\\"updated_conclusion\\\": \\\"refreshed conclusion paragraph\\\",\\n  \\\"new_meta_description\\\": \\\"updated meta desc under 155 chars\\\",\\n  \\\"new_faq_items\\\": [\\\"Q: ... A: ...\\\"],\\n  \\\"update_summary\\\": \\\"brief note on what was updated\\\"\\n}\"\n  }],\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.5 }\n}"
+      }
+    },
+    {
+      "id": "6656075b",
+      "name": "\ud83d\udccb Parse Refresh + Build WP Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst post = $('\u2702\ufe0f Split Stale Posts').item.json;\nconst raw  = $input.first().json.message?.content || '{}';\nlet refresh;\ntry {\n  const match = raw.match(/(\\{[\\s\\S]*\\})/);\n  refresh = JSON.parse(match ? match[1] : raw);\n} catch(e) {\n  refresh = {\n    updated_intro:       'This guide has been updated for ' + new Date().getFullYear() + '.',\n    updated_conclusion:  'We hope this guide helps. Bookmark it for reference.',\n    new_meta_description: post.excerpt.substring(0, 155),\n    new_faq_items:       [],\n    update_summary:      'Minor date and intro updates.'\n  };\n}\n\n// Build the appended content block to inject into WP\nconst faqHtml = (refresh.new_faq_items || [])\n  .map(item => `<div class=\"faq-item\"><p>${item}</p></div>`)\n  .join('');\n\nconst updateBlock = `\n<div class=\"content-updated\">\n  <p><em>Last updated: ${new Date().toLocaleDateString('en-MY', {year:'numeric',month:'long',day:'numeric'})}</em></p>\n  <p>${refresh.updated_intro}</p>\n</div>\n${faqHtml}\n`;\n\nreturn [{ json: {\n  post_id:             post.post_id,\n  post_title:          post.title,\n  post_url:            post.url,\n  update_block:        updateBlock,\n  new_meta_description:refresh.new_meta_description || post.excerpt,\n  update_summary:      refresh.update_summary,\n  age_days:            post.age_days\n}}];\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "6bff74f7",
+      "name": "\ud83d\udcdd Update WP Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/posts/{{ $json.post_id }}",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\": \"{{ $json.update_block.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"meta\": {\n    \"_yoast_wpseo_metadesc\": \"{{ $json.new_meta_description }}\"\n  }\n}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "fe09d794",
+      "name": "\ud83d\udd0d Re-index Refreshed Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://indexing.googleapis.com/v3/urlNotifications:publish",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"url\": \"{{ $json.post_url }}\", \"type\": \"URL_UPDATED\"}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth"
+      }
+    },
+    {
+      "id": "035ca7f3",
+      "name": "\ud83d\udcf1 Build Refresh Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\nconst cfg   = $('\u2699\ufe0f Load Config').item.json;\nconst lines = items.map((item, i) => {\n  const d = item.json;\n  return `${i+1}. <b>${d.post_title}</b> (${d.age_days}d old)\\n   ${d.update_summary}\\n   ${d.post_url}`;\n}).join('\\n\\n');\n\nconst msg = `\u267b\ufe0f <b>Content Refresh Complete</b>\\n\\n${items.length} articles updated for ${new Date().getFullYear()}:\\n\\n${lines}`;\nreturn [{ json: { telegram_message: msg, chat_id: cfg.TELEGRAM_CHAT_ID || $vars.TELEGRAM_CHAT_ID } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c18a14c4",
+      "name": "\ud83d\udcf1 Send Refresh Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\uddd3 Weekly Sunday 6AM": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcda Fetch All WP Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcda Fetch All WP Posts": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Find Stale Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Find Stale Posts": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf0 Stale Posts Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf0 Stale Posts Found?": {
+      "main": [
+        [
+          {
+            "node": "\u2702\ufe0f Split Stale Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2702\ufe0f Split Stale Posts": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\udde0 Ollama: Refresh Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\udde0 Ollama: Refresh Content": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Parse Refresh + Build WP Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Parse Refresh + Build WP Payload": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcdd Update WP Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcdd Update WP Post": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Re-index Refreshed Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Re-index Refreshed Post": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Build Refresh Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Build Refresh Report": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Send Refresh Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

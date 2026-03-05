@@ -1,0 +1,138 @@
+{
+  "name": "⚙️ Config Loader",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "7aadd697-9122-4c40-8be5-51c8a4d01a63",
+      "name": "⚡ Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        208,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const allItems = $input.all();\n\n// Config Loader reads two tabs sequentially.\n// First call: Config tab items\n// Second call: Secrets tab items\n// n8n passes all items from both reads here.\n// We split by checking if a row looks like a key/value pair.\n\nconst config = {};\n\nfor (const row of allItems) {\n  const key   = (row.json['Key']   || row.json[Object.keys(row.json)[0]] || '').toString().trim();\n  const value = (row.json['Value'] || row.json[Object.keys(row.json)[1]] || '').toString().trim();\n  if (key && key !== 'Key') config[key] = value;\n}\n\nreturn [{ json: config }];"
+      },
+      "id": "40b3d22b-3649-4c1d-bab6-e0045865fd90",
+      "name": "🔧 Build Config Object",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -128
+      ]
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        656,
+        -128
+      ],
+      "id": "ae13ca43-eb92-4a17-814d-b14873426cf4",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "NzTWGvoulSsUwBvN",
+          "mode": "list",
+          "cachedResultName": "htg_secrets",
+          "cachedResultUrl": "/projects/ebn27JcWx1bH1ZiJ/datatables/NzTWGvoulSsUwBvN"
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        -224
+      ],
+      "id": "3cd241b9-4355-4d48-a89c-0929e94a9201",
+      "name": "Get Secret(s)"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "hUnpuyphNJ9eis5L",
+          "mode": "list",
+          "cachedResultName": "htg_config",
+          "cachedResultUrl": "/projects/ebn27JcWx1bH1ZiJ/datatables/hUnpuyphNJ9eis5L"
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        -32
+      ],
+      "id": "d4aca468-2874-4f00-a5bd-c72c88b20959",
+      "name": "Get Config(s)"
+    }
+  ],
+  "connections": {
+    "⚡ Entry": {
+      "main": [
+        [
+          {
+            "node": "Get Secret(s)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Config(s)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "🔧 Build Config Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Secret(s)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Config(s)": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  }
+}

@@ -1,0 +1,351 @@
+{
+  "name": "\u23f0 Queue Processor (Part B)",
+  "nodes": [
+    {
+      "id": "00faea5d",
+      "name": "\ud83d\udd57 Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "7a8363a4",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "560299c7",
+      "name": "\ud83d\udccb Read Social Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "32358ddd",
+      "name": "\ud83d\udd0d Filter Due Posts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg   = $('\u2699\ufe0f Load Config').item.json;\nconst rows  = $input.all();\nconst now   = new Date();\nconst inHour = new Date(now.getTime() + 60 * 60 * 1000);\n\nconst due = rows\n  .map((row, i) => ({ ...row.json, _row_number: i + 2 })) // +2: header + 1-indexed\n  .filter(row => {\n    if ((row.Status || row.status) !== 'Queued') return false;\n    const scheduled = new Date(row.Scheduled_Time || row.scheduled_time || 0);\n    return scheduled <= inHour;\n  });\n\nif (due.length === 0) return [{ json: { no_posts_due: true } }];\nreturn due.map(d => ({ json: d }));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "1f495d23",
+      "name": "\ud83d\udcec Posts Due?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1d88a2c",
+              "leftValue": "={{ $json.no_posts_due }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "37b50ef6",
+      "name": "\ud83d\ude80 Blotato: Publish Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.blotato.com/v1/publish",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"platform\": \"{{ $json.Platform || $json.platform }}\",\n  \"text\":     \"{{ ($json.Caption || $json.caption || '').replace(/\"/g, '\\\\\"') }}\",\n  \"media_url\":\"{{ $json.Media_URL || $json.media_url || '' }}\",\n  \"link\":     \"{{ $json.WP_Post_URL || $json.wp_post_url || '' }}\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.BLOTATO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "27396608",
+      "name": "\ud83d\udcdd Build Update Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        200
+      ],
+      "parameters": {
+        "jsCode": "\nconst prev   = $('\ud83d\udd0d Filter Due Posts').item.json;\nconst result = $input.first().json;\nconst posted = !(result?.error) && (result?.id || result?.post_id || result?.success);\n\nreturn [{ json: {\n  Row_Number:      prev._row_number,\n  Status:          posted ? 'Posted' : 'Failed',\n  Blotato_Post_ID: result?.id || result?.post_id || '',\n  Error_Message:   result?.error || result?.message || ''\n}}];\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "fc9dfe91",
+      "name": "\ud83d\udcca Update Queue Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1400,
+        200
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Row Number"
+          ],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "02c39472",
+      "name": "\u274c Any Failures?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "be8535d1",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "58604b01",
+      "name": "\ud83d\udcf1 Alert: Post Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1800,
+        200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $vars.TELEGRAM_CHAT_ID }}\", \"text\": \"\u274c <b>Social Post Failed</b>\\n\\nPlatform: {{ $('\ud83d\udcdd Build Update Row').item.json.Status }}\\nError: {{ $('\ud83d\udcdd Build Update Row').item.json.Error_Message }}\\n\\nCheck Social Queue sheet row {{ $('\ud83d\udcdd Build Update Row').item.json.Row_Number }}\", \"parse_mode\": \"HTML\"}"
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\udd57 Every Hour": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Read Social Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Read Social Queue": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Filter Due Posts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Filter Due Posts": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcec Posts Due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcec Posts Due?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "\ud83d\ude80 Blotato: Publish Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\ude80 Blotato: Publish Post": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcdd Build Update Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcdd Build Update Row": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Update Queue Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcca Update Queue Row": {
+      "main": [
+        [
+          {
+            "node": "\u274c Any Failures?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u274c Any Failures?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Alert: Post Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

@@ -1,0 +1,125 @@
+{
+  "name": "📱 Social Formatter v2 (calls Blotato sub-wf)",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "243c26cc-5e36-47a2-b892-23b143078333",
+      "name": "⚡ Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        1312,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+          "cachedResultName": "⚙️ Config Loader"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "2d21ec87-1832-4037-8f5f-d024e146c690",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1536,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\n// Accepts the same fields the Orchestrator or any caller passes in\nconst input = $('⚡ Entry').item.json;\n\n// Pass through cleanly to Blotato sub-workflow\nreturn [{ json: {\n  article_title:   input.article_title   || '',\n  article_url:     input.article_url     || '',\n  article_excerpt: input.article_excerpt || '',\n  featured_image:  input.featured_image  || '',\n  focus_keyword:   input.focus_keyword   || '',\n  social_content:  input.social_content  || {},\n  platforms:       input.platforms       || ['facebook', 'instagram', 'pinterest']\n}}];\n"
+      },
+      "id": "5bf864ec-af5c-4428-a90e-aca3399e1b56",
+      "name": "📋 Prepare Input for Blotato",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "teoK0nyEzTDNm6AG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/teoK0nyEzTDNm6AG",
+          "cachedResultName": "🎨 Blotato: Queue Social Posts"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "id": "04e42165-beac-4a3b-9362-bf057d4b7692",
+      "name": "🎨 Run Blotato Sub-Workflow",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1984,
+        -384
+      ]
+    }
+  ],
+  "connections": {
+    "⚡ Entry": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Load Config": {
+      "main": [
+        [
+          {
+            "node": "📋 Prepare Input for Blotato",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Prepare Input for Blotato": {
+      "main": [
+        [
+          {
+            "node": "🎨 Run Blotato Sub-Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  }
+}

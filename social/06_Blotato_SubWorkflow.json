@@ -1,0 +1,343 @@
+{
+  "name": "\ud83c\udfa8 Blotato: Queue Social Posts",
+  "nodes": [
+    {
+      "id": "d5221993",
+      "name": "\u26a1 Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "21a09a3d",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "21cc533d",
+      "name": "\ud83d\udce5 Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst input = $('\u26a1 Entry').item.json;\nconst cfg   = $('\u2699\ufe0f Load Config').item.json;\n\n// Validate required fields\nconst missing = [];\nif (!input.article_url)   missing.push('article_url');\nif (!input.article_title) missing.push('article_title');\n\nif (missing.length > 0) {\n  throw new Error('Blotato Sub-Workflow: missing required fields: ' + missing.join(', '));\n}\n\n// Default platforms if not specified\nconst platforms = input.platforms || ['facebook', 'instagram', 'pinterest'];\n\nreturn [{ json: {\n  article_title:   input.article_title,\n  article_url:     input.article_url,\n  article_excerpt: input.article_excerpt || '',\n  featured_image:  input.featured_image  || '',\n  focus_keyword:   input.focus_keyword   || '',\n  social_content:  input.social_content  || {},\n  platforms,\n  cfg_ref: 'loaded'\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "95e361b1",
+      "name": "\ud83d\udcc5 Calculate Schedule",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg   = $('\u2699\ufe0f Load Config').item.json;\nconst input = $('\ud83d\udce5 Validate Input').item.json;\nconst now   = new Date();\n\nfunction nextOccurrence(daysCsv, hour) {\n  const dayMap = {sunday:0,monday:1,tuesday:2,wednesday:3,thursday:4,friday:5,saturday:6};\n  const targets = daysCsv.split(',').map(d => dayMap[d.trim().toLowerCase()]).filter(d => d !== undefined);\n  for (let i = 1; i <= 8; i++) {\n    const d = new Date(now);\n    d.setDate(now.getDate() + i);\n    d.setHours(parseInt(hour), 0, 0, 0);\n    if (targets.includes(d.getDay())) return d.toISOString();\n  }\n  const fallback = new Date(now);\n  fallback.setDate(now.getDate() + 1);\n  fallback.setHours(parseInt(hour), 0, 0, 0);\n  return fallback.toISOString();\n}\n\nfunction nextWeekday(hour) {\n  for (let i = 1; i <= 7; i++) {\n    const d = new Date(now);\n    d.setDate(now.getDate() + i);\n    d.setHours(parseInt(hour), 0, 0, 0);\n    if (d.getDay() >= 1 && d.getDay() <= 5) return d.toISOString();\n  }\n}\n\nconst schedule = {\n  facebook:  nextOccurrence(cfg.FACEBOOK_POST_DAYS  || 'tuesday,thursday,wednesday', cfg.FACEBOOK_POST_HOUR  || 9),\n  instagram: nextWeekday(cfg.INSTAGRAM_POST_HOUR || 11),\n  pinterest: nextOccurrence(cfg.PINTEREST_POST_DAYS  || 'saturday,sunday',           cfg.PINTEREST_POST_HOUR || 20),\n  tiktok:    nextWeekday(cfg.TIKTOK_POST_HOUR    || 19),\n};\n\nreturn [{ json: { ...input, schedule } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c1258da2",
+      "name": "\ud83c\udfa8 Blotato: Remix Content",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.blotato.com/v1/posts",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"content\":           \"{{ $json.article_url }}\",\n  \"platforms\":         {{ JSON.stringify($json.platforms) }},\n  \"generate_carousel\": true,\n  \"title\":             \"{{ $json.article_title.replace(/\"/g, '\\\\\"') }}\",\n  \"excerpt\":           \"{{ $json.article_excerpt.replace(/\"/g, '\\\\\"') }}\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.BLOTATO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "821dca49",
+      "name": "\ud83d\udd00 Merge Blotato + Fallback",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst blotato = $input.first().json;\nconst prev    = $('\ud83d\udcc5 Calculate Schedule').item.json;\nconst social  = prev.social_content || {};\n\n// If Blotato remix succeeded, use its output\n// Otherwise fall back to Agent 6 social_content from the caller\nconst hasBlotatoContent = blotato?.facebook?.text || blotato?.posts?.facebook;\n\nconst fb_caption  = blotato?.facebook?.text  || blotato?.posts?.facebook?.text  || social?.facebook?.caption  || prev.article_title;\nconst ig_caption  = blotato?.instagram?.text || blotato?.posts?.instagram?.text || social?.instagram?.caption || prev.article_title;\nconst pin_title   = blotato?.pinterest?.text || blotato?.posts?.pinterest?.text || social?.pinterest?.title   || prev.article_title;\nconst pin_desc    = blotato?.pinterest?.description                              || social?.pinterest?.description || '';\nconst carousel    = blotato?.carousel_url    || blotato?.media?.carousel_url    || '';\n\nreturn [{ json: {\n  ...prev,\n  blotato_raw:       blotato,\n  used_blotato:      !!hasBlotatoContent,\n  captions: {\n    facebook:  fb_caption,\n    instagram: ig_caption,\n    pinterest: pin_title,\n    pinterest_desc: pin_desc\n  },\n  carousel_url: carousel\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c875b7bb",
+      "name": "\ud83d\udccb Build Queue Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst d      = $input.first().json;\nconst sched  = d.schedule;\nconst caps   = d.captions;\nconst platforms = d.platforms || ['facebook','instagram','pinterest'];\n\nconst rows = [];\n\nif (platforms.includes('facebook')) {\n  rows.push({\n    Platform:        'Facebook',\n    Content_Type:    'text_link',\n    Caption:         caps.facebook + '\\n\\n' + d.article_url,\n    Media_URL:       d.featured_image || '',\n    Scheduled_Time:  sched.facebook,\n    Status:          'Queued',\n    WP_Post_URL:     d.article_url,\n    Blotato_Post_ID: '',\n    Error_Message:   ''\n  });\n}\n\nif (platforms.includes('instagram')) {\n  rows.push({\n    Platform:        'Instagram',\n    Content_Type:    d.carousel_url ? 'carousel' : 'image',\n    Caption:         caps.instagram,\n    Media_URL:       d.carousel_url || d.featured_image || '',\n    Scheduled_Time:  sched.instagram,\n    Status:          'Queued',\n    WP_Post_URL:     d.article_url,\n    Blotato_Post_ID: '',\n    Error_Message:   ''\n  });\n}\n\nif (platforms.includes('pinterest')) {\n  rows.push({\n    Platform:        'Pinterest',\n    Content_Type:    'pin',\n    Caption:         caps.pinterest + (caps.pinterest_desc ? '\\n\\n' + caps.pinterest_desc : ''),\n    Media_URL:       d.featured_image || '',\n    Scheduled_Time:  sched.pinterest,\n    Status:          'Queued',\n    WP_Post_URL:     d.article_url,\n    Blotato_Post_ID: '',\n    Error_Message:   ''\n  });\n}\n\nif (platforms.includes('tiktok')) {\n  rows.push({\n    Platform:        'TikTok',\n    Content_Type:    'video_script',\n    Caption:         d.social_content?.tiktok_script || 'Script pending',\n    Media_URL:       '',\n    Scheduled_Time:  sched.tiktok,\n    Status:          'Script_Queued',\n    WP_Post_URL:     d.article_url,\n    Blotato_Post_ID: '',\n    Error_Message:   ''\n  });\n}\n\n// Pass schedule summary for the Telegram notification\nconst summary = {\n  article_title: d.article_title,\n  rows_queued:   rows.length,\n  used_blotato:  d.used_blotato,\n  schedule:      sched,\n  platforms_scheduled: platforms\n};\n\nreturn [{ json: { rows, summary, chat_id: $('\u2699\ufe0f Load Config').item.json.TELEGRAM_CHAT_ID } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "657145d5",
+      "name": "\u2702\ufe0f Split Rows for Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst { rows, summary, chat_id } = $input.first().json;\n\n// Tag each row with summary so we can access it after append\nreturn rows.map(r => ({ json: { ...r, _summary: summary, _chat_id: chat_id } }));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "8bc5d81c",
+      "name": "\ud83d\udcca Write to Social Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "7ff4d32d",
+      "name": "\ud83d\udcf1 Build Notify Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg     = $('\u2699\ufe0f Load Config').item.json;\nconst items   = $input.all();\n\n// Get summary from first item (all items have the same _summary)\nconst summary = items[0]?.json?._summary || {};\nconst tz      = cfg.TIMEZONE || 'Asia/Kuala_Lumpur';\n\nconst schedLines = (summary.platforms_scheduled || [])\n  .filter(p => ['facebook','instagram','pinterest','tiktok'].includes(p))\n  .map(p => {\n    const time = summary.schedule?.[p];\n    if (!time) return null;\n    const label = p.charAt(0).toUpperCase() + p.slice(1);\n    return `\u2022 ${label} \u2192 ${new Date(time).toLocaleString('en-MY', {timeZone: tz, dateStyle:'short', timeStyle:'short'})}`;\n  })\n  .filter(Boolean)\n  .join('\\n');\n\nconst source = summary.used_blotato ? '\u2728 Blotato remix' : '\ud83d\udcdd Agent 6 fallback';\n\nconst msg = `\ud83d\udcf1 <b>Social Queue Updated</b>\\n\\n\ud83d\udcdd <b>${summary.article_title || 'New Article'}</b>\\n\ud83d\udce6 Source: ${source}\\n\\n\u2705 ${summary.rows_queued} posts queued:\\n${schedLines}\\n\\nQueue Processor will auto-publish at each scheduled time.`;\n\nreturn [{ json: {\n  telegram_message: msg,\n  chat_id: cfg.TELEGRAM_CHAT_ID,\n  rows_written: items.length,\n  article_title: summary.article_title\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c32a587f",
+      "name": "\ud83d\udcf1 Notify via Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "d7bdb8a8",
+      "name": "\u2705 Return Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\n// This is what the calling workflow receives back\nreturn [{ json: {\n  success:       true,\n  rows_written:  $('\ud83d\udcf1 Build Notify Message').item.json.rows_written,\n  article_title: $('\ud83d\udcf1 Build Notify Message').item.json.article_title,\n  message:       'Blotato sub-workflow completed. Posts queued.'\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    }
+  ],
+  "connections": {
+    "\u26a1 Entry": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Validate Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce5 Validate Input": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcc5 Calculate Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcc5 Calculate Schedule": {
+      "main": [
+        [
+          {
+            "node": "\ud83c\udfa8 Blotato: Remix Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83c\udfa8 Blotato: Remix Content": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd00 Merge Blotato + Fallback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd00 Merge Blotato + Fallback": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Build Queue Rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Build Queue Rows": {
+      "main": [
+        [
+          {
+            "node": "\u2702\ufe0f Split Rows for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2702\ufe0f Split Rows for Sheets": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Write to Social Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcca Write to Social Queue": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Build Notify Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Build Notify Message": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Notify via Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Notify via Telegram": {
+      "main": [
+        [
+          {
+            "node": "\u2705 Return Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

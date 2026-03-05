@@ -1,0 +1,380 @@
+{
+  "name": "\ud83d\udcac Comment Moderation",
+  "nodes": [
+    {
+      "id": "43cbe723",
+      "name": "\ud83d\udd53 Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */4 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "d98d35a7",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "30ad6eb0",
+      "name": "\ud83d\udcac Fetch Pending Comments",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/comments?status=hold&per_page=25",
+        "options": {
+          "timeout": 15000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "c7ff20a9",
+      "name": "\ud83d\udcec Comments Pending?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ce0f7493",
+              "leftValue": "={{ Array.isArray($json) && $json.length > 0 }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "87eba30c",
+      "name": "\ud83d\udd00 Split Comments",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst comments = Array.isArray($input.first().json) ? $input.first().json : [];\nreturn comments.map(c => ({\n  json: {\n    comment_id:      c.id,\n    post_id:         c.post,\n    author_name:     c.author_name || 'Anonymous',\n    author_email:    c.author_email || '',\n    comment_content: (c.content?.rendered || '').replace(/<[^>]*>/g, '').trim(),\n    date:            c.date || '',\n    status:          c.status || 'hold'\n  }\n}));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "544c0820",
+      "name": "\ud83e\uddde Agent 7: Moderate Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL }}/api/chat",
+        "options": {
+          "timeout": 60000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_MODEL_FAST || 'mistral' }}\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"You are a blog comment moderator for a how-to blog.\\n\\nCOMMENT from {{ $json.author_name }}:\\n{{ $json.comment_content }}\\n\\nClassify and decide action. Return JSON ONLY:\\n{\\n  \\\"classification\\\": \\\"genuine_question|praise|negative_feedback|spam|gibberish|self_promotion\\\",\\n  \\\"action\\\": \\\"approve_and_reply|approve_no_reply|mark_spam|trash\\\",\\n  \\\"reply\\\": \\\"friendly reply under 80 words, or null if spam/trash\\\",\\n  \\\"is_halal_safe\\\": true\\n}\\n\\nRules: approve genuine questions and praise. Trash spam and gibberish. For negative feedback approve and reply professionally.\"\n  }],\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.5 }\n}"
+      }
+    },
+    {
+      "id": "8f7437b2",
+      "name": "\ud83d\udccb Parse Decision",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst prev = $('\ud83d\udd00 Split Comments').item.json;\nconst raw  = $input.first().json.message?.content || '{}';\nlet decision;\ntry {\n  const match = raw.match(/(\\{[\\s\\S]*\\})/);\n  decision = JSON.parse(match ? match[1] : raw);\n} catch(e) {\n  decision = { classification: 'genuine_question', action: 'approve_and_reply',\n               reply: 'Thanks for your comment! We appreciate your engagement.', is_halal_safe: true };\n}\nreturn [{ json: { ...prev, ...decision } }];\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "e4884943",
+      "name": "\ud83d\uddd1\ufe0f Spam / Trash?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "b07b429e",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "spam",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a2c948a6",
+      "name": "\u2705 Approve + Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/comments",
+        "options": {
+          "timeout": 15000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"post\":    {{ $json.post_id }},\n  \"parent\":  {{ $json.comment_id }},\n  \"content\": \"{{ ($json.reply || 'Thanks for your comment!').replace(/\"/g, '\\\\\"') }}\",\n  \"status\":  \"approved\"\n}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "d80111df",
+      "name": "\ud83d\uddd1\ufe0f Trash Spam Comment",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        -200
+      ],
+      "parameters": {
+        "method": "DELETE",
+        "url": "={{ ($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) }}/wp-json/wp/v2/comments/{{ $json.comment_id }}?force=true",
+        "options": {
+          "timeout": 10000
+        },
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "wordpressApi"
+      }
+    },
+    {
+      "id": "07e40a52",
+      "name": "\ud83d\udcca Log Moderation",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.MODERATION_LOG_TAB || 'Moderation Log' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\udd53 Every 4 Hours": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcac Fetch Pending Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcac Fetch Pending Comments": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcec Comments Pending?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcec Comments Pending?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd00 Split Comments",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd00 Split Comments": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\uddde Agent 7: Moderate Comment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\uddde Agent 7: Moderate Comment": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Parse Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Parse Decision": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\uddd1\ufe0f Spam / Trash?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\uddd1\ufe0f Spam / Trash?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\uddd1\ufe0f Trash Spam Comment",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "\u2705 Approve + Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2705 Approve + Reply": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Log Moderation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\uddd1\ufe0f Trash Spam Comment": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Log Moderation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

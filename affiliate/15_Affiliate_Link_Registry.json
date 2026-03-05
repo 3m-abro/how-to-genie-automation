@@ -1,0 +1,164 @@
+{
+  "name": "\ud83d\udccb Affiliate Link Registry",
+  "nodes": [
+    {
+      "id": "dc3048c2",
+      "name": "\u26a1 Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "91fda430",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "580afbac",
+      "name": "\ud83d\udd0d Extract Affiliate Links",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst input   = $('\u26a1 Entry').item.json;\nconst content = input.article_content || '';\nconst title   = input.article_title   || '';\nconst url     = input.article_url     || '';\n\n// Find all href links in article content\nconst linkPattern = /href=\"(https?:\\/\\/[^\"]+)\"/gi;\nconst allLinks = [];\nlet m;\nwhile ((m = linkPattern.exec(content)) !== null) {\n  allLinks.push(m[1]);\n}\n\n// Flag likely affiliate links: contains common affiliate params or known networks\nconst affiliatePatterns = [\n  /clickbank/i, /jvzoo/i, /digistore/i, /shareasale/i, /partnerstack/i,\n  /[?&]ref=/i, /[?&]aff=/i, /[?&]affiliate/i, /[?&]hop=/i, /go\\..*\\?/i\n];\n\nconst affiliateLinks = [...new Set(allLinks)]\n  .filter(link => {\n    const siteUrl = $('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || '';\n    if (link.startsWith(siteUrl)) return false; // skip internal links\n    return affiliatePatterns.some(p => p.test(link));\n  })\n  .map(link => ({\n    Article_Title:    title,\n    Article_URL:      url,\n    Affiliate_Link:   link,\n    Network:          link.includes('clickbank') ? 'ClickBank'\n                    : link.includes('jvzoo')     ? 'JVZoo'\n                    : link.includes('digistore') ? 'DigiStore24'\n                    : 'Unknown',\n    Date_Added:       new Date().toISOString().split('T')[0],\n    Status:           'Active'\n  }));\n\nreturn affiliateLinks.length > 0\n  ? affiliateLinks.map(l => ({ json: l }))\n  : [{ json: { no_affiliate_links: true, article_title: title } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "5c45ff2f",
+      "name": "\ud83d\udd17 Links Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "111ccc20",
+              "leftValue": "={{ $json.no_affiliate_links }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "4011c1e2",
+      "name": "\ud83d\udcca Log Affiliate Links",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.AFFILIATE_LINKS_TAB || 'Affiliate Link Registry' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "\u26a1 Entry": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Extract Affiliate Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Extract Affiliate Links": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd17 Links Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd17 Links Found?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "\ud83d\udcca Log Affiliate Links",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

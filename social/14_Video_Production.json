@@ -1,0 +1,359 @@
+{
+  "name": "\ud83c\udfac Video Production",
+  "nodes": [
+    {
+      "id": "56e0b962",
+      "name": "\u26a1 Entry",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "94aa36cc",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "825541d3",
+      "name": "\ud83d\udce5 Validate + Prepare",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst input = $('\u26a1 Entry').item.json;\nconst missing = [];\nif (!input.script)       missing.push('script');\nif (!input.title)        missing.push('title');\nif (missing.length > 0) throw new Error('Video Production: missing fields: ' + missing.join(', '));\n\nconst cfg = $('\u2699\ufe0f Load Config').item.json;\nreturn [{ json: {\n  script:    input.script,\n  title:     input.title,\n  platform:  input.platform  || 'tiktok',\n  blog_url:  input.blog_url  || '',\n  keyword:   input.keyword   || '',\n  duration:  input.duration  || 60,\n  voice:     cfg.VIDEO_VOICE || 'en_us_001',\n  language:  cfg.ATP_LANGUAGE || 'en'\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "a50f7675",
+      "name": "\ud83c\udfa8 Blotato: Generate Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.blotato.com/v1/video/generate",
+        "options": {
+          "timeout": 300000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"script\":   \"{{ $json.script.replace(/\"/g, '\\\\\"') }}\",\n  \"title\":    \"{{ $json.title.replace(/\"/g, '\\\\\"')  }}\",\n  \"voice_id\": \"{{ $json.voice }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"style\":    \"faceless_educational\",\n  \"duration\": {{ $json.duration }},\n  \"captions\": true,\n  \"cta_url\":  \"{{ $json.blog_url }}\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.BLOTATO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "0a0fa219",
+      "name": "\u2705 Video Generated?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ec458cbf",
+              "leftValue": "={{ $json.video_url || $json.url || $json.id }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "isNotEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "f85f562b",
+      "name": "\ud83d\udce6 Extract Video URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst result  = $input.first().json;\nconst input   = $('\ud83d\udce5 Validate + Prepare').item.json;\nconst videoUrl = result?.video_url || result?.url || result?.output_url || '';\nconst videoId  = result?.id || result?.job_id || '';\nreturn [{ json: {\n  video_url:  videoUrl,\n  video_id:   videoId,\n  title:      input.title,\n  platform:   input.platform,\n  blog_url:   input.blog_url,\n  keyword:    input.keyword,\n  script:     input.script.substring(0, 200)\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "61550971",
+      "name": "\ud83d\ude80 Blotato: Publish Video",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.blotato.com/v1/publish",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"platform\":  \"{{ $json.platform }}\",\n  \"text\":      \"{{ $json.title.replace(/\"/g, '\\\\\"') }} \ud83d\udd17 Link in bio\",\n  \"media_url\": \"{{ $json.video_url }}\",\n  \"link\":      \"{{ $json.blog_url }}\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.BLOTATO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "9ff5b041",
+      "name": "\ud83d\udcf1 Build Success Notify",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst d   = $('\ud83d\udce6 Extract Video URL').item.json;\nconst res = $input.first().json;\nconst cfg = $('\u2699\ufe0f Load Config').item.json;\nconst posted = res?.id || res?.post_id || res?.success;\nconst msg = posted\n  ? `\ud83c\udfac <b>Video Published</b>\\n\\nTitle: ${d.title}\\nPlatform: ${d.platform}\\nURL: ${d.blog_url}`\n  : `\u26a0\ufe0f <b>Video Generated but Publish Failed</b>\\n\\nTitle: ${d.title}\\nVideo URL: ${d.video_url}\\nError: ${JSON.stringify(res)}`;\nreturn [{ json: { telegram_message: msg, chat_id: cfg.TELEGRAM_CHAT_ID || $vars.TELEGRAM_CHAT_ID } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "c574f937",
+      "name": "\ud83d\udcf1 Notify Video Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "5232eed3",
+      "name": "\ud83d\udcca Log Video Production",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.VIDEO_LOG_TAB || 'Video Log' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e208fe67",
+      "name": "\u26a0\ufe0f Alert: Video Gen Failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $vars.TELEGRAM_CHAT_ID }}\", \"text\": \"\u274c <b>Video Generation Failed</b>\\n\\nTitle: {{ $(\\\"\ud83d\udce5 Validate + Prepare\\\").item.json.title }}\\nResponse: {{ JSON.stringify($json).substring(0,200) }}\", \"parse_mode\": \"HTML\"}"
+      }
+    }
+  ],
+  "connections": {
+    "\u26a1 Entry": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Validate + Prepare",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce5 Validate + Prepare": {
+      "main": [
+        [
+          {
+            "node": "\ud83c\udfa8 Blotato: Generate Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83c\udfa8 Blotato: Generate Video": {
+      "main": [
+        [
+          {
+            "node": "\u2705 Video Generated?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2705 Video Generated?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce6 Extract Video URL",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "\u26a0\ufe0f Alert: Video Gen Failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce6 Extract Video URL": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\ude80 Blotato: Publish Video",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\ude80 Blotato: Publish Video": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Build Success Notify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Build Success Notify": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Notify Video Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Notify Video Status": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Log Video Production",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

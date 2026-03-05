@@ -1,0 +1,514 @@
+{
+  "name": "\ud83d\udcb0 Affiliate Research v2 (with dedup)",
+  "nodes": [
+    {
+      "id": "470a9706",
+      "name": "\ud83d\udd57 Monday 7AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "02444493",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "dfacf39f",
+      "name": "\ud83d\uded2 ClickBank: ebusiness",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        -300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.clickbank.com/rest/1.3/products/list?site=&lang=en&cat=ebusiness&sortField=GRAVITY&sortOrder=DESC",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "id": "61d12f72",
+      "name": "\ud83d\udce5 Parse ClickBank",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        -300
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg = $('\u2699\ufe0f Load Config').item.json;\nconst raw = $input.first().json;\nconst minComm  = parseFloat(cfg.MIN_CLICKBANK_COMMISSION || 40);\nconst minGrav  = parseFloat(cfg.MIN_CLICKBANK_GRAVITY    || 20);\n\nconst products = (raw?.products || raw?.results || [])\n  .filter(p => {\n    const comm  = parseFloat(p?.commission || p?.commissionRate || 0);\n    const grav  = parseFloat(p?.gravity || 0);\n    return comm >= minComm && grav >= minGrav;\n  })\n  .map(p => ({\n    name:        p.title || p.name || '',\n    platform:    'ClickBank',\n    commission:  parseFloat(p.commission || p.commissionRate || 0),\n    gravity:     parseFloat(p.gravity || 0),\n    url:         p.hopLink || p.affiliateUrl || p.siteUrl || '',\n    niche:       'make-money-online',\n    avg_sale:    p.initialAmount || p.averageSale || ''\n  }));\n\nreturn [{ json: { cb_products: products } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "cf657b76",
+      "name": "\ud83c\udf10 Fetch MunchEye",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        -100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://muncheye.com/",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; HowToGenie/1.0)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fa3684f0",
+      "name": "\ud83d\udce5 Parse MunchEye",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        -100
+      ],
+      "parameters": {
+        "jsCode": "\nconst html = $input.first().json?.data || $input.first().json?.body || '';\n\n// Extract launch listings from MunchEye HTML\n// MunchEye uses .product-launch or similar class names\nconst launches = [];\nconst launchPattern = /class=\"[^\"]*launch[^\"]*\"[\\s\\S]*?<h[23][^>]*>([^<]+)<\\/h[23]>[\\s\\S]*?commission[^:]*:\\s*([\\d]+)%[\\s\\S]*?href=\"([^\"]+jv[^\"]*)\"[^>]*>/gi;\n\nlet match;\nwhile ((match = launchPattern.exec(html)) !== null && launches.length < 20) {\n  launches.push({\n    name:       match[1]?.trim() || 'Unknown Launch',\n    platform:   'MunchEye',\n    commission: parseFloat(match[2] || 0),\n    url:        match[3] || '',\n    niche:      'make-money-online',\n    gravity:    0\n  });\n}\n\n// Fallback: extract any product names mentioned near commission data\nif (launches.length === 0) {\n  const simplePattern = /<h[23][^>]*class=\"[^\"]*title[^\"]*\"[^>]*>([^<]{10,100})<\\/h[23]>/gi;\n  let sm;\n  while ((sm = simplePattern.exec(html)) !== null && launches.length < 15) {\n    launches.push({\n      name: sm[1]?.trim(),\n      platform: 'MunchEye',\n      commission: 50,\n      url: 'https://muncheye.com',\n      niche: 'make-money-online',\n      gravity: 0\n    });\n  }\n}\n\nreturn [{ json: { me_products: launches } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "79761f0b",
+      "name": "\ud83c\udf10 Fetch DigiStore24",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        100
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.digistore24.com/marketplace",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; HowToGenie/1.0)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "46ae0a0c",
+      "name": "\ud83d\udce5 Parse DigiStore24",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        100
+      ],
+      "parameters": {
+        "jsCode": "\nconst html = $input.first().json?.data || $input.first().json?.body || '';\nconst products = [];\n\n// DigiStore24 product listings\nconst pattern = /<div[^>]*class=\"[^\"]*product[^\"]*\"[\\s\\S]*?<h[23][^>]*>([^<]+)<\\/h[23]>[\\s\\S]*?(\\d{2,3})%[\\s\\S]*?href=\"(https:\\/\\/www\\.digistore24[^\"]+)\"/gi;\nlet m;\nwhile ((m = pattern.exec(html)) !== null && products.length < 15) {\n  const comm = parseFloat(m[2] || 0);\n  if (comm >= 40) {\n    products.push({\n      name: m[1]?.trim(),\n      platform: 'DigiStore24',\n      commission: comm,\n      url: m[3],\n      niche: 'digital-products',\n      gravity: 0\n    });\n  }\n}\n\nreturn [{ json: { ds_products: products } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "82adae4b",
+      "name": "\ud83c\udf10 Fetch JVZoo",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        400,
+        300
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.jvzoo.com/affiliates/browse",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; HowToGenie/1.0)"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "30d3e1cb",
+      "name": "\ud83d\udce5 Parse JVZoo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        300
+      ],
+      "parameters": {
+        "jsCode": "\nconst html = $input.first().json?.data || $input.first().json?.body || '';\nconst products = [];\n\nconst pattern = /class=\"[^\"]*product-title[^\"]*\"[^>]*>([^<]{5,100})<[\\s\\S]*?(\\d{2,3})%[\\s\\S]*?data-id=\"(\\d+)\"/gi;\nlet m;\nwhile ((m = pattern.exec(html)) !== null && products.length < 15) {\n  const comm = parseFloat(m[2] || 0);\n  if (comm >= 40) {\n    products.push({\n      name: m[1]?.trim(),\n      platform: 'JVZoo',\n      commission: comm,\n      url: `https://www.jvzoo.com/affiliates/product/${m[3]}`,\n      niche: 'software-saas',\n      gravity: 0\n    });\n  }\n}\n\nreturn [{ json: { jvzoo_products: products } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "d2238d06",
+      "name": "\ud83d\udd00 Merge All + Halal Filter",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg = $('\u2699\ufe0f Load Config').item.json;\nconst haram = (cfg.HALAL_FILTER_KEYWORDS || 'alcohol,gambling,dating,adult,betting,lottery,pork,riba,interest-based,forex-scam,mlm-pyramid').split(',').map(s => s.trim().toLowerCase());\n\nconst cb   = $('\ud83d\udce5 Parse ClickBank').item.json.cb_products   || [];\nconst me   = $('\ud83d\udce5 Parse MunchEye').item.json.me_products    || [];\nconst ds   = $('\ud83d\udce5 Parse DigiStore24').item.json.ds_products || [];\nconst jv   = $('\ud83d\udce5 Parse JVZoo').item.json.jvzoo_products    || [];\n\nconst all = [...cb, ...me, ...ds, ...jv];\n\n// Halal filter\nconst clean = all.filter(p => {\n  const nameL = (p.name || '').toLowerCase();\n  return !haram.some(h => nameL.includes(h));\n});\n\n// Deduplicate by name\nconst seen = new Set();\nconst deduped = clean.filter(p => {\n  const key = (p.name || '').toLowerCase().replace(/[^a-z0-9]/g,'');\n  if (seen.has(key) || !key) return false;\n  seen.add(key);\n  return true;\n});\n\nreturn [{ json: { all_products: deduped, count: deduped.length } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "2654b0fe",
+      "name": "\ud83e\udde0 Ollama: Score + Pitch",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_URL }}/api/chat",
+        "options": {
+          "timeout": 180000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"{{ $('\u2699\ufe0f Load Config').item.json.OLLAMA_MODEL_FAST || 'mistral' }}\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"You are an affiliate marketing strategist for a how-to blog. Evaluate these programs and generate application pitches.\\n\\nBLOG NICHES: {{ $('\u2699\ufe0f Load Config').item.json.NICHES || 'make money online, SaaS tools, health wellness, finance, productivity' }}\\n\\nPROGRAMS:\\n{{ $json.all_products.slice(0,25).map((p,i) => i+1+'. '+p.name+' | '+p.platform+' | Commission: '+p.commission+'% | Niche: '+p.niche).join('\\n') }}\\n\\nFor each program return JSON array:\\n{\\n  \\\"name\\\": \\\"program name\\\",\\n  \\\"ai_score\\\": 1-10,\\n  \\\"relevance\\\": \\\"why it fits the blog\\\",\\n  \\\"pitch\\\": \\\"3-sentence application pitch: 1) About my blog 2) My audience 3) Why I want to promote this product\\\"\\n}\\n\\nReturn ONLY a JSON array.\"\n  }],\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.4 }\n}"
+      }
+    },
+    {
+      "id": "3eeacb9c",
+      "name": "\ud83d\udcca Parse + Sort + Build Digest",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg      = $('\u2699\ufe0f Load Config').item.json;\nconst products = $('\ud83d\udd00 Merge All + Halal Filter').item.json.all_products || [];\nconst raw      = $input.first().json.message?.content || '[]';\n\nlet scores = [];\ntry {\n  const match = raw.match(/\\[([\\s\\S]*?)\\](?!\\s*[a-z])/i);\n  scores = JSON.parse(match ? '[' + match[1] + ']' : raw);\n} catch(e) {\n  scores = products.slice(0, 15).map(p => ({ name: p.name, ai_score: 5, relevance: 'Relevant to blog', pitch: 'My how-to blog covers ' + p.niche + '. I have engaged readers looking for tools. I want to promote ' + p.name + ' because it aligns with my audience needs.' }));\n}\n\n// Merge scores with product data\nconst enriched = scores.map(s => {\n  const product = products.find(p => p.name?.toLowerCase().includes((s.name || '').toLowerCase().split(' ')[0])) || {};\n  return {\n    Program_Name:    s.name || product.name || '',\n    Platform:        product.platform || '',\n    Commission_Pct:  product.commission || 0,\n    Gravity_EPC:     product.gravity || 0,\n    Niche:           product.niche || '',\n    Application_URL: product.url || '',\n    AI_Score:        s.ai_score || 5,\n    AI_Pitch:        s.pitch || '',\n    Relevance:       s.relevance || '',\n    Halal_Flag:      'Yes',\n    Date_Found:      new Date().toISOString().split('T')[0],\n    Status:          'New'\n  };\n}).sort((a, b) => b.AI_Score - a.AI_Score);\n\n// Build Telegram message (top 10)\nconst top10 = enriched.slice(0, 10);\nconst lines = top10.map((p, i) =>\n  `${i+1}. <b>${p.Program_Name}</b>\\n   Platform: ${p.Platform} | Commission: ${p.Commission_Pct}% | Score: ${p.AI_Score}/10\\n   Apply: ${p.Application_URL}`\n);\n\nconst msg = `\ud83d\udcb0 <b>HowTo-Genie: Weekly Affiliate Digest</b>\\n\ud83d\udcc5 ${new Date().toLocaleDateString('en-MY', {timeZone: cfg.TIMEZONE || 'Asia/Kuala_Lumpur'})}\\n\\nTop ${top10.length} programs found this week:\\n\\n${lines.join('\\n\\n')}\\n\\n\ud83d\udccb Full list + pitches saved to Affiliate Programs sheet.`;\n\nreturn [{ json: { all_scored: enriched, telegram_message: msg, chat_id: cfg.TELEGRAM_CHAT_ID } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "a2f2afa4",
+      "name": "\ud83d\udcf1 Send Telegram Digest",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "540903f4",
+      "name": "\ud83d\udccb Flatten for Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst data = $('\ud83d\udcca Parse + Sort + Build Digest').item.json.all_scored || [];\nreturn data.map(d => ({ json: d }));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "2c751920",
+      "name": "\ud83d\udcca Save Affiliate Programs",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.AFFILIATE_TAB || 'Affiliate Programs' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "b9ff1795",
+      "name": "\ud83d\udd0d Deduplicate vs Sheet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        850,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst cfg      = $('\u2699\ufe0f Load Config').item.json;\nconst incoming = $('\ud83d\udd00 Merge All + Halal Filter').item.json.all_products || [];\n\n// Read existing affiliate sheet to get already-known program names\nlet existingNames = new Set();\ntry {\n  const existing = $('\ud83d\udcca Read Existing Affiliates')?.all() || [];\n  for (const row of existing) {\n    const name = (row.json?.Program_Name || row.json?.program_name || '').toLowerCase().replace(/[^a-z0-9]/g,'');\n    if (name) existingNames.add(name);\n  }\n} catch(e) {}\n\nconst fresh = incoming.filter(p => {\n  const key = (p.name || '').toLowerCase().replace(/[^a-z0-9]/g,'');\n  return key && !existingNames.has(key);\n});\n\nreturn [{ json: { all_products: fresh, count: fresh.length, skipped: incoming.length - fresh.length } }];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "7d2f8ad2",
+      "name": "\ud83d\udcca Read Existing Affiliates",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        850,
+        -200
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.AFFILIATE_TAB || 'Affiliate Programs' }}",
+          "mode": "name"
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\udd57 Monday 7AM": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\uded2 ClickBank: ebusiness",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "\ud83c\udf10 Fetch MunchEye",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "\ud83c\udf10 Fetch DigiStore24",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "\ud83c\udf10 Fetch JVZoo",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "\ud83d\udcca Read Existing Affiliates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\uded2 ClickBank: ebusiness": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Parse ClickBank",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83c\udf10 Fetch MunchEye": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Parse MunchEye",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83c\udf10 Fetch DigiStore24": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Parse DigiStore24",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83c\udf10 Fetch JVZoo": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce5 Parse JVZoo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce5 Parse JVZoo": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd00 Merge All + Halal Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd00 Merge All + Halal Filter": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Deduplicate vs Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83e\udde0 Ollama: Score + Pitch": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Parse + Sort + Build Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcca Parse + Sort + Build Digest": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Send Telegram Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Send Telegram Digest": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Flatten for Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Flatten for Sheets": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Save Affiliate Programs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Deduplicate vs Sheet": {
+      "main": [
+        [
+          {
+            "node": "\ud83e\udde0 Ollama: Score + Pitch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

@@ -1,0 +1,381 @@
+{
+  "name": "\u23f0 Approval Poller",
+  "nodes": [
+    {
+      "id": "42ae7155",
+      "name": "\ud83d\udd63 Poll at 7:30 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ab628cb1",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "98e39837",
+      "name": "\ud83d\udccb Read Backlog",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.BLOG_IDEA_TAB || 'Blog Idea Backlog' }}",
+          "mode": "name"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "74e2324e",
+      "name": "\ud83d\udd0d Find Approved Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst rows = $input.all();\nconst approved = rows\n  .map((r, i) => ({ ...r.json, _row: i + 2 }))\n  .filter(r => (r.status || r.Status || '').toLowerCase() === 'approved')\n  .sort((a, b) => (b.combined_score || b.intent_score || 0) - (a.combined_score || a.intent_score || 0));\n\nif (approved.length === 0) {\n  return [{ json: { has_approved: false } }];\n}\n\nconst pick = approved[0];\nreturn [{ json: {\n  has_approved:          true,\n  _row:                  pick._row,\n  topic:                 pick.article_title_suggestion || pick.question || pick.topic || '',\n  primary_keyword:       pick.keyword || pick.primary_keyword || '',\n  niche:                 pick.niche || '',\n  intent_score:          pick.intent_score || pick.combined_score || 7,\n  competition:           pick.competition || 'medium',\n  secondary_keywords:    pick.secondary_keywords || [],\n  affiliate_angle:       pick.affiliate_angle || 'general tools and resources',\n  content_outline:       pick.content_outline || [],\n  is_halal_compliant:    true,\n  not_duplicate:         true,\n  source:                'backlog_approved',\n  word_count_target:     3000,\n  generated_at:          new Date().toISOString()\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "8d7a3c82",
+      "name": "\u2705 Topic Approved?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "ba7caace",
+              "leftValue": "={{ $json.has_approved }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "3bccdfeb",
+      "name": "\ud83d\udcdd Mark as In Progress",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst row = $('\ud83d\udd0d Find Approved Topic').item.json._row;\nreturn [{ json: {\n  Row_Number: row,\n  status:     'In Progress',\n  Status:     'In Progress'\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "fde372f8",
+      "name": "\ud83d\udcca Update Backlog Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.BLOG_IDEA_TAB || 'Blog Idea Backlog' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Row_Number"
+          ],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "aa63166f",
+      "name": "\ud83d\udce6 Package Topic for Orchestrator",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst t = $('\ud83d\udd0d Find Approved Topic').item.json;\nreturn [{ json: {\n  approved_topic: {\n    topic:              t.topic,\n    primary_keyword:    t.primary_keyword,\n    secondary_keywords: t.secondary_keywords || [],\n    affiliate_angle:    t.affiliate_angle,\n    content_outline:    t.content_outline || [],\n    word_count_target:  t.word_count_target || 3000,\n    is_halal_compliant: true,\n    not_duplicate:      true,\n    generated_at:       t.generated_at,\n    source:             'backlog_approved'\n  }\n}}];\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "f8ee6ce0",
+      "name": "\ud83d\ude80 Fire Orchestrator",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORCHESTRATOR_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    },
+    {
+      "id": "2f7bf1c4",
+      "name": "\ud83d\udcf1 Notify: Fired from Backlog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $vars.TELEGRAM_CHAT_ID }}\", \"text\": \"\ud83d\ude80 <b>Orchestrator Triggered from Backlog</b>\\n\\n\ud83d\udcdd Topic: <b>{{ $('\ud83d\udd0d Find Approved Topic').item.json.topic }}</b>\\n\ud83d\udd11 Keyword: {{ $('\ud83d\udd0d Find Approved Topic').item.json.primary_keyword }}\\n\\nArticle generation started.\", \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "75d08ae8",
+      "name": "\ud83d\udcf1 Notify: No Approval",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        -200
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $vars.TELEGRAM_CHAT_ID }}\", \"text\": \"\u2139\ufe0f <b>Orchestrator</b>: No approved topic found in backlog.\\n\\nRunning with Reddit trending data instead.\", \"parse_mode\": \"HTML\"}"
+      }
+    },
+    {
+      "id": "a86bef15",
+      "name": "\ud83d\ude80 Fire Orchestrator (Reddit Fallback)",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        1200,
+        -200
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_ORCHESTRATOR_WORKFLOW_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": false
+        }
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\udd63 Poll at 7:30 AM": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Read Backlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Read Backlog": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Find Approved Topic",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Find Approved Topic": {
+      "main": [
+        [
+          {
+            "node": "\u2705 Topic Approved?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2705 Topic Approved?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcdd Mark as In Progress",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "\ud83d\udcf1 Notify: No Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcdd Mark as In Progress": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Update Backlog Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcca Update Backlog Status": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udce6 Package Topic for Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udce6 Package Topic for Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\ude80 Fire Orchestrator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\ude80 Fire Orchestrator": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Notify: Fired from Backlog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Notify: No Approval": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\ude80 Fire Orchestrator (Reddit Fallback)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}

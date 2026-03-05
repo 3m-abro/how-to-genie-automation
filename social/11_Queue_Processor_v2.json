@@ -1,0 +1,378 @@
+{
+  "name": "\u23f0 Queue Processor v2 (with retry)",
+  "nodes": [
+    {
+      "id": "06021c69",
+      "name": "\ud83d\udd57 Every Hour",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 * * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "3b24ec8a",
+      "name": "\u2699\ufe0f Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        200,
+        0
+      ],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      }
+    },
+    {
+      "id": "87e27a1b",
+      "name": "\ud83d\udccb Read Social Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        0
+      ],
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "a68ea226",
+      "name": "\ud83d\udd0d Filter Due + Retryable",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        600,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst rows  = $input.all();\nconst now   = new Date();\nconst inHour = new Date(now.getTime() + 60 * 60 * 1000);\nconst MAX_RETRIES = 3;\n\nconst due = rows\n  .map((row, i) => ({ ...row.json, _row_number: i + 2 }))\n  .filter(row => {\n    const status      = (row.Status || row.status || '').trim();\n    const scheduled   = new Date(row.Scheduled_Time || row.scheduled_time || 0);\n    const retryCount  = parseInt(row.Retry_Count || row.retry_count || 0);\n\n    // Queued posts due within the hour\n    if (status === 'Queued' && scheduled <= inHour) return true;\n\n    // Failed posts eligible for retry (under MAX_RETRIES)\n    if (status === 'Failed' && retryCount < MAX_RETRIES) return true;\n\n    return false;\n  });\n\nif (due.length === 0) return [{ json: { no_posts_due: true } }];\nreturn due.map(d => ({ json: d }));\n",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "93c02796",
+      "name": "\ud83d\udcec Posts Due?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "5e3a281e",
+              "leftValue": "={{ $json.no_posts_due }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "e62dedc9",
+      "name": "\ud83d\ude80 Blotato: Publish Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.blotato.com/v1/publish",
+        "options": {
+          "timeout": 30000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"platform\":  \"{{ ($json.Platform || $json.platform || '').toLowerCase() }}\",\n  \"text\":      \"{{ ($json.Caption || $json.caption || '').replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",\n  \"media_url\": \"{{ $json.Media_URL || $json.media_url || '' }}\",\n  \"link\":      \"{{ $json.WP_Post_URL || $json.wp_post_url || '' }}\"\n}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $vars.BLOTATO_API_KEY }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "46013573",
+      "name": "\ud83d\udcdd Build Update Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst prev        = $('\ud83d\udd0d Filter Due + Retryable').item.json;\nconst result      = $input.first().json;\nconst posted      = !result?.error && (result?.id || result?.post_id || result?.success);\nconst retryCount  = parseInt(prev.Retry_Count || prev.retry_count || 0);\nconst newRetry    = posted ? 0 : retryCount + 1;\nconst MAX_RETRIES = 3;\n\nlet newStatus = posted ? 'Posted' : (newRetry >= MAX_RETRIES ? 'Dead' : 'Failed');\n\nreturn [{ json: {\n  Row_Number:      prev._row_number,\n  Status:          newStatus,\n  Retry_Count:     newRetry,\n  Blotato_Post_ID: result?.id || result?.post_id || '',\n  Error_Message:   result?.error || result?.message || '',\n  Last_Attempted:  new Date().toISOString()\n}}];\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "10dcfc88",
+      "name": "\ud83d\udcca Update Queue Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1400,
+        0
+      ],
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.GOOGLE_SHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('\u2699\ufe0f Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [
+            "Row_Number"
+          ],
+          "schema": []
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "0bc29fe3",
+      "name": "\u274c Failed or Dead?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c99c5693",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "ailed",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "63e1a2dd",
+      "name": "\ud83d\udcf1 Build Failure Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1800,
+        0
+      ],
+      "parameters": {
+        "jsCode": "\nconst row = $input.first().json;\nconst isDead = row.Status === 'Dead';\nconst emoji  = isDead ? '\ud83d\udc80' : '\u26a0\ufe0f';\nconst label  = isDead ? 'DEAD (max retries reached)' : `FAILED (attempt ${row.Retry_Count}/3)`;\nreturn [{ json: {\n  telegram_message: `${emoji} <b>Social Post ${label}</b>\\n\\nPlatform: ${row.Platform || '?'}\\nError: ${row.Error_Message || 'Unknown'}\\nRow: ${row.Row_Number}\\n\\n${isDead ? '\ud83d\udeab No more retries. Fix manually.' : '\ud83d\udd04 Will retry next hour.'}`,\n  chat_id: $('\u2699\ufe0f Load Config').item.json.TELEGRAM_CHAT_ID || $vars.TELEGRAM_CHAT_ID\n}}];\n",
+        "mode": "runOnceForEachItem"
+      }
+    },
+    {
+      "id": "0bba19ba",
+      "name": "\ud83d\udcf1 Send Failure Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2000,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "=https://api.telegram.org/bot{{ $vars.TELEGRAM_BOT_TOKEN }}/sendMessage",
+        "options": {
+          "timeout": 10000
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"chat_id\": \"{{ $json.chat_id }}\", \"text\": {{ JSON.stringify($json.telegram_message) }}, \"parse_mode\": \"HTML\"}"
+      }
+    }
+  ],
+  "connections": {
+    "\ud83d\udd57 Every Hour": {
+      "main": [
+        [
+          {
+            "node": "\u2699\ufe0f Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u2699\ufe0f Load Config": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udccb Read Social Queue",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udccb Read Social Queue": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udd0d Filter Due + Retryable",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udd0d Filter Due + Retryable": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcec Posts Due?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcec Posts Due?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "\ud83d\ude80 Blotato: Publish Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\ude80 Blotato: Publish Post": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcdd Build Update Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcdd Build Update Row": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcca Update Queue Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcca Update Queue Row": {
+      "main": [
+        [
+          {
+            "node": "\u274c Failed or Dead?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\u274c Failed or Dead?": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Build Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "\ud83d\udcf1 Build Failure Alert": {
+      "main": [
+        [
+          {
+            "node": "\ud83d\udcf1 Send Failure Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null
+}
