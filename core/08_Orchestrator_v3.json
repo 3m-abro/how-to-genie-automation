@@ -1,5 +1,5 @@
 {
-  "name": "\ud83e\udd16 HowTo-Genie Orchestrator v3",
+  "name": "🤖 HowTo-Genie Orchestrator v3",
   "nodes": [
     {
       "parameters": {
@@ -12,43 +12,47 @@
           ]
         }
       },
-      "name": "\ud83d\udd57 Daily Trigger 8AM",
+      "name": "🕗 Daily Trigger 8AM",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -4400,
-        0
+        -4384,
+        400
       ],
-      "id": "1b859cb1-38f6-4863-a9ba-7d198a43bb33"
+      "id": "75d7c9e3-7444-4f75-bab2-9372b5c0bbb1"
     },
     {
       "parameters": {
-        "operation": "read",
         "documentId": {
           "__rl": true,
-          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
+          "value": "={{ $json.GOOGLE_SHEET_ID }}",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": "Content Log",
+          "value": "={{ $json.BLOG_IDEA_TAB }}",
           "mode": "name"
         },
         "options": {}
       },
-      "name": "\ud83d\udce1 Load Existing Topics",
+      "name": "📡 Load Existing Topics",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        -4200,
-        0
+        -3936,
+        400
       ],
-      "id": "dup-check-sheets-001",
+      "id": "2403de6d-f4fb-40ce-9f54-48224c855feb",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
+        }
+      },
       "notes": "Reads all published topics so Agent 1 can avoid duplicates."
     },
     {
       "parameters": {
-        "method": "GET",
         "url": "https://www.reddit.com/r/Entrepreneur+productivity+personalfinance+webdev/hot.json?limit=15&t=day",
         "sendHeaders": true,
         "headerParameters": {
@@ -63,191 +67,170 @@
           "timeout": 10000
         }
       },
-      "name": "\ud83d\udce1 Fetch Reddit Trending",
+      "name": "📡 Fetch Reddit Trending",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -4200,
-        -200
+        -3936,
+        208
       ],
-      "id": "reddit-fetch-001",
+      "id": "830c30af-7298-4a6c-a439-f47f9f89eb5c",
       "notes": "Pulls real trending posts from Reddit. Change subreddits to match your niche."
     },
     {
       "parameters": {
-        "jsCode": "// Build context for Agent 0 and Agent 1\nconst redditData = $('\ud83d\udce1 Fetch Reddit Trending').item.json;\nconst sheetsData = $('\ud83d\udce1 Load Existing Topics').item.json;\n\n// Extract reddit titles and scores\nconst posts = redditData?.data?.children || [];\nconst trendingTopics = posts\n  .filter(p => p?.data?.score > 10)\n  .slice(0, 10)\n  .map(p => `- \"${p.data.title}\" (upvotes: ${p.data.score}, subreddit: r/${p.data.subreddit})`)\n  .join('\\n');\n\n// Extract existing keywords from content log\nconst rows = Array.isArray(sheetsData) ? sheetsData.slice(1) : [];\nconst existingKeywords = rows\n  .map(r => r['Keyword'] || r[2] || '')\n  .filter(Boolean)\n  .slice(0, 50)\n  .join(', ');\n\nreturn [{ json: {\n  reddit_context: trendingTopics || 'No trending data available - use your research',\n  existing_keywords: existingKeywords || 'None yet',\n  today: new Date().toLocaleDateString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }),\n  total_existing: rows.length\n}}];"
+        "jsCode": "// Build context for Agent 0 and Agent 1\nconst redditData = $('📡 Fetch Reddit Trending').item.json;\nconst sheetsData = $('📡 Load Existing Topics').item.json;\n\n// Extract reddit titles and scores\nconst posts = redditData?.data?.children || [];\nconst trendingTopics = posts\n  .filter(p => p?.data?.score > 10)\n  .slice(0, 10)\n  .map(p => `- \"${p.data.title}\" (upvotes: ${p.data.score}, subreddit: r/${p.data.subreddit})`)\n  .join('\\n');\n\n// Extract existing keywords from content log\nconst rows = Array.isArray(sheetsData) ? sheetsData.slice(1) : [];\nconst existingKeywords = rows\n  .map(r => r['Keyword'] || r[2] || '')\n  .filter(Boolean)\n  .slice(0, 50)\n  .join(', ');\n\nreturn [{ json: {\n  reddit_context: trendingTopics || 'No trending data available - use your research',\n  existing_keywords: existingKeywords || 'None yet',\n  today: new Date().toLocaleDateString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }),\n  total_existing: rows.length\n}}];"
       },
-      "name": "\ud83d\udd27 Build Research Context",
+      "name": "🔧 Build Research Context",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -4000,
-        0
+        -3712,
+        304
       ],
-      "id": "context-build-001"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"You are a master prompt engineer for a content automation system. \\nToday is {{ $now.format('dddd, MMMM D YYYY') }}. Niche: practical how-to guides.\\n\\nGenerate a JSON prompt package for today's content pipeline:\\n{\\n  \\\"research_context\\\": \\\"Instructions for finding 3 trending how-to topics with high search intent and affiliate potential. Prioritize topics with: clear actionable steps, product recommendations possible, large audience.\\\",\\n  \\\"writer_instructions\\\": \\\"Instructions for writing a 2800+ word expert how-to article. Must include: compelling H1, intro with problem hook, 7-9 H2 sections with numbered steps, expert tips callouts, FAQ section (5 questions), conclusion with CTA. Tone: conversational expert.\\\",\\n  \\\"humanizer_instructions\\\": \\\"Instructions for rewriting to sound like a genuine expert blogger sharing personal experience. Add first-person observations, vary sentence rhythm, remove generic phrases, keep all factual content.\\\",\\n  \\\"seo_instructions\\\": \\\"Instructions for SEO optimization. Must produce: meta_title (under 60 chars), meta_description (under 155 chars), focus_keyword, tags array (8-10), affiliate disclosure at article top, 3 naturally integrated affiliate CTAs.\\\",\\n  \\\"qc_rubric\\\": \\\"Scoring rubric: word_count (min 2800, max 5000), readability (plain English), seo_compliance, affiliate_disclosure_present, factual_accuracy, reader_value. Score each 1-10. Approved if all scores >= 6 and avg >= 7.\\\",\\n  \\\"social_instructions\\\": \\\"Instructions for creating platform posts from the article. Facebook: engaging caption with emoji. Instagram: caption + CTA + 10 relevant hashtags. Pinterest: pin title + 200 char description + board name. YouTube Short script: 60 sec, hook/problem/solution/CTA. Save TikTok as script only.\\\"\\n}\\n\\nReturn only valid JSON, no markdown.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.4 } }",
-        "options": {
-          "timeout": 300000
-        }
-      },
-      "name": "\ud83e\udde0 Agent 0: Prompt Engineer",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        -3800,
-        0
-      ],
-      "id": "22168f74-c176-423b-a99f-82b455497fc7",
-      "notes": "Generates dynamic prompts for all downstream agents. Response at $json.message.content"
+      "id": "8538bf46-452e-43f7-8a99-764d47f632bc"
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.message?.content || $input.first().json.response || '';\nlet pkg;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  pkg = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  // Fallback prompt package\n  pkg = {\n    research_context: \"Find the single best trending how-to topic today with high search intent and affiliate potential. Return as JSON with: topic, primary_keyword, secondary_keywords, affiliate_angle, content_outline (7-9 H2 sections).\",\n    writer_instructions: \"Write a comprehensive 2800+ word how-to article in HTML format. Include compelling H1, intro with problem hook, 7-9 H2 sections with steps, expert tips, FAQ (5 questions), conclusion with CTA.\",\n    humanizer_instructions: \"Rewrite this article to sound like a genuine expert blogger. Add personal voice, vary sentences, remove corporate language. Keep all HTML and facts.\",\n    seo_instructions: \"Optimize for SEO. Add affiliate disclosure at top, meta title (60 chars), meta description (155 chars), focus keyword, tags (10), and 3 affiliate CTAs naturally integrated.\",\n    qc_rubric: \"Score 1-10 on: word_count (min 2800), readability, seo_compliance, affiliate_disclosure_present, reader_value. Approve if all >= 6.\",\n    social_instructions: \"Create: Facebook caption, Instagram caption + 10 hashtags, Pinterest pin title + description, YouTube Short script (60 sec), TikTok script (60 sec).\",\n    parse_error: e.message\n  };\n}\nreturn [{ json: pkg }];"
       },
-      "name": "\ud83d\udccb Parse Prompt Package",
+      "name": "📋 Parse Prompt Package",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3600,
-        0
+        -3040,
+        304
       ],
-      "id": "e4aac495-eaee-4fee-ab0a-814278ea708d"
+      "id": "b30defa8-11e2-4477-83f2-b2b5495afdcf"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
+        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.research_context }}\\n\\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\\n{{ $json.reddit_context }}\\n\\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\\n{{ $('\ud83d\udce1 Load Existing Topics').item.json.existing_keywords }}\\n\\nSelect the SINGLE best topic to write about today. Return JSON:\\n{\\n  \\\"topic\\\": \\\"exact article title\\\",\\n  \\\"primary_keyword\\\": \\\"main SEO keyword\\\",\\n  \\\"secondary_keywords\\\": [\\\"kw1\\\", \\\"kw2\\\", \\\"kw3\\\"],\\n  \\\"search_intent\\\": \\\"informational|transactional|navigational\\\",\\n  \\\"affiliate_angle\\\": \\\"which products could be recommended\\\",\\n  \\\"content_outline\\\": [\\\"H2 section 1\\\", \\\"H2 section 2\\\", \\\"...7-9 total\\\"],\\n  \\\"word_count_target\\\": 3000,\\n  \\\"is_halal_compliant\\\": true,\\n  \\\"not_duplicate\\\": true\\n}\\n\\nReturn only valid JSON.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.7 } }",
+        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.research_context }}\\n\\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\\n{{ $json.reddit_context }}\\n\\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\\n{{ $('📡 Load Existing Topics').item.json.existing_keywords }}\\n\\nSelect the SINGLE best topic to write about today. Return JSON:\\n{\\n  \\\"topic\\\": \\\"exact article title\\\",\\n  \\\"primary_keyword\\\": \\\"main SEO keyword\\\",\\n  \\\"secondary_keywords\\\": [\\\"kw1\\\", \\\"kw2\\\", \\\"kw3\\\"],\\n  \\\"search_intent\\\": \\\"informational|transactional|navigational\\\",\\n  \\\"affiliate_angle\\\": \\\"which products could be recommended\\\",\\n  \\\"content_outline\\\": [\\\"H2 section 1\\\", \\\"H2 section 2\\\", \\\"...7-9 total\\\"],\\n  \\\"word_count_target\\\": 3000,\\n  \\\"is_halal_compliant\\\": true,\\n  \\\"not_duplicate\\\": true\\n}\\n\\nReturn only valid JSON.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.7 } }",
         "options": {
           "timeout": 300000
         }
       },
-      "name": "\ud83d\udd0d Agent 1: Research & Topic",
+      "name": "🔍 Agent 1: Research & Topic",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -3400,
-        0
+        -2816,
+        304
       ],
-      "id": "f197b8ce-5ca4-4e44-9091-4c2076fe313e",
+      "id": "cd72a478-9fc8-4294-b417-39235eb58dd5",
       "notes": "Uses real Reddit trending data + existing topics to pick a unique topic."
     },
     {
       "parameters": {
         "jsCode": "const raw = $input.first().json.message?.content || $input.first().json.response || '';\nlet topic;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  topic = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (!topic.topic || !topic.primary_keyword) throw new Error('Missing fields');\n  topic.generated_at = new Date().toISOString();\n  topic.word_count_target = topic.word_count_target || 3000;\n} catch(e) {\n  topic = {\n    topic: \"How to Build a Profitable Online Business in 2025\",\n    primary_keyword: \"build online business\",\n    secondary_keywords: [\"make money online\", \"online business ideas\"],\n    affiliate_angle: \"business tools and courses\",\n    content_outline: [\"Why Start an Online Business Now\",\"Choosing Your Business Model\",\"Setting Up Your Foundation\",\"Finding Your First Customers\",\"Scaling with Automation\",\"Common Mistakes to Avoid\",\"Your 30-Day Action Plan\"],\n    word_count_target: 3000,\n    is_halal_compliant: true,\n    not_duplicate: true,\n    generated_at: new Date().toISOString(),\n    status: \"fallback_topic\",\n    error: e.message\n  };\n}\nreturn [{ json: topic }];"
       },
-      "name": "\u2705 Parse & Validate Topic",
+      "name": "✅ Parse & Validate Topic",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -3200,
-        0
+        -2592,
+        304
       ],
-      "id": "dab992a1-5a45-42ad-aecf-0eb94404ac35"
+      "id": "283c0dc1-908e-43ac-8a24-51e9c0684db5"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
+        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.writer_instructions }}\\n\\nTOPIC: {{ $('\u2705 Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('\u2705 Parse & Validate Topic').item.json.primary_keyword }}\\nCONTENT OUTLINE: {{ $('\u2705 Parse & Validate Topic').item.json.content_outline }}\\nTARGET WORDS: {{ $('\u2705 Parse & Validate Topic').item.json.word_count_target }}\\n\\nWrite the complete article now. Use HTML formatting (h1, h2, h3, p, ul, ol, strong).\\nReturn the full article HTML. No JSON wrapper, just the raw HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.8, \"num_predict\": 4000 } }",
+        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.writer_instructions }}\\n\\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\\nCONTENT OUTLINE: {{ $('✅ Parse & Validate Topic').item.json.content_outline }}\\nTARGET WORDS: {{ $('✅ Parse & Validate Topic').item.json.word_count_target }}\\n\\nWrite the complete article now. Use HTML formatting (h1, h2, h3, p, ul, ol, strong).\\nReturn the full article HTML. No JSON wrapper, just the raw HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.8, \"num_predict\": 4000 } }",
         "options": {
           "timeout": 600000
         }
       },
-      "name": "\u270d\ufe0f Agent 2: Content Writer",
+      "name": "✍️ Agent 2: Content Writer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -3000,
-        0
+        -2368,
+        304
       ],
-      "id": "fd21660b-3ba8-494e-95bd-6697b5952bda",
+      "id": "c730964d-7ed3-4ae8-8a20-e476579317ab",
       "notes": "Writes full 2800+ word HTML article. Timeout set to 10 min for long generation."
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
+        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.humanizer_instructions }}\\n\\nARTICLE TO HUMANIZE:\\n{{ $('\u270d\ufe0f Agent 2: Content Writer').item.json.message.content }}\\n\\nRewrite the entire article. Keep all HTML tags, structure, and factual content intact.\\nReturn only the rewritten HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.9, \"num_predict\": 4000 } }",
+        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.humanizer_instructions }}\\n\\nARTICLE TO HUMANIZE:\\n{{ $('✍️ Agent 2: Content Writer').item.json.message.content }}\\n\\nRewrite the entire article. Keep all HTML tags, structure, and factual content intact.\\nReturn only the rewritten HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.9, \"num_predict\": 4000 } }",
         "options": {
           "timeout": 600000
         }
       },
-      "name": "\ud83e\udec2 Agent 3: Humanizer",
+      "name": "🫂 Agent 3: Humanizer",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -2800,
-        0
+        -2144,
+        304
       ],
-      "id": "a616a995-d05c-42e8-b27d-c01a34f0ad58"
+      "id": "ad5255b2-1c26-4517-b13b-ec1d0132b821"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
+        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.seo_instructions }}\\n\\nARTICLE:\\n{{ $('\ud83e\udec2 Agent 3: Humanizer').item.json.message.content }}\\n\\nTOPIC: {{ $('\u2705 Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('\u2705 Parse & Validate Topic').item.json.primary_keyword }}\\nAFFILIATE ANGLE: {{ $('\u2705 Parse & Validate Topic').item.json.affiliate_angle }}\\n\\nIMPORTANT: You MUST add this exact disclosure at the very top of the article content, before the first paragraph:\\n<p><em><strong>Disclosure:</strong> This article contains affiliate links. If you purchase through our links, we may earn a commission at no extra cost to you. We only recommend products we genuinely believe in.</em></p>\\n\\nReturn JSON:\\n{\\n  \\\"optimized_content\\\": \\\"full HTML article with disclosure at top and affiliate CTAs integrated\\\",\\n  \\\"meta_title\\\": \\\"SEO title under 60 chars\\\",\\n  \\\"meta_description\\\": \\\"compelling description under 155 chars\\\",\\n  \\\"focus_keyword\\\": \\\"primary keyword\\\",\\n  \\\"slug\\\": \\\"url-friendly-slug\\\",\\n  \\\"tags\\\": [\\\"tag1\\\",\\\"tag2\\\",\\\"...up to 10\\\"],\\n  \\\"categories\\\": [\\\"Main Category\\\"],\\n  \\\"affiliate_ctas_added\\\": 3\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.4, \"num_predict\": 4000 } }",
+        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.seo_instructions }}\\n\\nARTICLE:\\n{{ $('🫂 Agent 3: Humanizer').item.json.message.content }}\\n\\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\\nAFFILIATE ANGLE: {{ $('✅ Parse & Validate Topic').item.json.affiliate_angle }}\\n\\nIMPORTANT: You MUST add this exact disclosure at the very top of the article content, before the first paragraph:\\n<p><em><strong>Disclosure:</strong> This article contains affiliate links. If you purchase through our links, we may earn a commission at no extra cost to you. We only recommend products we genuinely believe in.</em></p>\\n\\nReturn JSON:\\n{\\n  \\\"optimized_content\\\": \\\"full HTML article with disclosure at top and affiliate CTAs integrated\\\",\\n  \\\"meta_title\\\": \\\"SEO title under 60 chars\\\",\\n  \\\"meta_description\\\": \\\"compelling description under 155 chars\\\",\\n  \\\"focus_keyword\\\": \\\"primary keyword\\\",\\n  \\\"slug\\\": \\\"url-friendly-slug\\\",\\n  \\\"tags\\\": [\\\"tag1\\\",\\\"tag2\\\",\\\"...up to 10\\\"],\\n  \\\"categories\\\": [\\\"Main Category\\\"],\\n  \\\"affiliate_ctas_added\\\": 3\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.4, \"num_predict\": 4000 } }",
         "options": {
           "timeout": 600000
         }
       },
-      "name": "\ud83c\udfaf Agent 4: SEO & Monetization",
+      "name": "🎯 Agent 4: SEO & Monetization",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -2600,
-        0
+        -1920,
+        304
       ],
-      "id": "3a280ef5-0eab-4b93-8d1b-e573930a19f4",
+      "id": "de007ca2-9941-473c-8050-7ee1d6b38529",
       "notes": "Adds affiliate disclosure, meta fields, and affiliate CTAs. Returns JSON."
     },
     {
       "parameters": {
-        "jsCode": "const raw = $('\ud83c\udfaf Agent 4: SEO & Monetization').item.json.message?.content || '';\nlet seo;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/s);\n  seo = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  // Fallback: use humanized content directly\n  seo = {\n    optimized_content: $('\ud83e\udec2 Agent 3: Humanizer').item.json.message?.content || '',\n    meta_title: $('\u2705 Parse & Validate Topic').item.json.topic,\n    meta_description: 'A comprehensive how-to guide. Read the full article for step-by-step instructions.',\n    focus_keyword: $('\u2705 Parse & Validate Topic').item.json.primary_keyword,\n    slug: $('\u2705 Parse & Validate Topic').item.json.primary_keyword?.replace(/\\s+/g, '-').toLowerCase(),\n    tags: $('\u2705 Parse & Validate Topic').item.json.secondary_keywords || [],\n    categories: ['How-To'],\n    affiliate_ctas_added: 0,\n    parse_error: e.message\n  };\n}\n\nconst content = seo.optimized_content || '';\nconst wordCount = content.replace(/<[^>]*>/g,' ').split(/\\s+/).filter(Boolean).length;\nconst excerpt = content.replace(/<[^>]*>/g,' ').substring(0, 200).trim() + '...';\n\nreturn [{ json: {\n  title: seo.meta_title || $('\u2705 Parse & Validate Topic').item.json.topic,\n  content,\n  word_count: wordCount,\n  excerpt,\n  slug: seo.slug || seo.meta_title?.replace(/\\s+/g,'-').toLowerCase(),\n  focus_keyword: seo.focus_keyword,\n  meta_description: seo.meta_description,\n  tags: seo.tags || [],\n  categories: seo.categories || ['How-To'],\n  affiliate_ctas: seo.affiliate_ctas_added || 0,\n  assembled_at: new Date().toISOString()\n}}];"
+        "jsCode": "const raw = $('🎯 Agent 4: SEO & Monetization').item.json.message?.content || '';\nlet seo;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/s);\n  seo = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  // Fallback: use humanized content directly\n  seo = {\n    optimized_content: $('🫂 Agent 3: Humanizer').item.json.message?.content || '',\n    meta_title: $('✅ Parse & Validate Topic').item.json.topic,\n    meta_description: 'A comprehensive how-to guide. Read the full article for step-by-step instructions.',\n    focus_keyword: $('✅ Parse & Validate Topic').item.json.primary_keyword,\n    slug: $('✅ Parse & Validate Topic').item.json.primary_keyword?.replace(/\\s+/g, '-').toLowerCase(),\n    tags: $('✅ Parse & Validate Topic').item.json.secondary_keywords || [],\n    categories: ['How-To'],\n    affiliate_ctas_added: 0,\n    parse_error: e.message\n  };\n}\n\nconst content = seo.optimized_content || '';\nconst wordCount = content.replace(/<[^>]*>/g,' ').split(/\\s+/).filter(Boolean).length;\nconst excerpt = content.replace(/<[^>]*>/g,' ').substring(0, 200).trim() + '...';\n\nreturn [{ json: {\n  title: seo.meta_title || $('✅ Parse & Validate Topic').item.json.topic,\n  content,\n  word_count: wordCount,\n  excerpt,\n  slug: seo.slug || seo.meta_title?.replace(/\\s+/g,'-').toLowerCase(),\n  focus_keyword: seo.focus_keyword,\n  meta_description: seo.meta_description,\n  tags: seo.tags || [],\n  categories: seo.categories || ['How-To'],\n  affiliate_ctas: seo.affiliate_ctas_added || 0,\n  assembled_at: new Date().toISOString()\n}}];"
       },
-      "name": "\ud83d\udd27 Assemble Final Article",
+      "name": "🔧 Assemble Final Article",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -2400,
-        0
+        -1696,
+        304
       ],
-      "id": "2e152334-0d6d-48c5-9f82-ddffce5c09f2"
+      "id": "e7e5b6cb-86b6-4cf1-a331-4738ee078d66"
     },
     {
       "parameters": {
         "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
+        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.qc_rubric }}\\n\\nARTICLE TO REVIEW:\\n{{ $('\ud83d\udd27 Assemble Final Article').item.json.content.substring(0, 3000) }}...\\n\\nMETADATA:\\n- Title: {{ $('\ud83d\udd27 Assemble Final Article').item.json.title }}\\n- Word Count: {{ $('\ud83d\udd27 Assemble Final Article').item.json.word_count }}\\n- Focus Keyword: {{ $('\ud83d\udd27 Assemble Final Article').item.json.focus_keyword }}\\n\\nReturn JSON:\\n{\\n  \\\"approved\\\": true,\\n  \\\"scores\\\": {\\n    \\\"word_count\\\": 8,\\n    \\\"readability\\\": 7,\\n    \\\"seo_compliance\\\": 8,\\n    \\\"affiliate_disclosure\\\": 10,\\n    \\\"factual_accuracy\\\": 8,\\n    \\\"reader_value\\\": 9\\n  },\\n  \\\"average_score\\\": 8.3,\\n  \\\"rejection_reason\\\": null,\\n  \\\"suggestions\\\": [\\\"optional improvement notes\\\"]\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.3 } }",
+        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.qc_rubric }}\\n\\nARTICLE TO REVIEW:\\n{{ $('🔧 Assemble Final Article').item.json.content.substring(0, 3000) }}...\\n\\nMETADATA:\\n- Title: {{ $('🔧 Assemble Final Article').item.json.title }}\\n- Word Count: {{ $('🔧 Assemble Final Article').item.json.word_count }}\\n- Focus Keyword: {{ $('🔧 Assemble Final Article').item.json.focus_keyword }}\\n\\nReturn JSON:\\n{\\n  \\\"approved\\\": true,\\n  \\\"scores\\\": {\\n    \\\"word_count\\\": 8,\\n    \\\"readability\\\": 7,\\n    \\\"seo_compliance\\\": 8,\\n    \\\"affiliate_disclosure\\\": 10,\\n    \\\"factual_accuracy\\\": 8,\\n    \\\"reader_value\\\": 9\\n  },\\n  \\\"average_score\\\": 8.3,\\n  \\\"rejection_reason\\\": null,\\n  \\\"suggestions\\\": [\\\"optional improvement notes\\\"]\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.3 } }",
         "options": {
           "timeout": 300000
         }
       },
-      "name": "\ud83d\udee1\ufe0f Agent 5: Quality Control",
+      "name": "🛡️ Agent 5: Quality Control",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -2200,
-        0
+        -1472,
+        304
       ],
-      "id": "f7130b86-6547-40ef-8aab-416335ec6308"
+      "id": "c2b91de7-a202-4397-b77a-08379fb82a6e"
     },
     {
       "parameters": {
@@ -272,46 +255,55 @@
         },
         "options": {}
       },
-      "name": "\u2705 QC Approved?",
+      "name": "✅ QC Approved?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -2000,
-        0
+        -1248,
+        304
       ],
-      "id": "8f6bb2f0-cc82-4a01-91eb-1704f0e6f60e"
+      "id": "d4652b0b-5677-46e6-816b-7d44f1504cc1"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "ALERT_HANDLER_WORKFLOW_ID",
-          "mode": "id"
+          "value": "UuyF6a4KyZpZ7jQ3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/UuyF6a4KyZpZ7jQ3",
+          "cachedResultName": "Alert Handler"
         },
-        "options": {},
-        "source": "database"
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "name": "\u26a0\ufe0f Alert: QC Rejected",
+      "name": "⚠️ Alert: QC Rejected",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        -1800,
-        200
+        -1024,
+        400
       ],
-      "id": "qc-reject-alert-001"
+      "id": "509f5ed0-592b-48f9-9580-64417679a28a"
     },
     {
       "parameters": {
-        "jsCode": "const topic = $('\u2705 Parse & Validate Topic').item.json;\nconst keyword = topic.primary_keyword || topic.topic || 'productivity';\nconst queries = [\n  keyword,\n  keyword.split(' ').slice(0,2).join(' '),\n  topic.secondary_keywords?.[0] || 'business success'\n];\nreturn [{ json: { queries, primary_query: queries[0] }}];"
+        "jsCode": "const topic = $('✅ Parse & Validate Topic').item.json;\nconst keyword = topic.primary_keyword || topic.topic || 'productivity';\nconst queries = [\n  keyword,\n  keyword.split(' ').slice(0,2).join(' '),\n  topic.secondary_keywords?.[0] || 'business success'\n];\nreturn [{ json: { queries, primary_query: queries[0] }}];"
       },
-      "name": "\ud83d\uddbc\ufe0f Build Image Queries",
+      "name": "🖼️ Build Image Queries",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1800,
-        -200
+        -1024,
+        208
       ],
-      "id": "da799e06-9d9b-43a4-9369-a015456c8255"
+      "id": "2c789c3e-01e3-47d6-85f8-ba04f32f3b27"
     },
     {
       "parameters": {
@@ -327,41 +319,41 @@
         },
         "options": {}
       },
-      "name": "\ud83d\udcf8 Search Pexels",
+      "name": "📸 Search Pexels",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1600,
-        -300
+        -800,
+        112
       ],
-      "id": "42d8a276-2bf1-4f30-8771-121905351b70"
+      "id": "116b68ac-8aa1-440c-9db8-741c95b9ff79"
     },
     {
       "parameters": {
-        "url": "=https://pixabay.com/api/?key=YOUR_PIXABAY_API_KEY&q={{ encodeURIComponent($('\ud83d\uddbc\ufe0f Build Image Queries').item.json.primary_query) }}&image_type=photo&orientation=horizontal&per_page=3&safesearch=true",
+        "url": "=https://pixabay.com/api/?key=YOUR_PIXABAY_API_KEY&q={{ encodeURIComponent($('🖼️ Build Image Queries').item.json.primary_query) }}&image_type=photo&orientation=horizontal&per_page=3&safesearch=true",
         "options": {}
       },
-      "name": "\ud83d\udcf8 Search Pixabay (Fallback)",
+      "name": "📸 Search Pixabay (Fallback)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1600,
-        -100
+        -800,
+        304
       ],
-      "id": "9633125f-1c56-4818-a16d-bab3e91d6076"
+      "id": "8dd6b60f-365d-422e-91d8-0d82f71e247e"
     },
     {
       "parameters": {
-        "jsCode": "let imageUrl = null;\nlet imageAlt = $('\u2705 Parse & Validate Topic').item.json.primary_keyword || 'article image';\n\n// Try Pexels first\ntry {\n  const pexels = $('\ud83d\udcf8 Search Pexels').item.json;\n  if (pexels.photos && pexels.photos.length > 0) {\n    imageUrl = pexels.photos[0].src.large || pexels.photos[0].src.original;\n  }\n} catch(e) {}\n\n// Fallback to Pixabay\nif (!imageUrl) {\n  try {\n    const pixabay = $('\ud83d\udcf8 Search Pixabay (Fallback)').item.json;\n    if (pixabay.hits && pixabay.hits.length > 0) {\n      imageUrl = pixabay.hits[0].largeImageURL || pixabay.hits[0].webformatURL;\n    }\n  } catch(e) {}\n}\n\nconst needsAI = !imageUrl;\nreturn [{ json: { image_url: imageUrl, image_alt: imageAlt, needs_ai_image: needsAI }}];"
+        "jsCode": "let imageUrl = null;\nlet imageAlt = $('✅ Parse & Validate Topic').item.json.primary_keyword || 'article image';\n\n// Try Pexels first\ntry {\n  const pexels = $('📸 Search Pexels').item.json;\n  if (pexels.photos && pexels.photos.length > 0) {\n    imageUrl = pexels.photos[0].src.large || pexels.photos[0].src.original;\n  }\n} catch(e) {}\n\n// Fallback to Pixabay\nif (!imageUrl) {\n  try {\n    const pixabay = $('📸 Search Pixabay (Fallback)').item.json;\n    if (pixabay.hits && pixabay.hits.length > 0) {\n      imageUrl = pixabay.hits[0].largeImageURL || pixabay.hits[0].webformatURL;\n    }\n  } catch(e) {}\n}\n\nconst needsAI = !imageUrl;\nreturn [{ json: { image_url: imageUrl, image_alt: imageAlt, needs_ai_image: needsAI }}];"
       },
-      "name": "\ud83d\udd00 Select Best Image",
+      "name": "🔀 Select Best Image",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -1400,
-        -200
+        -576,
+        208
       ],
-      "id": "7276c62b-53d5-4331-8a8c-b496069f192e"
+      "id": "d42b94d8-bb00-4653-a720-831388456a35"
     },
     {
       "parameters": {
@@ -386,14 +378,14 @@
         },
         "options": {}
       },
-      "name": "\ud83e\udd14 Need AI Image?",
+      "name": "🤔 Need AI Image?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
       "position": [
-        -1200,
-        -200
+        -352,
+        208
       ],
-      "id": "390dec5b-9418-47fa-9478-17081a3c1e47"
+      "id": "737a0de2-1187-41b5-a39a-5b1e7e0c56fa"
     },
     {
       "parameters": {
@@ -401,19 +393,19 @@
         "url": "http://localhost:7860/sdapi/v1/txt2img",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"prompt\": \"professional blog header image, {{ $('\ud83d\uddbc\ufe0f Build Image Queries').item.json.primary_query }}, clean modern style, high quality, 1280x720\",   \"negative_prompt\": \"text, watermark, blurry, low quality\",   \"width\": 1280, \"height\": 720,   \"steps\": 20, \"cfg_scale\": 7 }",
+        "jsonBody": "={   \"prompt\": \"professional blog header image, {{ $('🖼️ Build Image Queries').item.json.primary_query }}, clean modern style, high quality, 1280x720\",   \"negative_prompt\": \"text, watermark, blurry, low quality\",   \"width\": 1280, \"height\": 720,   \"steps\": 20, \"cfg_scale\": 7 }",
         "options": {
           "timeout": 120000
         }
       },
-      "name": "\ud83c\udfa8 Generate Image (SD)",
+      "name": "🎨 Generate Image (SD)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -1000,
-        -300
+        -128,
+        144
       ],
-      "id": "68ac7af9-865e-4024-8548-9a10558c8d08",
+      "id": "bc45f5cc-e341-4c82-b5fe-a08ba8d2ecef",
       "notes": "Requires AUTOMATIC1111 Stable Diffusion running locally: ./webui.sh --api --listen"
     },
     {
@@ -432,34 +424,34 @@
           ]
         },
         "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"source_url\": \"{{ $('🔀 Select Best Image').item.json.image_url }}\", \"alt_text\": \"{{ $('🔀 Select Best Image').item.json.image_alt }}\", \"title\": \"{{ $('✅ Parse & Validate Topic').item.json.slug || 'article-image' }}\"}",
         "options": {
           "timeout": 30000
-        },
-        "specifyBody": "json",
-        "jsonBody": "={\"source_url\": \"{{ $('\ud83d\udd00 Select Best Image').item.json.image_url }}\", \"alt_text\": \"{{ $('\ud83d\udd00 Select Best Image').item.json.image_alt }}\", \"title\": \"{{ $('\u2705 Parse & Validate Topic').item.json.slug || 'article-image' }}\"}"
+        }
       },
-      "name": "\ud83d\udce4 Upload Image to WP Media",
+      "name": "📤 Upload Image to WP Media",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -800,
-        -200
+        96,
+        208
       ],
-      "id": "wp-media-upload-001",
+      "id": "12e29637-272f-4128-a9a8-0e3e7452d75d",
       "notes": "Uploads image to WordPress Media Library. Returns media ID for featured image assignment."
     },
     {
       "parameters": {
-        "jsCode": "const mediaResponse = $input.first().json;\n// WordPress returns the media object with id field\nconst mediaId = mediaResponse.id || null;\nconst mediaUrl = mediaResponse.source_url || mediaResponse.guid?.rendered || '';\nconst imageAlt = $('\ud83d\udd00 Select Best Image').item.json.image_alt || '';\n\nreturn [{ json: { media_id: mediaId, media_url: mediaUrl, image_alt: imageAlt }}];"
+        "jsCode": "const mediaResponse = $input.first().json;\n// WordPress returns the media object with id field\nconst mediaId = mediaResponse.id || null;\nconst mediaUrl = mediaResponse.source_url || mediaResponse.guid?.rendered || '';\nconst imageAlt = $('🔀 Select Best Image').item.json.image_alt || '';\n\nreturn [{ json: { media_id: mediaId, media_url: mediaUrl, image_alt: imageAlt }}];"
       },
-      "name": "\ud83d\udd17 Capture Media ID",
+      "name": "🔗 Capture Media ID",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        -600,
-        -200
+        320,
+        208
       ],
-      "id": "media-id-capture-001"
+      "id": "8d309015-483f-4def-a1c7-0ab6dea67c9b"
     },
     {
       "parameters": {
@@ -469,17 +461,17 @@
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={   \"title\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.title }}\",   \"content\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",   \"slug\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.slug }}\",   \"status\": \"publish\",   \"featured_media\": {{ $('\ud83d\udd17 Capture Media ID').item.json.media_id || 0 }},   \"excerpt\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.excerpt }}\",   \"meta\": {     \"_yoast_wpseo_title\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.title }}\",     \"_yoast_wpseo_metadesc\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.meta_description }}\",     \"_yoast_wpseo_focuskw\": \"{{ $('\ud83d\udd27 Assemble Final Article').item.json.focus_keyword }}\"   } }",
+        "jsonBody": "={   \"title\": \"{{ $('🔧 Assemble Final Article').item.json.title }}\",   \"content\": \"{{ $('🔧 Assemble Final Article').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",   \"slug\": \"{{ $('🔧 Assemble Final Article').item.json.slug }}\",   \"status\": \"publish\",   \"featured_media\": {{ $('🔗 Capture Media ID').item.json.media_id || 0 }},   \"excerpt\": \"{{ $('🔧 Assemble Final Article').item.json.excerpt }}\",   \"meta\": {     \"_yoast_wpseo_title\": \"{{ $('🔧 Assemble Final Article').item.json.title }}\",     \"_yoast_wpseo_metadesc\": \"{{ $('🔧 Assemble Final Article').item.json.meta_description }}\",     \"_yoast_wpseo_focuskw\": \"{{ $('🔧 Assemble Final Article').item.json.focus_keyword }}\"   } }",
         "options": {}
       },
-      "name": "\ud83d\udcdd Publish to WordPress",
+      "name": "📝 Publish to WordPress",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -400,
-        0
+        544,
+        208
       ],
-      "id": "03c89924-1441-421e-9765-f59748ce0f67",
+      "id": "d5cf0df3-5ae8-43e7-8c5f-3db1a9987726",
       "notes": "Now includes featured_media ID. Post goes live immediately."
     },
     {
@@ -487,174 +479,23 @@
         "method": "POST",
         "url": "https://indexing.googleapis.com/v3/urlNotifications:publish",
         "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={   \"url\": \"{{ $json.link }}\",   \"type\": \"URL_UPDATED\" }",
         "options": {
           "timeout": 10000
-        },
-        "genericAuthType": "httpHeaderAuth"
+        }
       },
-      "name": "\ud83d\udd0d Request Google Indexing",
+      "name": "🔍 Request Google Indexing",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        -200,
-        -100
+        768,
+        304
       ],
-      "id": "google-index-001",
+      "id": "2463c8a5-63ea-4a04-aac8-e8a1565aaa85",
       "notes": "Requires Google API credential with Indexing API scope enabled. Requests immediate crawl of new post."
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('\ud83d\udccb Parse Prompt Package').item.json.social_instructions }}\\n\\nARTICLE TITLE: {{ $('\ud83d\udd27 Assemble Final Article').item.json.title }}\\nARTICLE URL: {{ $('\ud83d\udcdd Publish to WordPress').item.json.link }}\\nEXCERPT: {{ $('\ud83d\udd27 Assemble Final Article').item.json.excerpt }}\\nPRIMARY KEYWORD: {{ $('\ud83d\udd27 Assemble Final Article').item.json.focus_keyword }}\\n\\nReturn JSON:\\n{\\n  \\\"facebook\\\": { \\\"caption\\\": \\\"engaging post with emoji and question to drive comments\\\", \\\"link\\\": \\\"{{ $('\ud83d\udcdd Publish to WordPress').item.json.link }}\\\" },\\n  \\\"instagram\\\": { \\\"caption\\\": \\\"value-packed caption with CTA\\\", \\\"hashtags\\\": [\\\"#tag1\\\",\\\"#tag2\\\",\\\"...10 tags\\\"] },\\n  \\\"pinterest\\\": { \\\"title\\\": \\\"pin title under 100 chars\\\", \\\"description\\\": \\\"keyword-rich 200 char description\\\", \\\"board\\\": \\\"suggested board name\\\" },\\n  \\\"youtube_script\\\": \\\"full 60-second script with timestamps: [0-3s] HOOK [3-15s] PROBLEM [15-45s] STEPS [45-60s] CTA\\\",\\n  \\\"tiktok_script\\\": \\\"same 60-second script adapted for TikTok tone\\\",\\n  \\\"reel_script\\\": \\\"scene-by-scene: HOOK text | PROBLEM | SOLUTION STEPS | CTA link-in-bio\\\"\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.9 } }",
-        "options": {
-          "timeout": 300000
-        }
-      },
-      "name": "\ud83d\udcf1 Agent 6: Social Media + Reels",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        0,
-        0
-      ],
-      "id": "de201e1a-26c5-46b0-a265-e06325c434fd"
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "YT Shorts Queue",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [],
-          "schema": []
-        },
-        "options": {}
-      },
-      "name": "\ud83c\udfac Queue YT Short Script",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        600,
-        200
-      ],
-      "id": "2a1de594-ba7d-465e-bcf3-fe86057f496a"
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Reels Scripts",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {},
-          "matchingColumns": [],
-          "schema": []
-        },
-        "options": {}
-      },
-      "name": "\ud83d\udccb Save TikTok Script",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [
-        600,
-        400
-      ],
-      "id": "19570eb1-50d7-4aec-9081-3e2f24bb3cc5",
-      "notes": "TikTok API requires video file. Scripts saved here for manual CapCut/InVideo production."
-    },
-    {
-      "parameters": {
-        "url": "=https://{{ $vars.WORDPRESS_URL | replace('https://', '') }}/wp-json/wp/v2/comments?status=hold&per_page=20",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "wordpressApi",
-        "options": {}
-      },
-      "name": "\ud83d\udcac Fetch Pending Comments",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        800,
-        0
-      ],
-      "id": "ec7abeba-7a33-4dae-af3f-51bf411f6bfb"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('\u2699\ufe0f Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"You are a helpful blog comment moderator. Review this comment and respond appropriately.\\n\\nBLOG TOPIC: {{ $json.post_topic || 'how-to guide' }}\\nCOMMENT: {{ $json.comment_content }}\\nCOMMENTER: {{ $json.author_name }}\\n\\nClassify and respond:\\n{\\n  \\\"classification\\\": \\\"genuine_question|praise|negative|spam|gibberish|self_promotion\\\",\\n  \\\"action\\\": \\\"approve_and_reply|mark_spam|trash\\\",\\n  \\\"reply\\\": \\\"your friendly helpful reply here (null if spam/trash)\\\",\\n  \\\"tone\\\": \\\"helpful|warm|empathetic\\\"\\n}\\n\\nBe genuine, helpful, and human. Keep replies under 100 words.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.7 } }",
-        "options": {
-          "timeout": 120000
-        }
-      },
-      "name": "\ud83e\uddde Agent 7: Comment Moderator",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        1000,
-        0
-      ],
-      "id": "9b0e8c51-3fab-4de1-a08f-1200451d661e",
-      "notes": "Runs once per post publish on pending comments. For continuous moderation, run this in a separate workflow every 2 hours."
-    },
-    {
-      "parameters": {
-        "jsCode": "const raw = $input.first().json.message?.content || '';\nlet decision;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  decision = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  decision = { classification: 'genuine_question', action: 'approve_and_reply', reply: null };\n}\n\nconst comments = Array.isArray($('\ud83d\udcac Fetch Pending Comments').item.json) \n  ? $('\ud83d\udcac Fetch Pending Comments').item.json : [];\n\n// Filter to comments needing replies\nconst toReply = comments.filter(c => c.status === 'hold').map(c => ({\n  comment_id: c.id,\n  post_id: c.post,\n  author: c.author_name,\n  content: c.content?.rendered?.replace(/<[^>]*>/g,'') || '',\n  action: decision.action,\n  reply: decision.reply,\n  classification: decision.classification\n}));\n\nreturn toReply.length > 0 ? toReply.map(c => ({ json: c })) : [{ json: { no_comments: true }}];"
-      },
-      "name": "\ud83d\udd00 Filter Comment Actions",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        1200,
-        0
-      ],
-      "id": "7c42866f-a051-4501-83c2-cfad54ca3e93"
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "=https://{{ $vars.WORDPRESS_URL | replace('https://', '') }}/wp-json/wp/v2/comments",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "wordpressApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"post\": {{ $json.post_id }},   \"parent\": {{ $json.comment_id }},   \"content\": \"{{ $json.reply?.replace(/\"/g, '\\\\\"') || '' }}\",   \"status\": \"approved\" }",
-        "options": {}
-      },
-      "name": "\u2709\ufe0f Post Comment Reply",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        1400,
-        0
-      ],
-      "id": "efb8129d-299c-4d0e-9f1c-06af0d07f800"
     },
     {
       "parameters": {
@@ -677,587 +518,804 @@
         },
         "options": {}
       },
-      "name": "\ud83d\udcca Log to Google Sheets",
+      "name": "📊 Log to Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
       "position": [
-        1600,
-        0
+        992,
+        112
       ],
-      "id": "46a3a0e7-1126-4626-b5cc-b1b7d8b87a71"
+      "id": "03076a1b-c11c-47e6-8c66-0192df982fc3"
     },
     {
       "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "ALERT_HANDLER_WORKFLOW_ID",
-          "mode": "id"
+          "value": "UuyF6a4KyZpZ7jQ3",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/UuyF6a4KyZpZ7jQ3",
+          "cachedResultName": "Alert Handler"
         },
-        "options": {},
-        "source": "database"
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
       },
-      "name": "\u2705 Send Success Alert",
+      "name": "✅ Send Success Alert",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        1800,
-        0
+        1216,
+        112
       ],
-      "id": "success-alert-001"
+      "id": "61dab80f-588e-430c-88c5-791b96a1f015"
     },
     {
-      "id": "6ad9b70c",
-      "name": "\u2699\ufe0f Load Config",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
-      "position": [
-        -4600,
-        0
-      ],
       "parameters": {
-        "source": "database",
         "workflowId": {
           "__rl": true,
-          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
-          "mode": "id"
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+          "cachedResultName": "⚙️ Config Loader"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {
           "waitForSubWorkflow": true
         }
-      }
-    },
-    {
-      "id": "0c79b560",
-      "name": "\ud83d\udc89 Inject Approved Topic",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        -3950,
-        0
-      ],
-      "parameters": {
-        "jsCode": "\n// Called from Approval Poller: approved_topic may be passed in\n// Called standalone: approved_topic is absent, use Reddit data\nconst approved = $('\u26a1 Entry Override')?.item?.json?.approved_topic || null;\nconst context  = $('\ud83d\udd27 Build Research Context').item.json;\n\nreturn [{ json: {\n  ...context,\n  approved_topic:      approved,\n  use_approved_topic:  !!approved\n}}];\n",
-        "mode": "runOnceForAllItems"
-      }
-    },
-    {
-      "id": "ad3db319",
-      "name": "\u26a1 Entry Override",
-      "type": "n8n-nodes-base.executeWorkflowTrigger",
-      "typeVersion": 1,
-      "position": [
-        -4800,
-        -200
-      ],
-      "parameters": {}
-    },
-    {
-      "id": "831f7905",
-      "name": "\ud83c\udfa8 Queue via Blotato",
+      },
+      "id": "9c910180-f37e-44cc-a913-9fc813466386",
+      "name": "⚙️ Load Config",
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [
-        200,
-        0
-      ],
+        -4160,
+        304
+      ]
+    },
+    {
       "parameters": {
-        "source": "database",
+        "jsCode": "\n// Called from Approval Poller: approved_topic may be passed in\n// Called standalone: approved_topic is absent, use Reddit data\nconst approved = $('⚡ Entry Override')?.item?.json?.approved_topic || null;\nconst context  = $('🔧 Build Research Context').item.json;\n\nreturn [{ json: {\n  ...context,\n  approved_topic:      approved,\n  use_approved_topic:  !!approved\n}}];\n"
+      },
+      "id": "d8a5b140-719e-46fe-a81f-f259025d5cbe",
+      "name": "💉 Inject Approved Topic",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3488,
+        304
+      ]
+    },
+    {
+      "parameters": {},
+      "id": "7532fa51-564a-4b45-8033-f06086f8f465",
+      "name": "⚡ Entry Override",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        -4384,
+        208
+      ]
+    },
+    {
+      "parameters": {
         "workflowId": {
           "__rl": true,
-          "value": "REPLACE_WITH_BLOTATO_SUBWORKFLOW_ID",
-          "mode": "id"
+          "value": "teoK0nyEzTDNm6AG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/teoK0nyEzTDNm6AG",
+          "cachedResultName": "🎨 Blotato: Queue Social Posts"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
         },
         "options": {
-          "waitForSubWorkflow": false,
-          "inputData": {
-            "article_title": "={{ $('\ud83d\udd27 Assemble Final Article').item.json.title }}",
-            "article_url": "={{ $('\ud83d\udcdd Publish to WordPress').item.json.link }}",
-            "article_excerpt": "={{ $('\ud83d\udd27 Assemble Final Article').item.json.excerpt }}",
-            "featured_image": "={{ $('\ud83d\udd17 Capture Media ID').item.json.media_url }}",
-            "focus_keyword": "={{ $('\ud83d\udd27 Assemble Final Article').item.json.focus_keyword }}",
-            "social_content": "={{ $('\ud83d\udcf1 Agent 6: Social Media + Reels').item.json.message.content }}",
-            "platforms": [
-              "facebook",
-              "instagram",
-              "pinterest"
-            ]
-          }
+          "waitForSubWorkflow": false
         }
-      }
+      },
+      "id": "025862c1-1f14-4873-9baa-3e39821c464f",
+      "name": "🎨 Queue via Blotato",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        768,
+        496
+      ]
     },
     {
-      "id": "9f6bdc2c",
-      "name": "\ud83d\udd0d Request Bing Indexing",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        -200,
-        -200
-      ],
       "parameters": {
         "method": "POST",
-        "url": "=https://ssl.bing.com/webmaster/api.svc/json/SubmitUrl?apikey={{ $('\u2699\ufe0f Load Config').item.json.BING_WEBMASTER_KEY || 'YOUR_BING_KEY' }}",
+        "url": "=https://ssl.bing.com/webmaster/api.svc/json/SubmitUrl?apikey={{ $('⚙️ Load Config').item.json.BING_WEBMASTER_KEY || 'YOUR_BING_KEY' }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"siteUrl\": \"{{ $(\"\u2699\ufe0f Load Config\").item.json.WORDPRESS_URL || $vars.WORDPRESS_URL }}\", \"url\": \"{{ $(\"\ud83d\udcdd Publish to WordPress\").item.json.link }}\"}",
+        "jsonBody": "={\"siteUrl\": \"{{ $(\"⚙️ Load Config\").item.json.WORDPRESS_URL || $vars.WORDPRESS_URL }}\", \"url\": \"{{ $(\"📝 Publish to WordPress\").item.json.link }}\"}",
         "options": {
           "timeout": 10000
+        }
+      },
+      "id": "043f162d-400d-4d9e-b6ec-32128665e662",
+      "name": "🔍 Request Bing Indexing",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        112
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://www.google.com/ping?sitemap={{ encodeURIComponent(($('⚙️ Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) + '/sitemap.xml') }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "417ef887-dc7b-4201-a86c-680d077ed80f",
+      "name": "📡 Ping Sitemap",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        -80
+      ]
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "streaming": false,
+            "num_predict": 0,
+            "ollama_model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA }}",
+            "user_message": "=You are a master prompt engineer for a content automation system. \\nToday is {{ $now.format('dddd, MMMM D YYYY') }}. Niche: practical how-to guides.\\n\\nGenerate a JSON prompt package for today's content pipeline:\\n{\\n  \\\"research_context\\\": \\\"Instructions for finding 3 trending how-to topics with high search intent and affiliate potential. Prioritize topics with: clear actionable steps, product recommendations possible, large audience.\\\",\\n  \\\"writer_instructions\\\": \\\"Instructions for writing a 2800+ word expert how-to article. Must include: compelling H1, intro with problem hook, 7-9 H2 sections with numbered steps, expert tips callouts, FAQ section (5 questions), conclusion with CTA. Tone: conversational expert.\\\",\\n  \\\"humanizer_instructions\\\": \\\"Instructions for rewriting to sound like a genuine expert blogger sharing personal experience. Add first-person observations, vary sentence rhythm, remove generic phrases, keep all factual content.\\\",\\n  \\\"seo_instructions\\\": \\\"Instructions for SEO optimization. Must produce: meta_title (under 60 chars), meta_description (under 155 chars), focus_keyword, tags array (8-10), affiliate disclosure at article top, 3 naturally integrated affiliate CTAs.\\\",\\n  \\\"qc_rubric\\\": \\\"Scoring rubric: word_count (min 2800, max 5000), readability (plain English), seo_compliance, affiliate_disclosure_present, factual_accuracy, reader_value. Score each 1-10. Approved if all scores >= 6 and avg >= 7.\\\",\\n  \\\"social_instructions\\\": \\\"Instructions for creating platform posts from the article. Facebook: engaging caption with emoji. Instagram: caption + CTA + 10 relevant hashtags. Pinterest: pin title + 200 char description + board name. YouTube Short script: 60 sec, hook/problem/solution/CTA. Save TikTok as script only.\\\"\\n}\\n\\nReturn only valid JSON, no markdown.",
+            "temperature": "0.4",
+            "sessionId": "promptEngineer"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ollama_model",
+              "displayName": "ollama_model",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "user_message",
+              "displayName": "user_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "system_message",
+              "displayName": "system_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "string",
+              "removed": false
+            },
+            {
+              "id": "temperature",
+              "displayName": "temperature",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "streaming",
+              "displayName": "streaming",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "boolean",
+              "removed": false
+            },
+            {
+              "id": "sessionId",
+              "displayName": "sessionId",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "num_predict",
+              "displayName": "num_predict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "canBeUsedToMatch": true,
+              "type": "number",
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.3,
+      "position": [
+        -3264,
+        304
+      ],
+      "id": "c3a1eae3-9229-4bee-894b-649c3e3a8c62",
+      "name": "🧠 Agent 0: Prompt Engineer"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.BLOG_CALENDAR_TAB }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "locationDefine": {
+            "values": {}
+          },
+          "useAppend": true
+        }
+      },
+      "id": "42cee905-5515-4d3a-9dc2-be51c9c8b989",
+      "name": "📅 Write to Blog Calendar",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        768,
+        688
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
         }
       }
     },
     {
-      "id": "5cbea77c",
-      "name": "\ud83d\udce1 Ping Sitemap",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
-      "position": [
-        -200,
-        -400
-      ],
       "parameters": {
-        "method": "GET",
-        "url": "=https://www.google.com/ping?sitemap={{ encodeURIComponent(($('\u2699\ufe0f Load Config').item.json.WORDPRESS_URL || $vars.WORDPRESS_URL) + '/sitemap.xml') }}",
-        "options": {
-          "timeout": 10000
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.BLOG_CALENDAR_TAB }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "dd8b8765-2b5b-4677-a668-72c661d97e7d",
+      "name": "🔄 Update Calendar Status (PUBLISHED)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        976,
+        688
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_CALENDAR_WF_ID }}",
+          "cachedResultName": "={{ $('⚙️ Load Config').item.json.CONTENT_CALENDAR_WF_ID }}"
+        },
+        "options": {}
+      },
+      "id": "111baca8-6a4f-4c21-998e-8f9b821a4c65",
+      "name": "🚀 Trigger Content Calendar Manager",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        1200,
+        688
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}",
+        "text": "=✅ Article published\n\n📝 {{ $('📅 Write to Blog Calendar').item.json.post_title }}\n🔗 {{ $('📅 Write to Blog Calendar').item.json.post_url }}\n🔑 Keyword: {{ $('📅 Write to Blog Calendar').item.json.target_keyword }}\n\n📱 Social posts are being scheduled...",
+        "additionalFields": {}
+      },
+      "id": "0b8632b5-d14b-45a4-9441-79386fb1e2b8",
+      "name": "📱 Telegram: Article Published",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1424,
+        688
+      ],
+      "webhookId": "a2e02ca7-fdd6-4ec7-aa40-60f7b1075a6d",
+      "credentials": {
+        "telegramApi": {
+          "id": "qfA78oS3FSIahsbl",
+          "name": "Telegram account"
         }
       }
     }
   ],
   "connections": {
-    "\ud83d\udd57 Daily Trigger 8AM": {
+    "🕗 Daily Trigger 8AM": {
       "main": [
         [
           {
-            "node": "\u2699\ufe0f Load Config",
+            "node": "⚙️ Load Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udce1 Load Existing Topics": {
+    "📡 Load Existing Topics": {
       "main": [
         [
           {
-            "node": "\ud83d\udd27 Build Research Context",
+            "node": "🔧 Build Research Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udce1 Fetch Reddit Trending": {
+    "📡 Fetch Reddit Trending": {
       "main": [
         [
           {
-            "node": "\ud83d\udd27 Build Research Context",
+            "node": "🔧 Build Research Context",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd27 Build Research Context": {
+    "🔧 Build Research Context": {
       "main": [
         [
           {
-            "node": "\ud83d\udc89 Inject Approved Topic",
+            "node": "💉 Inject Approved Topic",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83e\udde0 Agent 0: Prompt Engineer": {
+    "📋 Parse Prompt Package": {
       "main": [
         [
           {
-            "node": "\ud83d\udccb Parse Prompt Package",
+            "node": "🔍 Agent 1: Research & Topic",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udccb Parse Prompt Package": {
+    "🔍 Agent 1: Research & Topic": {
       "main": [
         [
           {
-            "node": "\ud83d\udd0d Agent 1: Research & Topic",
+            "node": "✅ Parse & Validate Topic",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd0d Agent 1: Research & Topic": {
+    "✅ Parse & Validate Topic": {
       "main": [
         [
           {
-            "node": "\u2705 Parse & Validate Topic",
+            "node": "✍️ Agent 2: Content Writer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\u2705 Parse & Validate Topic": {
+    "✍️ Agent 2: Content Writer": {
       "main": [
         [
           {
-            "node": "\u270d\ufe0f Agent 2: Content Writer",
+            "node": "🫂 Agent 3: Humanizer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\u270d\ufe0f Agent 2: Content Writer": {
+    "🫂 Agent 3: Humanizer": {
       "main": [
         [
           {
-            "node": "\ud83e\udec2 Agent 3: Humanizer",
+            "node": "🎯 Agent 4: SEO & Monetization",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83e\udec2 Agent 3: Humanizer": {
+    "🎯 Agent 4: SEO & Monetization": {
       "main": [
         [
           {
-            "node": "\ud83c\udfaf Agent 4: SEO & Monetization",
+            "node": "🔧 Assemble Final Article",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83c\udfaf Agent 4: SEO & Monetization": {
+    "🔧 Assemble Final Article": {
       "main": [
         [
           {
-            "node": "\ud83d\udd27 Assemble Final Article",
+            "node": "🛡️ Agent 5: Quality Control",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd27 Assemble Final Article": {
+    "🛡️ Agent 5: Quality Control": {
       "main": [
         [
           {
-            "node": "\ud83d\udee1\ufe0f Agent 5: Quality Control",
+            "node": "✅ QC Approved?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udee1\ufe0f Agent 5: Quality Control": {
+    "✅ QC Approved?": {
       "main": [
         [
           {
-            "node": "\u2705 QC Approved?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\u2705 QC Approved?": {
-      "main": [
-        [
-          {
-            "node": "\ud83d\uddbc\ufe0f Build Image Queries",
+            "node": "🖼️ Build Image Queries",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "\u26a0\ufe0f Alert: QC Rejected",
+            "node": "⚠️ Alert: QC Rejected",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\uddbc\ufe0f Build Image Queries": {
+    "🖼️ Build Image Queries": {
       "main": [
         [
           {
-            "node": "\ud83d\udcf8 Search Pexels",
+            "node": "📸 Search Pexels",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83d\udcf8 Search Pixabay (Fallback)",
+            "node": "📸 Search Pixabay (Fallback)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udcf8 Search Pexels": {
+    "📸 Search Pexels": {
       "main": [
         [
           {
-            "node": "\ud83d\udd00 Select Best Image",
+            "node": "🔀 Select Best Image",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udcf8 Search Pixabay (Fallback)": {
+    "📸 Search Pixabay (Fallback)": {
       "main": [
         [
           {
-            "node": "\ud83d\udd00 Select Best Image",
+            "node": "🔀 Select Best Image",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd00 Select Best Image": {
+    "🔀 Select Best Image": {
       "main": [
         [
           {
-            "node": "\ud83e\udd14 Need AI Image?",
+            "node": "🤔 Need AI Image?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83e\udd14 Need AI Image?": {
+    "🤔 Need AI Image?": {
       "main": [
         [
           {
-            "node": "\ud83c\udfa8 Generate Image (SD)",
+            "node": "🎨 Generate Image (SD)",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "\ud83d\udce4 Upload Image to WP Media",
+            "node": "📤 Upload Image to WP Media",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83c\udfa8 Generate Image (SD)": {
+    "🎨 Generate Image (SD)": {
       "main": [
         [
           {
-            "node": "\ud83d\udce4 Upload Image to WP Media",
+            "node": "📤 Upload Image to WP Media",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udce4 Upload Image to WP Media": {
+    "📤 Upload Image to WP Media": {
       "main": [
         [
           {
-            "node": "\ud83d\udd17 Capture Media ID",
+            "node": "🔗 Capture Media ID",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd17 Capture Media ID": {
+    "🔗 Capture Media ID": {
       "main": [
         [
           {
-            "node": "\ud83d\udcdd Publish to WordPress",
+            "node": "📝 Publish to WordPress",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udcdd Publish to WordPress": {
+    "📝 Publish to WordPress": {
       "main": [
         [
           {
-            "node": "\ud83d\udd0d Request Google Indexing",
+            "node": "🔍 Request Google Indexing",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83d\udd0d Request Bing Indexing",
+            "node": "🔍 Request Bing Indexing",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83d\udce1 Ping Sitemap",
+            "node": "📡 Ping Sitemap",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83c\udfa8 Queue via Blotato",
+            "node": "🎨 Queue via Blotato",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83d\udcac Fetch Pending Comments",
+            "node": "📅 Write to Blog Calendar",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udd0d Request Google Indexing": {
+    "🔍 Request Google Indexing": {
       "main": [
         [
           {
-            "node": "\ud83d\udcca Log to Google Sheets",
+            "node": "📊 Log to Google Sheets",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udcf1 Agent 6: Social Media + Reels": {
+    "📊 Log to Google Sheets": {
       "main": [
         [
           {
-            "node": "\ud83c\udfa8 Queue via Blotato",
+            "node": "✅ Send Success Alert",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83c\udfac Queue YT Short Script": {
+    "⚙️ Load Config": {
       "main": [
         [
           {
-            "node": "\ud83d\udcca Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\ud83d\udccb Save TikTok Script": {
-      "main": [
-        [
-          {
-            "node": "\ud83d\udcca Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\ud83d\udcac Fetch Pending Comments": {
-      "main": [
-        [
-          {
-            "node": "\ud83e\uddde Agent 7: Comment Moderator",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\ud83e\uddde Agent 7: Comment Moderator": {
-      "main": [
-        [
-          {
-            "node": "\ud83d\udd00 Filter Comment Actions",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\ud83d\udd00 Filter Comment Actions": {
-      "main": [
-        [
-          {
-            "node": "\u2709\ufe0f Post Comment Reply",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\u2709\ufe0f Post Comment Reply": {
-      "main": [
-        [
-          {
-            "node": "\ud83d\udcca Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\ud83d\udcca Log to Google Sheets": {
-      "main": [
-        [
-          {
-            "node": "\u2705 Send Success Alert",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\u26a1 Entry Override": {
-      "main": [
-        [
-          {
-            "node": "\u2699\ufe0f Load Config",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "\u2699\ufe0f Load Config": {
-      "main": [
-        [
-          {
-            "node": "\ud83d\udce1 Load Existing Topics",
+            "node": "📡 Load Existing Topics",
             "type": "main",
             "index": 0
           },
           {
-            "node": "\ud83d\udce1 Fetch Reddit Trending",
+            "node": "📡 Fetch Reddit Trending",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83d\udc89 Inject Approved Topic": {
+    "💉 Inject Approved Topic": {
       "main": [
         [
           {
-            "node": "\ud83e\udde0 Agent 0: Prompt Engineer",
+            "node": "🧠 Agent 0: Prompt Engineer",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "\ud83c\udfa8 Queue via Blotato": {
+    "⚡ Entry Override": {
       "main": [
         [
           {
-            "node": "\ud83d\udcca Log to Google Sheets",
+            "node": "⚙️ Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎨 Queue via Blotato": {
+      "main": [
+        [
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Request Bing Indexing": {
+      "main": [
+        [
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📡 Ping Sitemap": {
+      "main": [
+        [
+          {
+            "node": "📊 Log to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🧠 Agent 0: Prompt Engineer": {
+      "main": [
+        [
+          {
+            "node": "📋 Parse Prompt Package",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📅 Write to Blog Calendar": {
+      "main": [
+        [
+          {
+            "node": "🔄 Update Calendar Status (PUBLISHED)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔄 Update Calendar Status (PUBLISHED)": {
+      "main": [
+        [
+          {
+            "node": "🚀 Trigger Content Calendar Manager",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🚀 Trigger Content Calendar Manager": {
+      "main": [
+        [
+          {
+            "node": "📱 Telegram: Article Published",
             "type": "main",
             "index": 0
           }
@@ -1265,8 +1323,8 @@
       ]
     }
   },
-  "settings": {
-    "executionOrder": "v1"
-  },
-  "staticData": null
+  "pinData": {},
+  "meta": {
+    "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+  }
 }
