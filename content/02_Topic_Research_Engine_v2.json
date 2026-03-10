@@ -1,629 +1,1051 @@
 {
-  "name": "0🔍 Topic Research Engine V2",
-  "nodes": [
-    {
-      "id": "a1b2c3d4-0001-0001-0001-000000000001",
-      "name": "⏰ Weekly Trigger (Sun 6AM ET)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [0, 0],
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "weeks",
-              "triggerAtDay": [0],
-              "triggerAtHour": 6,
-              "triggerAtMinute": 0
-            }
-          ]
-        },
-        "timezone": "America/New_York"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0002-0002-0002-000000000002",
-      "name": "⏰ Monday Planning (6AM ET)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "typeVersion": 1.2,
-      "position": [0, 300],
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "weeks",
-              "triggerAtDay": [1],
-              "triggerAtHour": 6,
-              "triggerAtMinute": 0
-            }
-          ]
-        },
-        "timezone": "America/New_York"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0003-0003-0003-000000000003",
-      "name": "⚙️ Load Config",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.1,
-      "position": [220, 0],
-      "parameters": {
-        "workflowId": "={{ $vars.CONFIG_LOADER_ID }}",
-        "waitForSubWorkflow": true
-      }
-    },
-    {
-      "id": "a1b2c3d4-0004-0004-0004-000000000004",
-      "name": "⚙️ Load Config (Planning)",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.1,
-      "position": [220, 300],
-      "parameters": {
-        "workflowId": "={{ $vars.CONFIG_LOADER_ID }}",
-        "waitForSubWorkflow": true
-      }
-    },
-    {
-      "id": "a1b2c3d4-0005-0005-0005-000000000005",
-      "name": "📋 Get Subreddit List",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [440, 0],
-      "parameters": {
-        "jsCode": "const config = $input.first().json;\nconst subreddits = (config.REDDIT_SUBREDDITS || 'homeimprovement,DIY,lifehacks,cookingforbeginners,personalfinance,productivity').split(',').map(s => s.trim());\nreturn subreddits.map(s => ({ json: { subreddit: s, config } }));"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0006-0006-0006-000000000006",
-      "name": "📂 Check Reddit Cache",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [660, 0],
-      "parameters": {
-        "operation": "read",
-        "documentId": "={{ $json.config.SPREADSHEET_ID }}",
-        "sheetName": "Reddit Post Cache",
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "subreddit",
-              "lookupValue": "={{ $json.subreddit }}"
-            }
-          ]
-        },
-        "options": {
-          "returnAllMatches": true
-        }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0007-0007-0007-000000000007",
-      "name": "🔍 Cache Fresh?",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [880, 0],
-      "parameters": {
-        "jsCode": "const rows = $input.all();\nconst subreddit = $('📋 Get Subreddit List').item.json.subreddit;\nconst config = $('📋 Get Subreddit List').item.json.config;\nconst ttlDays = parseInt(config.REDDIT_CACHE_TTL_DAYS || 7);\nconst now = new Date();\n\nconst freshRows = rows.filter(r => {\n  if (!r.json.fetched_at) return false;\n  const fetched = new Date(r.json.fetched_at);\n  const ageDays = (now - fetched) / (1000 * 60 * 60 * 24);\n  return ageDays < ttlDays;\n});\n\nif (freshRows.length > 0) {\n  return [{ json: { \n    useCached: true, \n    subreddit, \n    config,\n    posts: freshRows.map(r => r.json),\n    source: 'cache'\n  }}];\n} else {\n  return [{ json: { useCached: false, subreddit, config, source: 'api' }}];\n}"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0008-0008-0008-000000000008",
-      "name": "🔀 Use Cache or API?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.1,
-      "position": [1100, 0],
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.useCached }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true" }
-            }
-          ],
-          "combinator": "and"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0009-0009-0009-000000000009",
-      "name": "🌐 Call Reddit API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1320, 100],
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.config.RAPIDAPI_REDDIT_BASE }}/v1/reddit/subreddit/popular",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "subreddit", "value": "={{ $json.subreddit }}" },
-            { "name": "time", "value": "week" },
-            { "name": "limit", "value": "50" }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "X-RapidAPI-Key", "value": "={{ $json.config.RAPIDAPI_KEY }}" },
-            { "name": "X-RapidAPI-Host", "value": "={{ $json.config.RAPIDAPI_REDDIT_HOST }}" }
-          ]
-        },
-        "options": { "timeout": 30000 }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0010-0010-0010-000000000010",
-      "name": "💾 Write to Reddit Cache",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1540, 100],
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst subreddit = $('🔀 Use Cache or API?').item.json.subreddit;\nconst config = $('🔀 Use Cache or API?').item.json.config;\nconst now = new Date().toISOString();\n\nconst posts = (response.data?.children || response.posts || []).slice(0, 50);\n\nconst rows = posts.map(p => ({\n  json: {\n    subreddit,\n    post_title: p.data?.title || p.title || '',\n    post_url: p.data?.url || p.url || '',\n    score: p.data?.score || p.score || 0,\n    num_comments: p.data?.num_comments || p.num_comments || 0,\n    niche: config.SITE_NICHE || 'general',\n    fetched_at: now\n  }\n}));\n\nreturn rows;"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0011-0011-0011-000000000011",
-      "name": "📝 Save Cache to Sheets",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [1760, 100],
-      "parameters": {
-        "operation": "append",
-        "documentId": "={{ $('🔀 Use Cache or API?').item.json.config.SPREADSHEET_ID }}",
-        "sheetName": "Reddit Post Cache",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "subreddit": "={{ $json.subreddit }}",
-            "post_title": "={{ $json.post_title }}",
-            "post_url": "={{ $json.post_url }}",
-            "score": "={{ $json.score }}",
-            "num_comments": "={{ $json.num_comments }}",
-            "niche": "={{ $json.niche }}",
-            "fetched_at": "={{ $json.fetched_at }}"
-          }
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0012-0012-0012-000000000012",
-      "name": "🔗 Merge Posts (Cache + API)",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3,
-      "position": [1980, 0],
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineAll",
-        "options": {}
-      }
-    },
-    {
-      "id": "a1b2c3d4-0013-0013-0013-000000000013",
-      "name": "🤖 Score Topics with Ollama",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [2200, 0],
-      "parameters": {
-        "method": "POST",
-        "url": "http://host.docker.internal:11434/v1/chat/completions",
-        "sendBody": true,
-        "contentType": "json",
-        "body": "={\n  \"model\": \"{{ $('⚙️ Load Config').item.json.OLLAMA_MODEL || 'mistral' }}\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a content strategist for a how-to blog. Analyze Reddit posts and generate blog topic ideas. Score each idea 1-100. Return valid JSON only. No markdown.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Subreddit: {{ $json.subreddit }}\\n\\nTop posts this week:\\n{{ $input.all().slice(0,20).map(i => i.json.post_title || i.json.title || '').filter(t => t).map((t,i) => (i+1) + '. ' + t).join('\\n') }}\\n\\nGenerate 5 blog topic ideas based on these posts. Return JSON array: [{\\\"title\\\": string, \\\"target_keyword\\\": string, \\\"score\\\": number, \\\"niche\\\": string, \\\"reason\\\": string}]\"\n    }\n  ],\n  \"max_tokens\": 1000,\n  \"temperature\": 0.7\n}",
-        "options": { "timeout": 60000 }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0014-0014-0014-000000000014",
-      "name": "📊 Parse Ollama Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2420, 0],
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nlet content = response.choices?.[0]?.message?.content || '';\ncontent = content.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet ideas = [];\ntry {\n  ideas = JSON.parse(content);\n} catch(e) {\n  const match = content.match(/\\[.*\\]/s);\n  if (match) {\n    try { ideas = JSON.parse(match[0]); } catch(e2) { ideas = []; }\n  }\n}\n\nreturn ideas.map(idea => ({ json: {\n  ...idea,\n  status: 'UNSCHEDULED',\n  source: 'reddit',\n  created_at: new Date().toISOString()\n}}));"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0015-0015-0015-000000000015",
-      "name": "✅ Halal Filter",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2640, 0],
-      "parameters": {
-        "jsCode": "const blocked = ['alcohol', 'pork', 'gambling', 'dating', 'casino', 'beer', 'wine', 'spirits', 'bacon', 'ham', 'lottery'];\nreturn $input.all().filter(item => {\n  const text = (item.json.title + ' ' + item.json.target_keyword + ' ' + (item.json.reason || '')).toLowerCase();\n  return !blocked.some(word => text.includes(word));\n});"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0016-0016-0016-000000000016",
-      "name": "📝 Save to Blog Idea Backlog",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [2860, 0],
-      "parameters": {
-        "operation": "append",
-        "documentId": "={{ $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
-        "sheetName": "Blog Idea Backlog",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "title": "={{ $json.title }}",
-            "target_keyword": "={{ $json.target_keyword }}",
-            "score": "={{ $json.score }}",
-            "niche": "={{ $json.niche }}",
-            "reason": "={{ $json.reason }}",
-            "status": "={{ $json.status }}",
-            "source": "={{ $json.source }}",
-            "created_at": "={{ $json.created_at }}"
-          }
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0017-0017-0017-000000000017",
-      "name": "📋 Get ATP Seeds",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [440, 600],
-      "parameters": {
-        "operation": "read",
-        "documentId": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }}",
-        "sheetName": "Seed Keywords",
-        "options": { "returnAllMatches": true }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0018-0018-0018-000000000018",
-      "name": "📂 Check ATP Cache",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [660, 600],
-      "parameters": {
-        "operation": "read",
-        "documentId": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }}",
-        "sheetName": "ATP Cache",
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "keyword",
-              "lookupValue": "={{ $json.keyword }}"
-            }
-          ]
-        },
-        "options": { "returnAllMatches": true }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0019-0019-0019-000000000019",
-      "name": "🔍 ATP Cache Fresh?",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [880, 600],
-      "parameters": {
-        "jsCode": "const rows = $input.all();\nconst keyword = $('📋 Get ATP Seeds').item.json.keyword;\nconst config = $('⚙️ Load Config (Planning)').item.json;\nconst ttlDays = parseInt(config.ATP_CACHE_TTL_DAYS || 90);\nconst now = new Date();\n\nconst freshRows = rows.filter(r => {\n  if (!r.json.fetched_at) return false;\n  const fetched = new Date(r.json.fetched_at);\n  const ageDays = (now - fetched) / (1000 * 60 * 60 * 24);\n  return ageDays < ttlDays;\n});\n\nif (freshRows.length > 0) {\n  return [{ json: { useCached: true, keyword, config, questions: freshRows.map(r => r.json) }}];\n} else {\n  return [{ json: { useCached: false, keyword, config }}];\n}"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0020-0020-0020-000000000020",
-      "name": "🔀 ATP Cache or API?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.1,
-      "position": [1100, 600],
-      "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
-            {
-              "leftValue": "={{ $json.useCached }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "true" }
-            }
-          ],
-          "combinator": "and"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0021-0021-0021-000000000021",
-      "name": "🌐 Call ATP API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1320, 700],
-      "parameters": {
-        "method": "GET",
-        "url": "={{ $json.config.RAPIDAPI_ATP_BASE }}/search",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "keyword", "value": "={{ $json.keyword }}" },
-            { "name": "country", "value": "us" },
-            { "name": "language", "value": "en" }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            { "name": "X-RapidAPI-Key", "value": "={{ $json.config.RAPIDAPI_KEY }}" },
-            { "name": "X-RapidAPI-Host", "value": "={{ $json.config.RAPIDAPI_ATP_HOST }}" }
-          ]
-        },
-        "options": { "timeout": 30000 }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0022-0022-0022-000000000022",
-      "name": "💾 Parse + Save ATP Cache",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [1540, 700],
-      "parameters": {
-        "jsCode": "const response = $input.first().json;\nconst keyword = $('🔀 ATP Cache or API?').item.json.keyword;\nconst now = new Date().toISOString();\n\nconst questions = [];\nconst addQuestions = (arr, type) => {\n  if (Array.isArray(arr)) {\n    arr.forEach(q => {\n      if (q && typeof q === 'string') {\n        questions.push({ keyword, question: q, search_type: type, fetched_at: now, used: 'N' });\n      } else if (q && q.query) {\n        questions.push({ keyword, question: q.query, search_type: type, fetched_at: now, used: 'N' });\n      }\n    });\n  }\n};\n\naddQuestions(response.questions?.data, 'question');\naddQuestions(response.how?.data, 'how');\naddQuestions(response.what?.data, 'what');\naddQuestions(response.why?.data, 'why');\naddQuestions(response.which?.data, 'which');\naddQuestions(response.when?.data, 'when');\naddQuestions(response.are?.data, 'are');\n\nreturn questions.slice(0, 100).map(q => ({ json: q }));"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0023-0023-0023-000000000023",
-      "name": "📝 Append ATP Cache Sheet",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [1760, 700],
-      "parameters": {
-        "operation": "append",
-        "documentId": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }}",
-        "sheetName": "ATP Cache",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "keyword": "={{ $json.keyword }}",
-            "question": "={{ $json.question }}",
-            "search_type": "={{ $json.search_type }}",
-            "fetched_at": "={{ $json.fetched_at }}",
-            "used": "={{ $json.used }}"
-          }
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0024-0024-0024-000000000024",
-      "name": "📋 Read Idea Backlog (Top 3)",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [440, 300],
-      "parameters": {
-        "operation": "read",
-        "documentId": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }}",
-        "sheetName": "Blog Idea Backlog",
-        "filtersUI": {
-          "values": [
-            {
-              "lookupColumn": "status",
-              "lookupValue": "UNSCHEDULED"
-            }
-          ]
-        },
-        "options": {
-          "returnAllMatches": true
-        }
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0025-0025-0025-000000000025",
-      "name": "📅 Build Weekly Calendar",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [660, 300],
-      "parameters": {
-        "jsCode": "const ideas = $input.all();\nconst config = $('⚙️ Load Config (Planning)').item.json;\n\n// Sort by score descending\nconst sorted = ideas.sort((a, b) => (parseFloat(b.json.score) || 0) - (parseFloat(a.json.score) || 0));\nconst top3 = sorted.slice(0, 3);\n\n// Calculate next Mon/Wed/Fri\nconst now = new Date();\nconst day = now.getDay(); // 0=Sun, 1=Mon\nconst daysUntilMonday = day === 1 ? 7 : (8 - day) % 7;\nconst monday = new Date(now);\nmonday.setDate(now.getDate() + daysUntilMonday);\n\nconst wednesday = new Date(monday);\nwednesday.setDate(monday.getDate() + 2);\nconst friday = new Date(monday);\nfriday.setDate(monday.getDate() + 4);\n\nconst publishDates = [\n  monday.toISOString().split('T')[0],\n  wednesday.toISOString().split('T')[0],\n  friday.toISOString().split('T')[0]\n];\n\nconst weekNum = Math.ceil((monday - new Date(monday.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));\n\nreturn top3.map((item, i) => ({\n  json: {\n    week_number: weekNum,\n    publish_date: publishDates[i],\n    topic_title: item.json.title,\n    niche: item.json.niche,\n    target_keyword: item.json.target_keyword,\n    status: 'PLANNED',\n    word_count_target: 1500,\n    article_url: '',\n    wordpress_post_id: '',\n    seo_score: '',\n    qc_score: '',\n    notes: 'Auto-planned from backlog score: ' + (item.json.score || ''),\n    original_row_id: item.json.row_number || i,\n    config\n  }\n}));"
-      }
-    },
-    {
-      "id": "a1b2c3d4-0026-0026-0026-000000000026",
-      "name": "📝 Write Blog Content Calendar",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
-      "position": [880, 300],
-      "parameters": {
-        "operation": "append",
-        "documentId": "={{ $json.config.SPREADSHEET_ID }}",
-        "sheetName": "Blog Content Calendar",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "week_number": "={{ $json.week_number }}",
-            "publish_date": "={{ $json.publish_date }}",
-            "topic_title": "={{ $json.topic_title }}",
-            "niche": "={{ $json.niche }}",
-            "target_keyword": "={{ $json.target_keyword }}",
-            "status": "={{ $json.status }}",
-            "word_count_target": "={{ $json.word_count_target }}",
-            "article_url": "={{ $json.article_url }}",
-            "wordpress_post_id": "={{ $json.wordpress_post_id }}",
-            "seo_score": "={{ $json.seo_score }}",
-            "qc_score": "={{ $json.qc_score }}",
-            "notes": "={{ $json.notes }}"
-          }
-        },
-        "options": {}
-      },
-      "credentials": {
-        "googleSheetsOAuth2Api": {
-          "id": "google_sheets_htg",
-          "name": "Google Sheets — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0027-0027-0027-000000000027",
-      "name": "📱 Telegram: Week Plan",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [1100, 300],
-      "parameters": {
-        "chatId": "={{ $('⚙️ Load Config (Planning)').item.json.TELEGRAM_CHAT_ID }}",
-        "text": "=📅 This week's blog calendar set:\n\n{{ $input.all().map((item, i) => ['Mon','Wed','Fri'][i] + ': ' + item.json.topic_title).join('\\n') }}\n\nPublish dates:\n{{ $input.all().map(item => item.json.publish_date + ' — ' + item.json.target_keyword).join('\\n') }}",
-        "additionalFields": {}
-      },
-      "credentials": {
-        "telegramApi": {
-          "id": "telegram_htg",
-          "name": "Telegram — HowTo Genie"
-        }
-      }
-    },
-    {
-      "id": "a1b2c3d4-0028-0028-0028-000000000028",
-      "name": "📱 Telegram: Topics Saved",
-      "type": "n8n-nodes-base.telegram",
-      "typeVersion": 1.2,
-      "position": [3080, 0],
-      "parameters": {
-        "chatId": "={{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}",
-        "text": "=🔍 Topic Research complete\n\n{{ $input.length }} topics saved to Blog Idea Backlog\nSource: Reddit ({{ new Date().toLocaleDateString('en-US') }})\n\nTop idea: {{ $input.first()?.json?.title || 'N/A' }}",
-        "additionalFields": {}
-      },
-      "credentials": {
-        "telegramApi": {
-          "id": "telegram_htg",
-          "name": "Telegram — HowTo Genie"
-        }
-      }
-    }
-  ],
-  "connections": {
-    "⏰ Weekly Trigger (Sun 6AM ET)": {
-      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
-    },
-    "⏰ Monday Planning (6AM ET)": {
-      "main": [[{ "node": "⚙️ Load Config (Planning)", "type": "main", "index": 0 }]]
-    },
-    "⚙️ Load Config": {
-      "main": [[{ "node": "📋 Get Subreddit List", "type": "main", "index": 0 }]]
-    },
-    "⚙️ Load Config (Planning)": {
-      "main": [
-        [{ "node": "📋 Read Idea Backlog (Top 3)", "type": "main", "index": 0 }],
-        [{ "node": "📋 Get ATP Seeds", "type": "main", "index": 0 }]
-      ]
-    },
-    "📋 Get Subreddit List": {
-      "main": [[{ "node": "📂 Check Reddit Cache", "type": "main", "index": 0 }]]
-    },
-    "📂 Check Reddit Cache": {
-      "main": [[{ "node": "🔍 Cache Fresh?", "type": "main", "index": 0 }]]
-    },
-    "🔍 Cache Fresh?": {
-      "main": [[{ "node": "🔀 Use Cache or API?", "type": "main", "index": 0 }]]
-    },
-    "🔀 Use Cache or API?": {
-      "main": [
-        [{ "node": "🔗 Merge Posts (Cache + API)", "type": "main", "index": 0 }],
-        [{ "node": "🌐 Call Reddit API", "type": "main", "index": 0 }]
-      ]
-    },
-    "🌐 Call Reddit API": {
-      "main": [[{ "node": "💾 Write to Reddit Cache", "type": "main", "index": 0 }]]
-    },
-    "💾 Write to Reddit Cache": {
-      "main": [[{ "node": "📝 Save Cache to Sheets", "type": "main", "index": 0 }]]
-    },
-    "📝 Save Cache to Sheets": {
-      "main": [[{ "node": "🔗 Merge Posts (Cache + API)", "type": "main", "index": 1 }]]
-    },
-    "🔗 Merge Posts (Cache + API)": {
-      "main": [[{ "node": "🤖 Score Topics with Ollama", "type": "main", "index": 0 }]]
-    },
-    "🤖 Score Topics with Ollama": {
-      "main": [[{ "node": "📊 Parse Ollama Response", "type": "main", "index": 0 }]]
-    },
-    "📊 Parse Ollama Response": {
-      "main": [[{ "node": "✅ Halal Filter", "type": "main", "index": 0 }]]
-    },
-    "✅ Halal Filter": {
-      "main": [[{ "node": "📝 Save to Blog Idea Backlog", "type": "main", "index": 0 }]]
-    },
-    "📝 Save to Blog Idea Backlog": {
-      "main": [[{ "node": "📱 Telegram: Topics Saved", "type": "main", "index": 0 }]]
-    },
-    "📋 Get ATP Seeds": {
-      "main": [[{ "node": "📂 Check ATP Cache", "type": "main", "index": 0 }]]
-    },
-    "📂 Check ATP Cache": {
-      "main": [[{ "node": "🔍 ATP Cache Fresh?", "type": "main", "index": 0 }]]
-    },
-    "🔍 ATP Cache Fresh?": {
-      "main": [[{ "node": "🔀 ATP Cache or API?", "type": "main", "index": 0 }]]
-    },
-    "🔀 ATP Cache or API?": {
-      "main": [
-        [],
-        [{ "node": "🌐 Call ATP API", "type": "main", "index": 0 }]
-      ]
-    },
-    "🌐 Call ATP API": {
-      "main": [[{ "node": "💾 Parse + Save ATP Cache", "type": "main", "index": 0 }]]
-    },
-    "💾 Parse + Save ATP Cache": {
-      "main": [[{ "node": "📝 Append ATP Cache Sheet", "type": "main", "index": 0 }]]
-    },
-    "📋 Read Idea Backlog (Top 3)": {
-      "main": [[{ "node": "📅 Build Weekly Calendar", "type": "main", "index": 0 }]]
-    },
-    "📅 Build Weekly Calendar": {
-      "main": [[{ "node": "📝 Write Blog Content Calendar", "type": "main", "index": 0 }]]
-    },
-    "📝 Write Blog Content Calendar": {
-      "main": [[{ "node": "📱 Telegram: Week Plan", "type": "main", "index": 0 }]]
-    }
-  },
-  "active": false,
-  "settings": {
-    "timezone": "America/New_York",
-    "executionTimeout": 300,
-    "errorWorkflow": ""
-  },
-  "tags": ["htg", "topic-research", "content-calendar"]
+	"name": "🔍 Topic Research Engine V2",
+	"nodes": [
+		{
+			"parameters": {
+				"rule": {
+					"interval": [
+						{
+							"field": "weeks",
+							"triggerAtHour": 6
+						}
+					]
+				}
+			},
+			"id": "720a7a28-6b7b-48b2-aac0-7e15c1696e1a",
+			"name": "⏰ Weekly Trigger (Sun 6AM ET)",
+			"type": "n8n-nodes-base.scheduleTrigger",
+			"typeVersion": 1.2,
+			"position": [
+				1536,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"rule": {
+					"interval": [
+						{
+							"field": "weeks",
+							"triggerAtDay": [
+								1
+							],
+							"triggerAtHour": 6
+						}
+					]
+				}
+			},
+			"id": "276a4853-dc67-4420-8e57-c4d59d9fe614",
+			"name": "⏰ Monday Planning (6AM ET)",
+			"type": "n8n-nodes-base.scheduleTrigger",
+			"typeVersion": 1.2,
+			"position": [
+				1536,
+				424
+			]
+		},
+		{
+			"parameters": {
+				"workflowId": {
+					"__rl": true,
+					"value": "CVc7gJbrt1baZLxG",
+					"mode": "list",
+					"cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+					"cachedResultName": "⚙️ Config Loader"
+				},
+				"options": {}
+			},
+			"id": "3db99cd9-6d06-4062-ab73-82b8a3ccd19e",
+			"name": "⚙️ Load Config",
+			"type": "n8n-nodes-base.executeWorkflow",
+			"typeVersion": 1.1,
+			"position": [
+				1760,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"workflowId": {
+					"__rl": true,
+					"value": "CVc7gJbrt1baZLxG",
+					"mode": "list",
+					"cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+					"cachedResultName": "⚙️ Config Loader"
+				},
+				"options": {}
+			},
+			"id": "6817d364-521c-4f93-8d84-35239c85c018",
+			"name": "⚙️ Load Config (Planning)",
+			"type": "n8n-nodes-base.executeWorkflow",
+			"typeVersion": 1.1,
+			"position": [
+				1760,
+				424
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const config = $input.first().json;\nconst subreddits = (config.REDDIT_SUBREDDITS || 'homeimprovement,DIY,lifehacks,cookingforbeginners,personalfinance,productivity').split(',').map(s => s.trim());\nreturn subreddits.map(s => ({ json: { subreddit: s, config } }));"
+			},
+			"id": "2c5734c5-961b-4e36-8bba-940f8c9173a7",
+			"name": "📋 Get Subreddit List",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				1984,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $json.config.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "={{ $json.config.REDDIT_POST_CACHE_TAB }}",
+					"mode": "name"
+				},
+				"options": {}
+			},
+			"id": "e1269f96-cf33-48e0-849a-893c303cdcdc",
+			"name": "📂 Check Reddit Cache",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				2208,
+				32
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"jsCode": "const rows = $input.all();\nconst subreddit = $('📋 Get Subreddit List').item.json.subreddit;\nconst config = $('📋 Get Subreddit List').item.json.config;\nconst ttlDays = parseInt(config.REDDIT_CACHE_TTL_DAYS || 7);\nconst now = new Date();\n\nconst freshRows = rows.filter(r => {\n  if (!r.json.fetched_at) return false;\n  const fetched = new Date(r.json.fetched_at);\n  const ageDays = (now - fetched) / (1000 * 60 * 60 * 24);\n  return ageDays < ttlDays;\n});\n\nif (freshRows.length > 0) {\n  return [{ json: { \n    useCached: true, \n    subreddit, \n    config,\n    posts: freshRows.map(r => r.json),\n    source: 'cache'\n  }}];\n} else {\n  return [{ json: { useCached: false, subreddit, config, source: 'api' }}];\n}"
+			},
+			"id": "9ba7ddb8-d26d-4b34-bd92-3d34a1656fe7",
+			"name": "🔍 Cache Fresh?",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				2432,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"options": {
+						"caseSensitive": true,
+						"leftValue": "",
+						"typeValidation": "strict"
+					},
+					"conditions": [
+						{
+							"leftValue": "={{ $json.useCached }}",
+							"rightValue": true,
+							"operator": {
+								"type": "boolean",
+								"operation": "true"
+							}
+						}
+					],
+					"combinator": "and"
+				},
+				"options": {}
+			},
+			"id": "c0c5d182-eda4-48ba-8526-9cf9a4a6ded1",
+			"name": "🔀 Use Cache or API?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2.1,
+			"position": [
+				2656,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"url": "={{ $json.config.RAPIDAPI_REDDIT_BASE }}/v1/reddit/subreddit/popular",
+				"sendQuery": true,
+				"queryParameters": {
+					"parameters": [
+						{
+							"name": "subreddit",
+							"value": "={{ $json.subreddit }}"
+						},
+						{
+							"name": "time",
+							"value": "week"
+						},
+						{
+							"name": "limit",
+							"value": "50"
+						}
+					]
+				},
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "X-RapidAPI-Key",
+							"value": "={{ $json.config.RAPIDAPI_KEY }}"
+						},
+						{
+							"name": "X-RapidAPI-Host",
+							"value": "={{ $json.config.RAPIDAPI_REDDIT_HOST }}"
+						}
+					]
+				},
+				"options": {
+					"timeout": 30000
+				}
+			},
+			"id": "af600de9-fe2e-4e9a-ae26-87ec33e62e89",
+			"name": "🌐 Call Reddit API",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				3104,
+				104
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const response = $input.first().json;\nconst subreddit = $('🔀 Use Cache or API?').item.json.subreddit;\nconst config = $('🔀 Use Cache or API?').item.json.config;\nconst now = new Date().toISOString();\n\nconst posts = (response.data?.children || response.posts || []).slice(0, 50);\n\nconst rows = posts.map(p => ({\n  json: {\n    subreddit,\n    post_title: p.data?.title || p.title || '',\n    post_url: p.data?.url || p.url || '',\n    score: p.data?.score || p.score || 0,\n    num_comments: p.data?.num_comments || p.num_comments || 0,\n    niche: config.SITE_NICHE || 'general',\n    fetched_at: now\n  }\n}));\n\nreturn rows;"
+			},
+			"id": "57c80aa0-538d-4ebb-8c9f-df555e29487a",
+			"name": "💾 Write to Reddit Cache",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				3328,
+				104
+			]
+		},
+		{
+			"parameters": {
+				"operation": "append",
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $('🔀 Use Cache or API?').item.json.config.SPREADSHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "Reddit Post Cache",
+					"mode": "name"
+				},
+				"columns": {
+					"mappingMode": "defineBelow",
+					"value": {
+						"subreddit": "={{ $json.subreddit }}",
+						"post_title": "={{ $json.post_title }}",
+						"post_url": "={{ $json.post_url }}",
+						"score": "={{ $json.score }}",
+						"num_comments": "={{ $json.num_comments }}",
+						"niche": "={{ $json.niche }}",
+						"fetched_at": "={{ $json.fetched_at }}"
+					}
+				},
+				"options": {}
+			},
+			"id": "e2e4d5e1-926e-4351-ad1f-8107c22ed5b2",
+			"name": "📝 Save Cache to Sheets",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				3552,
+				104
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {},
+			"id": "74a7ae60-93b6-4de1-81f8-a06fa21c59a3",
+			"name": "🔗 Merge Posts (Cache + API)",
+			"type": "n8n-nodes-base.merge",
+			"typeVersion": 3,
+			"position": [
+				3776,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"method": "POST",
+				"url": "={{ $('⚙️ Load Config').item.json.OLLAMA_URL }}/v1/chat/completions",
+				"sendBody": true,
+				"bodyParameters": {
+					"parameters": [
+						{}
+					]
+				},
+				"options": {
+					"timeout": 60000
+				}
+			},
+			"id": "8a60b632-31de-4a27-bc89-d3ee8fb92696",
+			"name": "🤖 Score Topics with Ollama",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				4000,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const response = $input.first().json;\nlet content = response.choices?.[0]?.message?.content || '';\ncontent = content.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet ideas = [];\ntry {\n  ideas = JSON.parse(content);\n} catch(e) {\n  const match = content.match(/\\[.*\\]/s);\n  if (match) {\n    try { ideas = JSON.parse(match[0]); } catch(e2) { ideas = []; }\n  }\n}\n\nreturn ideas.map(idea => ({ json: {\n  ...idea,\n  status: 'UNSCHEDULED',\n  source: 'reddit',\n  created_at: new Date().toISOString()\n}}));"
+			},
+			"id": "c9a6c6a1-0e16-4188-9f8b-3a2bf3c746f9",
+			"name": "📊 Parse Ollama Response",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				4224,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const blocked = ['alcohol', 'pork', 'gambling', 'dating', 'casino', 'beer', 'wine', 'spirits', 'bacon', 'ham', 'lottery'];\nreturn $input.all().filter(item => {\n  const text = (item.json.title + ' ' + item.json.target_keyword + ' ' + (item.json.reason || '')).toLowerCase();\n  return !blocked.some(word => text.includes(word));\n});"
+			},
+			"id": "8c8e900d-fc03-4d1a-8cdc-88177419435b",
+			"name": "✅ Halal Filter",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				4448,
+				32
+			]
+		},
+		{
+			"parameters": {
+				"operation": "append",
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "={{ $('⚙️ Load Config').item.json.BLOG_IDEA_TAB }}",
+					"mode": "name"
+				},
+				"columns": {
+					"mappingMode": "defineBelow",
+					"value": {},
+					"matchingColumns": [],
+					"schema": [],
+					"attemptToConvertTypes": false,
+					"convertFieldsToString": false
+				},
+				"options": {}
+			},
+			"id": "f20f0258-6529-436f-801a-9f2a3af6c29c",
+			"name": "📝 Save to Blog Idea Backlog",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				4672,
+				32
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $json.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "={{ $json.SEED_KEYWORDS_TAB }}",
+					"mode": "name"
+				},
+				"options": {}
+			},
+			"id": "735cf29a-b5cc-4f9e-826b-6a1f92e5998c",
+			"name": "📋 Get ATP Seeds",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				1984,
+				520
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }} {{ $('⚙️ Load Config (Planning)').item.json.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "ATP Cache",
+					"mode": "name"
+				},
+				"filtersUI": {
+					"values": [
+						{
+							"lookupColumn": "keyword",
+							"lookupValue": "={{ $json.keyword }}"
+						}
+					]
+				},
+				"options": {}
+			},
+			"id": "e4e1aee1-4787-49c7-bd12-493eccdd9409",
+			"name": "📂 Check ATP Cache",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				2208,
+				520
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"jsCode": "const rows = $input.all();\nconst keyword = $('📋 Get ATP Seeds').item.json.keyword;\nconst config = $('⚙️ Load Config (Planning)').item.json;\nconst ttlDays = parseInt(config.ATP_CACHE_TTL_DAYS || 90);\nconst now = new Date();\n\nconst freshRows = rows.filter(r => {\n  if (!r.json.fetched_at) return false;\n  const fetched = new Date(r.json.fetched_at);\n  const ageDays = (now - fetched) / (1000 * 60 * 60 * 24);\n  return ageDays < ttlDays;\n});\n\nif (freshRows.length > 0) {\n  return [{ json: { useCached: true, keyword, config, questions: freshRows.map(r => r.json) }}];\n} else {\n  return [{ json: { useCached: false, keyword, config }}];\n}"
+			},
+			"id": "26dcecd5-0f67-447d-a7cb-d74031cc489f",
+			"name": "🔍 ATP Cache Fresh?",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				2432,
+				520
+			]
+		},
+		{
+			"parameters": {
+				"conditions": {
+					"options": {
+						"caseSensitive": true,
+						"leftValue": "",
+						"typeValidation": "strict"
+					},
+					"conditions": [
+						{
+							"leftValue": "={{ $json.useCached }}",
+							"rightValue": true,
+							"operator": {
+								"type": "boolean",
+								"operation": "true"
+							}
+						}
+					],
+					"combinator": "and"
+				},
+				"options": {}
+			},
+			"id": "c2b14035-ce21-489b-8728-57e63af8ae43",
+			"name": "🔀 ATP Cache or API?",
+			"type": "n8n-nodes-base.if",
+			"typeVersion": 2.1,
+			"position": [
+				2656,
+				520
+			]
+		},
+		{
+			"parameters": {
+				"url": "={{ $json.config.RAPIDAPI_ATP_BASE }}/search",
+				"sendQuery": true,
+				"queryParameters": {
+					"parameters": [
+						{
+							"name": "keyword",
+							"value": "={{ $json.keyword }}"
+						},
+						{
+							"name": "country",
+							"value": "us"
+						},
+						{
+							"name": "language",
+							"value": "en"
+						}
+					]
+				},
+				"sendHeaders": true,
+				"headerParameters": {
+					"parameters": [
+						{
+							"name": "X-RapidAPI-Key",
+							"value": "={{ $json.config.RAPIDAPI_KEY }}"
+						},
+						{
+							"name": "X-RapidAPI-Host",
+							"value": "={{ $json.config.RAPIDAPI_ATP_HOST }}"
+						}
+					]
+				},
+				"options": {
+					"timeout": 30000
+				}
+			},
+			"id": "4efef321-2147-46f2-b7b3-32bef8854915",
+			"name": "🌐 Call ATP API",
+			"type": "n8n-nodes-base.httpRequest",
+			"typeVersion": 4.2,
+			"position": [
+				2880,
+				520
+			]
+		},
+		{
+			"parameters": {
+				"jsCode": "const response = $input.first().json;\nconst keyword = $('🔀 ATP Cache or API?').item.json.keyword;\nconst now = new Date().toISOString();\n\nconst questions = [];\nconst addQuestions = (arr, type) => {\n  if (Array.isArray(arr)) {\n    arr.forEach(q => {\n      if (q && typeof q === 'string') {\n        questions.push({ keyword, question: q, search_type: type, fetched_at: now, used: 'N' });\n      } else if (q && q.query) {\n        questions.push({ keyword, question: q.query, search_type: type, fetched_at: now, used: 'N' });\n      }\n    });\n  }\n};\n\naddQuestions(response.questions?.data, 'question');\naddQuestions(response.how?.data, 'how');\naddQuestions(response.what?.data, 'what');\naddQuestions(response.why?.data, 'why');\naddQuestions(response.which?.data, 'which');\naddQuestions(response.when?.data, 'when');\naddQuestions(response.are?.data, 'are');\n\nreturn questions.slice(0, 100).map(q => ({ json: q }));"
+			},
+			"id": "78ddd498-8887-47c8-b964-1d8d0820b125",
+			"name": "💾 Parse + Save ATP Cache",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				3104,
+				520
+			]
+		},
+		{
+			"parameters": {
+				"operation": "append",
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $('⚙️ Load Config (Planning)').item.json.SPREADSHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "ATP Cache",
+					"mode": "name"
+				},
+				"columns": {
+					"mappingMode": "defineBelow",
+					"value": {
+						"keyword": "={{ $json.keyword }}",
+						"question": "={{ $json.question }}",
+						"search_type": "={{ $json.search_type }}",
+						"fetched_at": "={{ $json.fetched_at }}",
+						"used": "={{ $json.used }}"
+					}
+				},
+				"options": {}
+			},
+			"id": "06cf77f7-07be-42dd-9c36-3d217ee4388e",
+			"name": "📝 Append ATP Cache Sheet",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				3328,
+				520
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $json.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "={{ $json.BLOG_IDEA_TAB }}",
+					"mode": "name"
+				},
+				"options": {}
+			},
+			"id": "7354fdd8-905f-49d1-bee5-de66b4310bce",
+			"name": "📋 Read Idea Backlog (Top 3)",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				1984,
+				328
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"jsCode": "const ideas = $input.all();\nconst config = $('⚙️ Load Config (Planning)').item.json;\n\n// Sort by score descending\nconst sorted = ideas.sort((a, b) => (parseFloat(b.json.score) || 0) - (parseFloat(a.json.score) || 0));\nconst top3 = sorted.slice(0, 3);\n\n// Calculate next Mon/Wed/Fri\nconst now = new Date();\nconst day = now.getDay(); // 0=Sun, 1=Mon\nconst daysUntilMonday = day === 1 ? 0 : (8 - day) % 7;\nconst monday = new Date(now);\nmonday.setDate(now.getDate() + daysUntilMonday);\n\nconst wednesday = new Date(monday);\nwednesday.setDate(monday.getDate() + 2);\nconst friday = new Date(monday);\nfriday.setDate(monday.getDate() + 4);\n\nconst publishDates = [\n  monday.toISOString().split('T')[0],\n  wednesday.toISOString().split('T')[0],\n  friday.toISOString().split('T')[0]\n];\n\nconst weekNum = Math.ceil((monday - new Date(monday.getFullYear(), 0, 1)) / (7 * 24 * 60 * 60 * 1000));\n\nreturn top3.map((item, i) => ({\n  json: {\n    week_number: weekNum,\n    publish_date: publishDates[i],\n    topic_title: item.json.title,\n    niche: item.json.niche,\n    target_keyword: item.json.target_keyword,\n    status: 'PLANNED',\n    word_count_target: 1500,\n    article_url: '',\n    wordpress_post_id: '',\n    seo_score: '',\n    qc_score: '',\n    notes: 'Auto-planned from backlog score: ' + (item.json.score || ''),\n    original_row_id: item.json.row_number || i,\n    config\n  }\n}));"
+			},
+			"id": "6c875938-02d8-4565-92e3-ae5c2b0e9b55",
+			"name": "📅 Build Weekly Calendar",
+			"type": "n8n-nodes-base.code",
+			"typeVersion": 2,
+			"position": [
+				2208,
+				328
+			]
+		},
+		{
+			"parameters": {
+				"operation": "append",
+				"documentId": {
+					"__rl": true,
+					"value": "={{ $json.config.SPREADSHEET_ID }} {{ $('⚙️ Load Config (Planning)').item.json.GOOGLE_SHEET_ID }}",
+					"mode": "id"
+				},
+				"sheetName": {
+					"__rl": true,
+					"value": "Blog Content Calendar",
+					"mode": "name"
+				},
+				"columns": {
+					"mappingMode": "defineBelow",
+					"value": {
+						"week_number": "={{ $json.week_number }}",
+						"publish_date": "={{ $json.publish_date }}",
+						"topic_title": "={{ $json.topic_title }}",
+						"niche": "={{ $json.niche }}",
+						"target_keyword": "={{ $json.target_keyword }}",
+						"status": "={{ $json.status }}",
+						"word_count_target": "={{ $json.word_count_target }}",
+						"article_url": "={{ $json.article_url }}",
+						"wordpress_post_id": "={{ $json.wordpress_post_id }}",
+						"seo_score": "={{ $json.seo_score }}",
+						"qc_score": "={{ $json.qc_score }}",
+						"notes": "={{ $json.notes }}"
+					}
+				},
+				"options": {}
+			},
+			"id": "eebcb8c0-4842-4601-8786-ab59d5580b97",
+			"name": "📝 Write Blog Content Calendar",
+			"type": "n8n-nodes-base.googleSheets",
+			"typeVersion": 4.5,
+			"position": [
+				2432,
+				328
+			],
+			"credentials": {
+				"googleSheetsOAuth2Api": {
+					"id": "6MuQNoVFMXOhUOOK",
+					"name": "HowTo - Genie | Google Sheets account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"chatId": "={{ $('⚙️ Load Config (Planning)').item.json.TELEGRAM_CHAT_ID }}",
+				"text": "=📅 This week's blog calendar set:\n\n{{ $input.all().map((item, i) => ['Mon','Wed','Fri'][i] + ': ' + item.json.topic_title).join('\\n') }}\n\nPublish dates:\n{{ $input.all().map(item => item.json.publish_date + ' — ' + item.json.target_keyword).join('\\n') }}",
+				"additionalFields": {}
+			},
+			"id": "1fcdfa59-f126-4b0c-a0fe-ce2220907301",
+			"name": "📱 Telegram: Week Plan",
+			"type": "n8n-nodes-base.telegram",
+			"typeVersion": 1.2,
+			"position": [
+				2656,
+				328
+			],
+			"webhookId": "2f527f72-3fdc-4c74-b08c-4e1b76616745",
+			"credentials": {
+				"telegramApi": {
+					"id": "qfA78oS3FSIahsbl",
+					"name": "HowTo - Genie | Telegram account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"chatId": "={{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}",
+				"text": "=🔍 Topic Research complete\n\n{{ $input.length }} topics saved to Blog Idea Backlog\nSource: Reddit ({{ new Date().toLocaleDateString('en-US') }})\n\nTop idea: {{ $input.first()?.json?.title || 'N/A' }}",
+				"additionalFields": {}
+			},
+			"id": "e3024757-34d3-4bbc-b12b-8c6a0c37e48d",
+			"name": "📱 Telegram: Topics Saved",
+			"type": "n8n-nodes-base.telegram",
+			"typeVersion": 1.2,
+			"position": [
+				4896,
+				32
+			],
+			"webhookId": "16a8bf8a-10bd-4742-9a46-f5833a27371b",
+			"credentials": {
+				"telegramApi": {
+					"id": "qfA78oS3FSIahsbl",
+					"name": "HowTo - Genie | Telegram account"
+				}
+			}
+		},
+		{
+			"parameters": {
+				"amount": 1
+			},
+			"type": "n8n-nodes-base.wait",
+			"typeVersion": 1.1,
+			"position": [
+				2880,
+				104
+			],
+			"id": "6caae49d-5032-49cb-9656-a1b88cdee488",
+			"name": "Wait 1 Sec",
+			"webhookId": "811450dc-e35f-43c5-bd1c-4804442a259f"
+		}
+	],
+	"connections": {
+		"⏰ Weekly Trigger (Sun 6AM ET)": {
+			"main": [
+				[
+					{
+						"node": "⚙️ Load Config",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"⏰ Monday Planning (6AM ET)": {
+			"main": [
+				[
+					{
+						"node": "⚙️ Load Config (Planning)",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"⚙️ Load Config": {
+			"main": [
+				[
+					{
+						"node": "📋 Get Subreddit List",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"⚙️ Load Config (Planning)": {
+			"main": [
+				[
+					{
+						"node": "📋 Read Idea Backlog (Top 3)",
+						"type": "main",
+						"index": 0
+					},
+					{
+						"node": "📋 Get ATP Seeds",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📋 Get Subreddit List": {
+			"main": [
+				[
+					{
+						"node": "📂 Check Reddit Cache",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📂 Check Reddit Cache": {
+			"main": [
+				[
+					{
+						"node": "🔍 Cache Fresh?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🔍 Cache Fresh?": {
+			"main": [
+				[
+					{
+						"node": "🔀 Use Cache or API?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🔀 Use Cache or API?": {
+			"main": [
+				[
+					{
+						"node": "🔗 Merge Posts (Cache + API)",
+						"type": "main",
+						"index": 0
+					}
+				],
+				[
+					{
+						"node": "Wait 1 Sec",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🌐 Call Reddit API": {
+			"main": [
+				[
+					{
+						"node": "💾 Write to Reddit Cache",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"💾 Write to Reddit Cache": {
+			"main": [
+				[
+					{
+						"node": "📝 Save Cache to Sheets",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📝 Save Cache to Sheets": {
+			"main": [
+				[
+					{
+						"node": "🔗 Merge Posts (Cache + API)",
+						"type": "main",
+						"index": 1
+					}
+				]
+			]
+		},
+		"🔗 Merge Posts (Cache + API)": {
+			"main": [
+				[
+					{
+						"node": "🤖 Score Topics with Ollama",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🤖 Score Topics with Ollama": {
+			"main": [
+				[
+					{
+						"node": "📊 Parse Ollama Response",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📊 Parse Ollama Response": {
+			"main": [
+				[
+					{
+						"node": "✅ Halal Filter",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"✅ Halal Filter": {
+			"main": [
+				[
+					{
+						"node": "📝 Save to Blog Idea Backlog",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📝 Save to Blog Idea Backlog": {
+			"main": [
+				[
+					{
+						"node": "📱 Telegram: Topics Saved",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📋 Get ATP Seeds": {
+			"main": [
+				[
+					{
+						"node": "📂 Check ATP Cache",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📂 Check ATP Cache": {
+			"main": [
+				[
+					{
+						"node": "🔍 ATP Cache Fresh?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🔍 ATP Cache Fresh?": {
+			"main": [
+				[
+					{
+						"node": "🔀 ATP Cache or API?",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🔀 ATP Cache or API?": {
+			"main": [
+				[],
+				[
+					{
+						"node": "🌐 Call ATP API",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"🌐 Call ATP API": {
+			"main": [
+				[
+					{
+						"node": "💾 Parse + Save ATP Cache",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"💾 Parse + Save ATP Cache": {
+			"main": [
+				[
+					{
+						"node": "📝 Append ATP Cache Sheet",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📋 Read Idea Backlog (Top 3)": {
+			"main": [
+				[
+					{
+						"node": "📅 Build Weekly Calendar",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📅 Build Weekly Calendar": {
+			"main": [
+				[
+					{
+						"node": "📝 Write Blog Content Calendar",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📝 Write Blog Content Calendar": {
+			"main": [
+				[
+					{
+						"node": "📱 Telegram: Week Plan",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		},
+		"📱 Telegram: Week Plan": {
+			"main": [
+				[]
+			]
+		},
+		"Wait 1 Sec": {
+			"main": [
+				[
+					{
+						"node": "🌐 Call Reddit API",
+						"type": "main",
+						"index": 0
+					}
+				]
+			]
+		}
+	},
+	"pinData": {},
+	"meta": {
+		"templateCredsSetupCompleted": true,
+		"instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
+	},
+	"active": false,
+	"settings": {
+		"timezone": "America/New_York",
+		"executionTimeout": 300,
+		"errorWorkflow": ""
+	},
+	"tags": [
+		"htg",
+		"topic-research",
+		"content-calendar"
+	]
 }

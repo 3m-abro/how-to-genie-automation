@@ -1,735 +1,1258 @@
 {
-    "name": "10_Content_Calendar_Manager",
+    "name": "📆 Content Calendar Manager",
     "nodes": [
-      {
-        "id": "c3d4e5f6-0001-0001-0001-000000000001",
-        "name": "📥 Trigger 1: On Article Publish (Webhook)",
-        "type": "n8n-nodes-base.executeWorkflowTrigger",
-        "typeVersion": 1.1,
-        "position": [0, 0],
-        "parameters": {}
-      },
-      {
-        "id": "c3d4e5f6-0002-0002-0002-000000000002",
-        "name": "⏰ Trigger 2: Daily Post Check (7AM ET)",
-        "type": "n8n-nodes-base.scheduleTrigger",
-        "typeVersion": 1.2,
-        "position": [0, 400],
-        "parameters": {
-          "rule": {
-            "interval": [
-              {
-                "field": "days",
-                "triggerAtHour": 7,
-                "triggerAtMinute": 0
-              }
+        {
+            "parameters": {
+                "inputSource": "passthrough"
+            },
+            "id": "6a1d687b-6471-41fe-bd8b-821592545ea6",
+            "name": "📥 Trigger 1: On Article Publish (Webhook)",
+            "type": "n8n-nodes-base.executeWorkflowTrigger",
+            "typeVersion": 1.1,
+            "position": [
+                -32,
+                1888
             ]
-          },
-          "timezone": "America/New_York"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0003-0003-0003-000000000003",
-        "name": "⏰ Trigger 3: Monday Gap Check (8AM ET)",
-        "type": "n8n-nodes-base.scheduleTrigger",
-        "typeVersion": 1.2,
-        "position": [0, 800],
-        "parameters": {
-          "rule": {
-            "interval": [
-              {
-                "field": "weeks",
-                "triggerAtDay": [1],
-                "triggerAtHour": 8,
-                "triggerAtMinute": 0
-              }
-            ]
-          },
-          "timezone": "America/New_York"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0004-0004-0004-000000000004",
-        "name": "⚙️ Load Config (Publish)",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.1,
-        "position": [220, 0],
-        "parameters": {
-          "workflowId": "={{ $vars.CONFIG_LOADER_ID }}",
-          "waitForSubWorkflow": true
-        }
-      },
-      {
-        "id": "c3d4e5f6-0005-0005-0005-000000000005",
-        "name": "⚙️ Load Config (Daily)",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.1,
-        "position": [220, 400],
-        "parameters": {
-          "workflowId": "={{ $vars.CONFIG_LOADER_ID }}",
-          "waitForSubWorkflow": true
-        }
-      },
-      {
-        "id": "c3d4e5f6-0006-0006-0006-000000000006",
-        "name": "⚙️ Load Config (Gap Check)",
-        "type": "n8n-nodes-base.executeWorkflow",
-        "typeVersion": 1.1,
-        "position": [220, 800],
-        "parameters": {
-          "workflowId": "={{ $vars.CONFIG_LOADER_ID }}",
-          "waitForSubWorkflow": true
-        }
-      },
-      {
-        "id": "c3d4e5f6-0007-0007-0007-000000000007",
-        "name": "🔀 Merge Publish Data + Config",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [440, 0],
-        "parameters": {
-          "jsCode": "const triggerData = $('📥 Trigger 1: On Article Publish (Webhook)').item.json;\nconst config = $('⚙️ Load Config (Publish)').item.json;\nreturn [{ json: { ...triggerData, config } }];"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0008-0008-0008-000000000008",
-        "name": "🤖 Generate Social Captions (Ollama)",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [660, 0],
-        "parameters": {
-          "method": "POST",
-          "url": "http://host.docker.internal:11434/v1/chat/completions",
-          "sendBody": true,
-          "contentType": "json",
-          "body": "={\n  \"model\": \"{{ $json.config.OLLAMA_MODEL || 'mistral' }}\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"You are a social media content writer for a how-to blog. Write platform-specific captions for blog posts. Keep tone helpful and practical. No emojis unless specified. Return valid JSON only. No markdown backticks.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"Blog post details:\\nTitle: {{ $json.post_title }}\\nURL: {{ $json.post_url }}\\nKeyword: {{ $json.target_keyword }}\\nNiche: {{ $json.niche }}\\n\\nWrite captions for each platform. Return JSON object:\\n{\\n  \\\"pinterest_static\\\": { \\\"caption\\\": string (max 500 chars), \\\"hashtags\\\": string (5 hashtags) },\\n  \\\"pinterest_idea\\\": { \\\"caption\\\": string (max 500 chars), \\\"hashtags\\\": string (5 hashtags) },\\n  \\\"facebook\\\": { \\\"caption\\\": string (max 300 chars), \\\"hashtags\\\": string (3 hashtags) },\\n  \\\"instagram\\\": { \\\"caption\\\": string (max 300 chars), \\\"hashtags\\\": string (10 hashtags) },\\n  \\\"twitter_draft\\\": { \\\"caption\\\": string (max 280 chars), \\\"hashtags\\\": string (2 hashtags) },\\n  \\\"tiktok_script\\\": { \\\"caption\\\": string (30-second spoken script), \\\"hashtags\\\": string (5 hashtags) },\\n  \\\"image_prompt\\\": string (describe a helpful how-to style image for this topic, no text overlay)\\n}\"\n    }\n  ],\n  \"max_tokens\": 2000,\n  \"temperature\": 0.7\n}",
-          "options": { "timeout": 90000 }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0009-0009-0009-000000000009",
-        "name": "📊 Parse Captions + Build Social Rows",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [880, 0],
-        "parameters": {
-          "jsCode": "const response = $input.first().json;\nconst publishData = $('🔀 Merge Publish Data + Config').item.json;\nconst config = publishData.config;\n\nlet content = response.choices?.[0]?.message?.content || '{}';\ncontent = content.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet captions = {};\ntry {\n  captions = JSON.parse(content);\n} catch(e) {\n  captions = {};\n}\n\nconst blogPostId = publishData.post_id || publishData.wordpress_post_id || '';\nconst imagePrompt = captions.image_prompt || 'Helpful how-to tutorial image for ' + publishData.post_title;\n\nconst addDays = (dateStr, days) => {\n  const d = new Date(dateStr || new Date());\n  d.setDate(d.getDate() + days);\n  return d.toISOString().split('T')[0];\n};\n\nconst publishDate = publishData.publish_date || new Date().toISOString().split('T')[0];\n\nconst rows = [\n  {\n    blog_post_id: blogPostId,\n    platform: 'Pinterest',\n    post_type: 'Static Pin',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_PINTEREST || 0)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_PINTEREST || '09:00',\n    caption: captions.pinterest_static?.caption || '',\n    hashtags: captions.pinterest_static?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Facebook',\n    post_type: 'Link Post',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_FACEBOOK || 0)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_FACEBOOK || '10:00',\n    caption: captions.facebook?.caption || '',\n    hashtags: captions.facebook?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Instagram',\n    post_type: 'Image Post',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_INSTAGRAM || 1)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_INSTAGRAM || '11:00',\n    caption: captions.instagram?.caption || '',\n    hashtags: captions.instagram?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Pinterest',\n    post_type: 'Idea Pin',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_PINTEREST_IDEA || 7)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_PINTEREST || '09:00',\n    caption: captions.pinterest_idea?.caption || '',\n    hashtags: captions.pinterest_idea?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  }\n];\n\nconst manualRows = [\n  {\n    blog_post_id: blogPostId,\n    platform: 'Twitter/X',\n    draft_content: (captions.twitter_draft?.caption || '') + '\\n\\nLink: ' + publishData.post_url + '\\n' + (captions.twitter_draft?.hashtags || ''),\n    created_date: new Date().toISOString().split('T')[0],\n    posted: 'N',\n    notes: 'Auto-generated draft'\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'TikTok',\n    draft_content: 'SCRIPT: ' + (captions.tiktok_script?.caption || '') + '\\n\\nHASHTAGS: ' + (captions.tiktok_script?.hashtags || ''),\n    created_date: new Date().toISOString().split('T')[0],\n    posted: 'N',\n    notes: 'Record 30-sec video and post manually'\n  }\n];\n\nreturn [{ json: { socialRows: rows, manualRows, config, publishData, imagePrompt } }];"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0010-0010-0010-000000000010",
-        "name": "🖼️ Fetch Image from Pexels",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [1100, 0],
-        "parameters": {
-          "method": "GET",
-          "url": "https://api.pexels.com/v1/search",
-          "sendQuery": true,
-          "queryParameters": {
-            "parameters": [
-              { "name": "query", "value": "={{ $json.publishData.target_keyword }}" },
-              { "name": "per_page", "value": "5" },
-              { "name": "orientation", "value": "landscape" }
-            ]
-          },
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              { "name": "Authorization", "value": "={{ $json.config.PEXELS_API_KEY }}" }
-            ]
-          },
-          "options": { "timeout": 15000 }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0011-0011-0011-000000000011",
-        "name": "🖼️ Extract Image URL",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [1320, 0],
-        "parameters": {
-          "jsCode": "const pexelsResponse = $input.first().json;\nconst prevData = $('📊 Parse Captions + Build Social Rows').item.json;\n\nconst photos = pexelsResponse.photos || [];\nconst imageUrl = photos[0]?.src?.large || photos[0]?.src?.medium || '';\n\nconst updatedRows = prevData.socialRows.map(row => ({\n  ...row,\n  image_url: imageUrl\n}));\n\nreturn [{ json: { ...prevData, socialRows: updatedRows, imageUrl } }];"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0012-0012-0012-000000000012",
-        "name": "📝 Write Social Calendar Rows",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [1540, 0],
-        "parameters": {
-          "jsCode": "const data = $input.first().json;\nreturn data.socialRows.map(row => ({ json: { ...row, config: data.config } }));"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0013-0013-0013-000000000013",
-        "name": "📊 Append Social Calendar",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [1760, 0],
-        "parameters": {
-          "operation": "append",
-          "documentId": "={{ $json.config.SPREADSHEET_ID }}",
-          "sheetName": "Social Media Calendar",
-          "columns": {
-            "mappingMode": "defineBelow",
-            "value": {
-              "blog_post_id": "={{ $json.blog_post_id }}",
-              "platform": "={{ $json.platform }}",
-              "post_type": "={{ $json.post_type }}",
-              "scheduled_date": "={{ $json.scheduled_date }}",
-              "scheduled_time_et": "={{ $json.scheduled_time_et }}",
-              "caption": "={{ $json.caption }}",
-              "hashtags": "={{ $json.hashtags }}",
-              "image_prompt": "={{ $json.image_prompt }}",
-              "image_url": "={{ $json.image_url }}",
-              "status": "={{ $json.status }}",
-              "blotato_post_id": "={{ $json.blotato_post_id }}",
-              "engagement_notes": "={{ $json.engagement_notes }}"
-            }
-          },
-          "options": {}
         },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0014-0014-0014-000000000014",
-        "name": "📝 Write Manual Queue",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [1540, 150],
-        "parameters": {
-          "jsCode": "const data = $('🖼️ Extract Image URL').item.json;\nreturn data.manualRows.map(row => ({ json: { ...row, config: data.config } }));"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0015-0015-0015-000000000015",
-        "name": "📊 Append Manual Queue Sheet",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [1760, 150],
-        "parameters": {
-          "operation": "append",
-          "documentId": "={{ $json.config.SPREADSHEET_ID }}",
-          "sheetName": "Manual Post Queue",
-          "columns": {
-            "mappingMode": "defineBelow",
-            "value": {
-              "blog_post_id": "={{ $json.blog_post_id }}",
-              "platform": "={{ $json.platform }}",
-              "draft_content": "={{ $json.draft_content }}",
-              "created_date": "={{ $json.created_date }}",
-              "posted": "={{ $json.posted }}",
-              "notes": "={{ $json.notes }}"
-            }
-          },
-          "options": {}
-        },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0016-0016-0016-000000000016",
-        "name": "📱 Telegram: Social Posts Scheduled",
-        "type": "n8n-nodes-base.telegram",
-        "typeVersion": 1.2,
-        "position": [1980, 0],
-        "parameters": {
-          "chatId": "={{ $('⚙️ Load Config (Publish)').item.json.TELEGRAM_CHAT_ID }}",
-          "text": "=📱 Social posts scheduled\n\n📝 {{ $('🔀 Merge Publish Data + Config').item.json.post_title }}\n\nScheduled posts:\n{{ $('📊 Parse Captions + Build Social Rows').item.json.socialRows.map(r => '• ' + r.platform + ' (' + r.post_type + ') — ' + r.scheduled_date).join('\\n') }}\n\nManual queue (check your spreadsheet):\n• Twitter/X thread draft\n• TikTok 30-sec script",
-          "additionalFields": {}
-        },
-        "credentials": {
-          "telegramApi": {
-            "id": "telegram_htg",
-            "name": "Telegram — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0017-0017-0017-000000000017",
-        "name": "📋 Read Today's Social Posts",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [440, 400],
-        "parameters": {
-          "operation": "read",
-          "documentId": "={{ $('⚙️ Load Config (Daily)').item.json.SPREADSHEET_ID }}",
-          "sheetName": "Social Media Calendar",
-          "filtersUI": {
-            "values": [
-              {
-                "lookupColumn": "status",
-                "lookupValue": "DRAFT"
-              },
-              {
-                "lookupColumn": "scheduled_date",
-                "lookupValue": "={{ new Date().toISOString().split('T')[0] }}"
-              }
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "triggerAtHour": 7
+                        }
+                    ]
+                }
+            },
+            "id": "84ebd4a4-c824-400d-98f9-ee8bc709e3ab",
+            "name": "⏰ Trigger 2: Daily Post Check (7AM ET)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -32,
+                2480
             ]
-          },
-          "options": { "returnAllMatches": true }
         },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0018-0018-0018-000000000018",
-        "name": "🔍 Any Posts Today?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.1,
-        "position": [660, 400],
-        "parameters": {
-          "conditions": {
-            "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-            "conditions": [
-              {
-                "leftValue": "={{ $input.length }}",
-                "rightValue": 0,
-                "operator": { "type": "number", "operation": "gt" }
-              }
+        {
+            "parameters": {
+                "rule": {
+                    "interval": [
+                        {
+                            "field": "weeks",
+                            "triggerAtDay": [
+                                1
+                            ],
+                            "triggerAtHour": 8
+                        }
+                    ]
+                }
+            },
+            "id": "25dd17e0-71cc-4417-a8b7-4827e875f55e",
+            "name": "⏰ Trigger 3: Monday Gap Check (8AM ET)",
+            "type": "n8n-nodes-base.scheduleTrigger",
+            "typeVersion": 1.2,
+            "position": [
+                -32,
+                2896
+            ]
+        },
+        {
+            "parameters": {
+                "workflowId": {
+                    "__rl": true,
+                    "value": "CVc7gJbrt1baZLxG",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+                    "cachedResultName": "⚙️ Config Loader"
+                },
+                "options": {}
+            },
+            "id": "db5546ad-f081-4b5a-be4f-0c36e3528263",
+            "name": "⚙️ Load Config (Publish)",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1.1,
+            "position": [
+                192,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "workflowId": {
+                    "__rl": true,
+                    "value": "CVc7gJbrt1baZLxG",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+                    "cachedResultName": "⚙️ Config Loader"
+                },
+                "options": {}
+            },
+            "id": "634cede0-4a5f-4f58-ad19-00a767b64809",
+            "name": "⚙️ Load Config (Daily)",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1.1,
+            "position": [
+                192,
+                2480
+            ]
+        },
+        {
+            "parameters": {
+                "workflowId": {
+                    "__rl": true,
+                    "value": "CVc7gJbrt1baZLxG",
+                    "mode": "list",
+                    "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+                    "cachedResultName": "⚙️ Config Loader"
+                },
+                "options": {}
+            },
+            "id": "cbd4a8c2-c254-495c-8a23-dbb0977ec3e0",
+            "name": "⚙️ Load Config (Gap Check)",
+            "type": "n8n-nodes-base.executeWorkflow",
+            "typeVersion": 1.1,
+            "position": [
+                192,
+                2896
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const triggerData = $('📥 Trigger 1: On Article Publish (Webhook)').item.json;\nconst config = $('⚙️ Load Config (Publish)').item.json;\nreturn [{ json: { ...triggerData, config } }];"
+            },
+            "id": "8f71c634-da1f-418c-b84c-f3dcfb46dfdb",
+            "name": "🔀 Merge Publish Data + Config",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                416,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "={{ $json.config.OLLAMA_URL }}/v1/chat/completions",
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {}
+                    ]
+                },
+                "options": {
+                    "timeout": 90000
+                }
+            },
+            "id": "37dea4b0-4fd7-45d9-9722-59fad37d9ebb",
+            "name": "🤖 Generate Social Captions (Ollama)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                640,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const response = $input.first().json;\nconst publishData = $('🔀 Merge Publish Data + Config').item.json;\nconst config = publishData.config;\n\nlet content = response.choices?.[0]?.message?.content || '{}';\ncontent = content.replace(/```json/g, '').replace(/```/g, '').trim();\n\nlet captions = {};\ntry {\n  captions = JSON.parse(content);\n} catch(e) {\n  captions = {};\n}\n\nconst blogPostId = publishData.post_id || publishData.wordpress_post_id || '';\nconst imagePrompt = captions.image_prompt || 'Helpful how-to tutorial image for ' + publishData.post_title;\n\nconst addDays = (dateStr, days) => {\n  const d = new Date(dateStr || new Date());\n  d.setDate(d.getDate() + days);\n  return d.toISOString().split('T')[0];\n};\n\nconst publishDate = publishData.publish_date || new Date().toISOString().split('T')[0];\n\nconst rows = [\n  {\n    blog_post_id: blogPostId,\n    platform: 'Pinterest',\n    post_type: 'Static Pin',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_PINTEREST || 0)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_PINTEREST || '09:00',\n    caption: captions.pinterest_static?.caption || '',\n    hashtags: captions.pinterest_static?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Facebook',\n    post_type: 'Link Post',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_FACEBOOK || 0)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_FACEBOOK || '10:00',\n    caption: captions.facebook?.caption || '',\n    hashtags: captions.facebook?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Instagram',\n    post_type: 'Image Post',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_INSTAGRAM || 1)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_INSTAGRAM || '11:00',\n    caption: captions.instagram?.caption || '',\n    hashtags: captions.instagram?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'Pinterest',\n    post_type: 'Idea Pin',\n    scheduled_date: addDays(publishDate, parseInt(config.SOCIAL_POST_DELAY_PINTEREST_IDEA || 7)),\n    scheduled_time_et: config.SOCIAL_POST_TIME_PINTEREST || '09:00',\n    caption: captions.pinterest_idea?.caption || '',\n    hashtags: captions.pinterest_idea?.hashtags || '',\n    image_prompt: imagePrompt,\n    image_url: '',\n    status: 'DRAFT',\n    blotato_post_id: '',\n    engagement_notes: ''\n  }\n];\n\nconst manualRows = [\n  {\n    blog_post_id: blogPostId,\n    platform: 'Twitter/X',\n    draft_content: (captions.twitter_draft?.caption || '') + '\\n\\nLink: ' + publishData.post_url + '\\n' + (captions.twitter_draft?.hashtags || ''),\n    created_date: new Date().toISOString().split('T')[0],\n    posted: 'N',\n    notes: 'Auto-generated draft'\n  },\n  {\n    blog_post_id: blogPostId,\n    platform: 'TikTok',\n    draft_content: 'SCRIPT: ' + (captions.tiktok_script?.caption || '') + '\\n\\nHASHTAGS: ' + (captions.tiktok_script?.hashtags || ''),\n    created_date: new Date().toISOString().split('T')[0],\n    posted: 'N',\n    notes: 'Record 30-sec video and post manually'\n  }\n];\n\nreturn [{ json: { socialRows: rows, manualRows, config, publishData, imagePrompt } }];"
+            },
+            "id": "fd670046-636b-4129-9865-3d3b291d7639",
+            "name": "📊 Parse Captions + Build Social Rows",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                864,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.pexels.com/v1/search",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{ $json.publishData.target_keyword }}"
+                        },
+                        {
+                            "name": "per_page",
+                            "value": "5"
+                        },
+                        {
+                            "name": "orientation",
+                            "value": "landscape"
+                        }
+                    ]
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "={{ $json.config.PEXELS_API_KEY }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 15000
+                }
+            },
+            "id": "634c15e0-ad94-43d9-bcc2-36c3a1936945",
+            "name": "🖼️ Fetch Image from Pexels",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1088,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const pexelsResponse = $input.first().json;\nconst prevData = $('📊 Parse Captions + Build Social Rows').item.json;\n\nconst photos = pexelsResponse.photos || [];\nconst imageUrl = photos[0]?.src?.large || photos[0]?.src?.medium || '';\n\nconst updatedRows = prevData.socialRows.map(row => ({\n  ...row,\n  image_url: imageUrl\n}));\n\nreturn [{ json: { ...prevData, socialRows: updatedRows, imageUrl } }];"
+            },
+            "id": "7341c91a-d5bc-4b07-8748-f8a3742f5440",
+            "name": "🖼️ Extract Image URL",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1312,
+                1888
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const data = $input.first().json;\nreturn data.socialRows.map(row => ({ json: { ...row, config: data.config } }));"
+            },
+            "id": "a7e13101-6b39-4a77-b1b1-3269d5dac701",
+            "name": "📝 Write Social Calendar Rows",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1536,
+                1792
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "append",
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $json.config.SPREADSHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Social Media Calendar",
+                    "mode": "name"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "blog_post_id": "={{ $json.blog_post_id }}",
+                        "platform": "={{ $json.platform }}",
+                        "post_type": "={{ $json.post_type }}",
+                        "scheduled_date": "={{ $json.scheduled_date }}",
+                        "scheduled_time_et": "={{ $json.scheduled_time_et }}",
+                        "caption": "={{ $json.caption }}",
+                        "hashtags": "={{ $json.hashtags }}",
+                        "image_prompt": "={{ $json.image_prompt }}",
+                        "image_url": "={{ $json.image_url }}",
+                        "status": "={{ $json.status }}",
+                        "blotato_post_id": "={{ $json.blotato_post_id }}",
+                        "engagement_notes": "={{ $json.engagement_notes }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "8135ef47-6557-43d6-bd22-b7fc4c1422d8",
+            "name": "📊 Append Social Calendar",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                1760,
+                1792
             ],
-            "combinator": "and"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0019-0019-0019-000000000019",
-        "name": "🔁 Loop Each Post",
-        "type": "n8n-nodes-base.splitInBatches",
-        "typeVersion": 3,
-        "position": [880, 400],
-        "parameters": {
-          "batchSize": 1,
-          "options": {}
-        }
-      },
-      {
-        "id": "c3d4e5f6-0020-0020-0020-000000000020",
-        "name": "🖼️ Image Missing?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.1,
-        "position": [1100, 400],
-        "parameters": {
-          "conditions": {
-            "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-            "conditions": [
-              {
-                "leftValue": "={{ $json.image_url }}",
-                "rightValue": "",
-                "operator": { "type": "string", "operation": "equals" }
-              }
-            ],
-            "combinator": "and"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0021-0021-0021-000000000021",
-        "name": "🖼️ Fetch Missing Image",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [1320, 500],
-        "parameters": {
-          "method": "GET",
-          "url": "https://api.pexels.com/v1/search",
-          "sendQuery": true,
-          "queryParameters": {
-            "parameters": [
-              { "name": "query", "value": "={{ $json.image_prompt || $json.caption }}" },
-              { "name": "per_page", "value": "3" },
-              { "name": "orientation", "value": "landscape" }
-            ]
-          },
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              { "name": "Authorization", "value": "={{ $('⚙️ Load Config (Daily)').item.json.PEXELS_API_KEY }}" }
-            ]
-          },
-          "options": { "timeout": 15000 }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0022-0022-0022-000000000022",
-        "name": "🔗 Merge Post + Image",
-        "type": "n8n-nodes-base.merge",
-        "typeVersion": 3,
-        "position": [1540, 400],
-        "parameters": {
-          "mode": "combine",
-          "combineBy": "combineAll",
-          "options": {}
-        }
-      },
-      {
-        "id": "c3d4e5f6-0023-0023-0023-000000000023",
-        "name": "📤 Prepare Blotato Payload",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [1760, 400],
-        "parameters": {
-          "jsCode": "const items = $input.all();\nconst config = $('⚙️ Load Config (Daily)').item.json;\n\nconst postItem = items.find(i => i.json.platform) || items[0];\nconst imageItem = items.find(i => i.json.photos) || null;\n\nconst imageUrl = imageItem?.json?.photos?.[0]?.src?.large || postItem.json.image_url || '';\n\nconst platformKeyMap = {\n  'Pinterest': config.BLOTATO_PROFILE_PINTEREST || 'pinterest_htg',\n  'Facebook': config.BLOTATO_PROFILE_FACEBOOK || 'facebook_htg',\n  'Instagram': config.BLOTATO_PROFILE_INSTAGRAM || 'instagram_htg',\n  'TikTok': config.BLOTATO_PROFILE_TIKTOK || 'tiktok_htg'\n};\n\nconst platform = postItem.json.platform;\nconst profileKey = platformKeyMap[platform] || 'default';\n\nreturn [{ json: {\n  profileKey,\n  caption: postItem.json.caption + '\\n\\n' + postItem.json.hashtags,\n  imageUrl,\n  platform,\n  rowData: postItem.json,\n  config\n}}];"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0024-0024-0024-000000000024",
-        "name": "📤 Post via Blotato",
-        "type": "n8n-nodes-base.httpRequest",
-        "typeVersion": 4.2,
-        "position": [1980, 400],
-        "parameters": {
-          "method": "POST",
-          "url": "https://api.blotato.com/v1/post",
-          "sendBody": true,
-          "contentType": "json",
-          "body": "={\n  \"profileKey\": \"{{ $json.profileKey }}\",\n  \"caption\": {{ JSON.stringify($json.caption) }},\n  \"imageUrl\": \"{{ $json.imageUrl }}\",\n  \"scheduleTime\": null\n}",
-          "sendHeaders": true,
-          "headerParameters": {
-            "parameters": [
-              { "name": "Authorization", "value": "=Bearer {{ $json.config.BLOTATO_API_KEY }}" },
-              { "name": "Content-Type", "value": "application/json" }
-            ]
-          },
-          "options": {
-            "timeout": 30000,
-            "response": { "response": { "neverError": true } }
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0025-0025-0025-000000000025",
-        "name": "✅ Did Post Succeed?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.1,
-        "position": [2200, 400],
-        "parameters": {
-          "conditions": {
-            "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-            "conditions": [
-              {
-                "leftValue": "={{ $json.success || $json.id || $json.postId }}",
-                "rightValue": "",
-                "operator": { "type": "string", "operation": "notEquals" }
-              }
-            ],
-            "combinator": "and"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0026-0026-0026-000000000026",
-        "name": "✅ Update Status POSTED",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [2420, 350],
-        "parameters": {
-          "operation": "update",
-          "documentId": "={{ $('⚙️ Load Config (Daily)').item.json.SPREADSHEET_ID }}",
-          "sheetName": "Social Media Calendar",
-          "columns": {
-            "mappingMode": "defineBelow",
-            "value": {
-              "status": "POSTED",
-              "blotato_post_id": "={{ $json.id || $json.postId || 'posted' }}",
-              "image_url": "={{ $('📤 Prepare Blotato Payload').item.json.imageUrl }}"
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
             }
-          },
-          "where": {
-            "values": [
-              {
-                "lookupColumn": "blog_post_id",
-                "lookupValue": "={{ $('📤 Prepare Blotato Payload').item.json.rowData.blog_post_id }}"
-              },
-              {
-                "lookupColumn": "platform",
-                "lookupValue": "={{ $('📤 Prepare Blotato Payload').item.json.platform }}"
-              },
-              {
-                "lookupColumn": "scheduled_date",
-                "lookupValue": "={{ $('📤 Prepare Blotato Payload').item.json.rowData.scheduled_date }}"
-              }
+        },
+        {
+            "parameters": {
+                "jsCode": "const data = $('🖼️ Extract Image URL').item.json;\nreturn data.manualRows.map(row => ({ json: { ...row, config: data.config } }));"
+            },
+            "id": "d66a4c28-e6d9-4aad-8fd1-f3200788cc43",
+            "name": "📝 Write Manual Queue",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1536,
+                1984
             ]
-          },
-          "options": {}
         },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0027-0027-0027-000000000027",
-        "name": "❌ Update Status FAILED",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [2420, 500],
-        "parameters": {
-          "operation": "update",
-          "documentId": "={{ $('⚙️ Load Config (Daily)').item.json.SPREADSHEET_ID }}",
-          "sheetName": "Social Media Calendar",
-          "columns": {
-            "mappingMode": "defineBelow",
-            "value": {
-              "status": "FAILED",
-              "engagement_notes": "=Auto-post failed: {{ JSON.stringify($json.error || $json.message || 'Unknown error') }}"
-            }
-          },
-          "where": {
-            "values": [
-              {
-                "lookupColumn": "blog_post_id",
-                "lookupValue": "={{ $('📤 Prepare Blotato Payload').item.json.rowData.blog_post_id }}"
-              },
-              {
-                "lookupColumn": "platform",
-                "lookupValue": "={{ $('📤 Prepare Blotato Payload').item.json.platform }}"
-              }
-            ]
-          },
-          "options": {}
-        },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0028-0028-0028-000000000028",
-        "name": "📱 Telegram: Post Result",
-        "type": "n8n-nodes-base.telegram",
-        "typeVersion": 1.2,
-        "position": [2640, 400],
-        "parameters": {
-          "chatId": "={{ $('⚙️ Load Config (Daily)').item.json.TELEGRAM_CHAT_ID }}",
-          "text": "={{ $('✅ Did Post Succeed?').item.json.success || $('✅ Did Post Succeed?').item.json.id ? '✅ Posted to ' + $('📤 Prepare Blotato Payload').item.json.platform + ': ' + $('📤 Prepare Blotato Payload').item.json.rowData.blog_post_id : '❌ Blotato failed for ' + $('📤 Prepare Blotato Payload').item.json.platform + '\\nError: ' + JSON.stringify($('📤 Post via Blotato').item.json.error || $('📤 Post via Blotato').item.json.message || 'Unknown') + '\\nCheck Social Media Calendar for details.' }}",
-          "additionalFields": {}
-        },
-        "credentials": {
-          "telegramApi": {
-            "id": "telegram_htg",
-            "name": "Telegram — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0029-0029-0029-000000000029",
-        "name": "📋 Count Planned Articles",
-        "type": "n8n-nodes-base.googleSheets",
-        "typeVersion": 4.5,
-        "position": [440, 800],
-        "parameters": {
-          "operation": "read",
-          "documentId": "={{ $('⚙️ Load Config (Gap Check)').item.json.SPREADSHEET_ID }}",
-          "sheetName": "Blog Content Calendar",
-          "filtersUI": {
-            "values": [
-              {
-                "lookupColumn": "status",
-                "lookupValue": "PLANNED"
-              }
-            ]
-          },
-          "options": { "returnAllMatches": true }
-        },
-        "credentials": {
-          "googleSheetsOAuth2Api": {
-            "id": "google_sheets_htg",
-            "name": "Google Sheets — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0030-0030-0030-000000000030",
-        "name": "🔍 Filter Next 7 Days",
-        "type": "n8n-nodes-base.code",
-        "typeVersion": 2,
-        "position": [660, 800],
-        "parameters": {
-          "jsCode": "const rows = $input.all();\nconst config = $('⚙️ Load Config (Gap Check)').item.json;\nconst now = new Date();\nconst in7Days = new Date(now);\nin7Days.setDate(now.getDate() + 7);\n\nconst upcoming = rows.filter(r => {\n  if (!r.json.publish_date) return false;\n  const d = new Date(r.json.publish_date);\n  return d >= now && d <= in7Days;\n});\n\nconst minArticles = parseInt(config.MIN_PLANNED_ARTICLES || 3);\nconst weekOf = in7Days.toISOString().split('T')[0];\n\nreturn [{ json: {\n  count: upcoming.length,\n  minArticles,\n  weekOf,\n  gap: upcoming.length < minArticles,\n  config\n}}];"
-        }
-      },
-      {
-        "id": "c3d4e5f6-0031-0031-0031-000000000031",
-        "name": "🔍 Gap Exists?",
-        "type": "n8n-nodes-base.if",
-        "typeVersion": 2.1,
-        "position": [880, 800],
-        "parameters": {
-          "conditions": {
-            "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-            "conditions": [
-              {
-                "leftValue": "={{ $json.gap }}",
-                "rightValue": true,
-                "operator": { "type": "boolean", "operation": "true" }
-              }
+        {
+            "parameters": {
+                "operation": "append",
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $json.config.SPREADSHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Manual Post Queue",
+                    "mode": "name"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "blog_post_id": "={{ $json.blog_post_id }}",
+                        "platform": "={{ $json.platform }}",
+                        "draft_content": "={{ $json.draft_content }}",
+                        "created_date": "={{ $json.created_date }}",
+                        "posted": "={{ $json.posted }}",
+                        "notes": "={{ $json.notes }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "885ebfe3-e690-49da-87ee-d60c077299d0",
+            "name": "📊 Append Manual Queue Sheet",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                1760,
+                1984
             ],
-            "combinator": "and"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0032-0032-0032-000000000032",
-        "name": "📱 Telegram: Gap Alert",
-        "type": "n8n-nodes-base.telegram",
-        "typeVersion": 1.2,
-        "position": [1100, 800],
-        "parameters": {
-          "chatId": "={{ $json.config.TELEGRAM_CHAT_ID }}",
-          "text": "=⚠️ Content calendar gap detected\n\nWeek of {{ $json.weekOf }}\nPlanned articles: {{ $json.count }} / {{ $json.minArticles }} minimum\n\nOpen Blog Content Calendar and add topics, or wait for Monday's auto-planning to run.",
-          "additionalFields": {}
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
+            }
         },
-        "credentials": {
-          "telegramApi": {
-            "id": "telegram_htg",
-            "name": "Telegram — HowTo Genie"
-          }
-        }
-      },
-      {
-        "id": "c3d4e5f6-0033-0033-0033-000000000033",
-        "name": "📱 Telegram: Calendar Healthy",
-        "type": "n8n-nodes-base.telegram",
-        "typeVersion": 1.2,
-        "position": [1100, 950],
-        "parameters": {
-          "chatId": "={{ $json.config.TELEGRAM_CHAT_ID }}",
-          "text": "=✅ Content calendar healthy\n\nWeek of {{ $json.weekOf }}\n{{ $json.count }} articles planned — on track.",
-          "additionalFields": {}
+        {
+            "parameters": {
+                "chatId": "={{ $('⚙️ Load Config (Publish)').item.json.TELEGRAM_CHAT_ID }}",
+                "text": "=📱 Social posts scheduled\n\n📝 {{ $('🔀 Merge Publish Data + Config').item.json.post_title }}\n\nScheduled posts:\n{{ $('📊 Parse Captions + Build Social Rows').item.json.socialRows.map(r => '• ' + r.platform + ' (' + r.post_type + ') — ' + r.scheduled_date).join('\\n') }}\n\nManual queue (check your spreadsheet):\n• Twitter/X thread draft\n• TikTok 30-sec script",
+                "additionalFields": {}
+            },
+            "id": "65d46574-eded-4f6f-8070-7a5039f14271",
+            "name": "📱 Telegram: Social Posts Scheduled",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                1984,
+                1888
+            ],
+            "webhookId": "cf6a03d6-b949-4559-b38f-ced0dfc6c2ed",
+            "credentials": {
+                "telegramApi": {
+                    "id": "qfA78oS3FSIahsbl",
+                    "name": "HowTo - Genie | Telegram account"
+                }
+            }
         },
-        "credentials": {
-          "telegramApi": {
-            "id": "telegram_htg",
-            "name": "Telegram — HowTo Genie"
-          }
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $json.GOOGLE_SHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "={{ $json.SOCIAL_CALENDAR_TAB }}",
+                    "mode": "name"
+                },
+                "filtersUI": {
+                    "values": [
+                        {
+                            "lookupColumn": "=status",
+                            "lookupValue": "DRAFT"
+                        },
+                        {
+                            "lookupColumn": "=scheduled_date",
+                            "lookupValue": "={{ new Date().toISOString().split('T')[0] }}"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "4f0965f9-c6a9-4294-bca3-eedc9d6721a4",
+            "name": "📋 Read Today's Social Posts",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                416,
+                2480
+            ],
+            "alwaysOutputData": true,
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $('📋 Read Today\\'s Social Posts').all().length }}",
+                            "rightValue": 0,
+                            "operator": {
+                                "type": "number",
+                                "operation": "gt"
+                            },
+                            "id": "c215e962-82a4-4f08-bd3d-66577fab6086"
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "48252a53-1068-42c7-a855-3df1881046bc",
+            "name": "🔍 Any Posts Today?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                640,
+                2480
+            ]
+        },
+        {
+            "parameters": {
+                "options": {}
+            },
+            "id": "777fb8ae-d279-42ba-8dc4-92b9fd91d91d",
+            "name": "🔁 Loop Each Post",
+            "type": "n8n-nodes-base.splitInBatches",
+            "typeVersion": 3,
+            "position": [
+                864,
+                2384
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.image_url }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "empty",
+                                "singleValue": true
+                            },
+                            "id": "b8afafba-5403-404c-8a33-b5fb90c73ea6"
+                        },
+                        {
+                            "id": "df60621a-4753-4b36-8f24-6f8405e4908d",
+                            "leftValue": "={{ $json.image_url }}",
+                            "rightValue": "",
+                            "operator": {
+                                "type": "string",
+                                "operation": "equals",
+                                "name": "filter.operator.equals"
+                            }
+                        }
+                    ],
+                    "combinator": "or"
+                },
+                "options": {}
+            },
+            "id": "49137cc5-8931-4926-8df4-9010340155aa",
+            "name": "🖼️ Image Missing?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                1088,
+                2304
+            ]
+        },
+        {
+            "parameters": {
+                "url": "https://api.pexels.com/v1/search",
+                "sendQuery": true,
+                "queryParameters": {
+                    "parameters": [
+                        {
+                            "name": "query",
+                            "value": "={{ $json.image_prompt || $json.caption }}"
+                        },
+                        {
+                            "name": "per_page",
+                            "value": "3"
+                        },
+                        {
+                            "name": "orientation",
+                            "value": "landscape"
+                        }
+                    ]
+                },
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "={{ $('⚙️ Load Config (Daily)').item.json.PEXELS_API_KEY }}"
+                        }
+                    ]
+                },
+                "options": {
+                    "timeout": 15000
+                }
+            },
+            "id": "16ca7696-abb1-4607-8201-be539d7643c4",
+            "name": "🖼️ Fetch Missing Image",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1312,
+                2240
+            ]
+        },
+        {
+            "parameters": {
+                "mode": "combine",
+                "combineBy": "combineAll",
+                "options": {}
+            },
+            "id": "d9d9791e-e523-4f2f-88b5-521c889bae0d",
+            "name": "🔗 Merge Post + Image",
+            "type": "n8n-nodes-base.merge",
+            "typeVersion": 3,
+            "position": [
+                1536,
+                2304
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const items = $input.all();\nconst config = $('⚙️ Load Config (Daily)').item.json;\n\nconst postItem = items.find(i => i.json.platform) || items[0];\nconst imageItem = items.find(i => i.json.photos) || null;\n\nconst imageUrl = imageItem?.json?.photos?.[0]?.src?.large || postItem.json.image_url || '';\n\nconst platformKeyMap = {\n  'Pinterest': config.BLOTATO_PROFILE_PINTEREST || 'pinterest_htg',\n  'Facebook': config.BLOTATO_PROFILE_FACEBOOK || 'facebook_htg',\n  'Instagram': config.BLOTATO_PROFILE_INSTAGRAM || 'instagram_htg',\n  'TikTok': config.BLOTATO_PROFILE_TIKTOK || 'tiktok_htg'\n};\n\nconst platform = postItem.json.platform;\nconst profileKey = platformKeyMap[platform] || 'default';\n\nreturn [{ json: {\n  profileKey,\n  caption: postItem.json.caption + '\\n\\n' + postItem.json.hashtags,\n  imageUrl,\n  platform,\n  rowData: postItem.json,\n  config\n}}];"
+            },
+            "id": "09698f5b-f97b-494c-8257-a8d7fb252b5e",
+            "name": "📤 Prepare Blotato Payload",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1760,
+                2304
+            ]
+        },
+        {
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.blotato.com/v1/post",
+                "sendHeaders": true,
+                "headerParameters": {
+                    "parameters": [
+                        {
+                            "name": "Authorization",
+                            "value": "=Bearer {{ $json.config.BLOTATO_API_KEY }}"
+                        },
+                        {
+                            "name": "Content-Type",
+                            "value": "application/json"
+                        }
+                    ]
+                },
+                "sendBody": true,
+                "bodyParameters": {
+                    "parameters": [
+                        {}
+                    ]
+                },
+                "options": {
+                    "response": {
+                        "response": {
+                            "neverError": true
+                        }
+                    },
+                    "timeout": 30000
+                }
+            },
+            "id": "fdb67782-0a62-4ee6-9876-623af28055a6",
+            "name": "📤 Post via Blotato",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [
+                1984,
+                2304
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.success === true || !!($json.id || $json.postId) }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "equals"
+                            },
+                            "id": "6b0e6794-641d-47c3-ab80-1f8536f1eb24"
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "ff139e50-9617-45a2-8516-c013e2ce409a",
+            "name": "✅ Did Post Succeed?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                2208,
+                2304
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $('⚙️ Load Config (Daily)').item.json.SPREADSHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Social Media Calendar",
+                    "mode": "name"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "status": "POSTED",
+                        "blotato_post_id": "={{ $json.id || $json.postId || 'posted' }}",
+                        "image_url": "={{ $('📤 Prepare Blotato Payload').item.json.imageUrl }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "90649be4-c2a7-4d0b-915c-405a74627173",
+            "name": "✅ Update Status POSTED",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                2432,
+                2208
+            ],
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $('⚙️ Load Config (Daily)').item.json.SPREADSHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Social Media Calendar",
+                    "mode": "name"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "status": "FAILED",
+                        "engagement_notes": "=Auto-post failed: {{ JSON.stringify($json.error || $json.message || 'Unknown error') }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "17c6ff15-45ac-4173-b210-0353ba406929",
+            "name": "❌ Update Status FAILED",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                2432,
+                2400
+            ],
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('⚙️ Load Config (Daily)').item.json.TELEGRAM_CHAT_ID }}",
+                "text": "={{ $('✅ Did Post Succeed?').item.json.success || $('✅ Did Post Succeed?').item.json.id ? '✅ Posted to ' + $('📤 Prepare Blotato Payload').item.json.platform + ': ' + $('📤 Prepare Blotato Payload').item.json.rowData.blog_post_id : '❌ Blotato failed for ' + $('📤 Prepare Blotato Payload').item.json.platform + '\\nError: ' + JSON.stringify($('📤 Post via Blotato').item.json.error || $('📤 Post via Blotato').item.json.message || 'Unknown') + '\\nCheck Social Media Calendar for details.' }}",
+                "additionalFields": {}
+            },
+            "id": "193be76d-59ca-43a9-959c-d4dd8289215e",
+            "name": "📱 Telegram: Post Result",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                2656,
+                2384
+            ],
+            "webhookId": "3d02481f-1c32-4370-bd55-4bf03333a46d",
+            "credentials": {
+                "telegramApi": {
+                    "id": "qfA78oS3FSIahsbl",
+                    "name": "HowTo - Genie | Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "documentId": {
+                    "__rl": true,
+                    "value": "={{ $('⚙️ Load Config (Gap Check)').item.json.SPREADSHEET_ID }}",
+                    "mode": "id"
+                },
+                "sheetName": {
+                    "__rl": true,
+                    "value": "Blog Content Calendar",
+                    "mode": "name"
+                },
+                "filtersUI": {
+                    "values": [
+                        {
+                            "lookupColumn": "status",
+                            "lookupValue": "PLANNED"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "3a4a0f5b-7bf0-4deb-8f48-100fc131da59",
+            "name": "📋 Count Planned Articles",
+            "type": "n8n-nodes-base.googleSheets",
+            "typeVersion": 4.5,
+            "position": [
+                416,
+                2896
+            ],
+            "credentials": {
+                "googleSheetsOAuth2Api": {
+                    "id": "6MuQNoVFMXOhUOOK",
+                    "name": "HowTo - Genie | Google Sheets account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "jsCode": "const rows = $input.all();\nconst config = $('⚙️ Load Config (Gap Check)').item.json;\nconst now = new Date();\nconst in7Days = new Date(now);\nin7Days.setDate(now.getDate() + 7);\n\nconst upcoming = rows.filter(r => {\n  if (!r.json.publish_date) return false;\n  const d = new Date(r.json.publish_date);\n  return d >= now && d <= in7Days;\n});\n\nconst minArticles = parseInt(config.MIN_PLANNED_ARTICLES || 3);\nconst weekOf = in7Days.toISOString().split('T')[0];\n\nreturn [{ json: {\n  count: upcoming.length,\n  minArticles,\n  weekOf,\n  gap: upcoming.length < minArticles,\n  config\n}}];"
+            },
+            "id": "3d91392a-6534-46ef-a7ad-8a226373f114",
+            "name": "🔍 Filter Next 7 Days",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                640,
+                2896
+            ]
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict"
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.gap }}",
+                            "rightValue": true,
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true"
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "82347f71-af1a-4e39-a34f-ec4fcef67991",
+            "name": "🔍 Gap Exists?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.1,
+            "position": [
+                864,
+                2896
+            ]
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $json.config.TELEGRAM_CHAT_ID }}",
+                "text": "=⚠️ Content calendar gap detected\n\nWeek of {{ $json.weekOf }}\nPlanned articles: {{ $json.count }} / {{ $json.minArticles }} minimum\n\nOpen Blog Content Calendar and add topics, or wait for Monday's auto-planning to run.",
+                "additionalFields": {}
+            },
+            "id": "71c8f108-ca31-4cf0-b9ef-c080b87c926e",
+            "name": "📱 Telegram: Gap Alert",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                1088,
+                2800
+            ],
+            "webhookId": "5d4c2694-061b-46c6-b814-b39d816648c6",
+            "credentials": {
+                "telegramApi": {
+                    "id": "qfA78oS3FSIahsbl",
+                    "name": "HowTo - Genie | Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $json.config.TELEGRAM_CHAT_ID }}",
+                "text": "=✅ Content calendar healthy\n\nWeek of {{ $json.weekOf }}\n{{ $json.count }} articles planned — on track.",
+                "additionalFields": {}
+            },
+            "id": "16652ac3-7793-4745-9449-c6d420b04c57",
+            "name": "📱 Telegram: Calendar Healthy",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                1088,
+                2992
+            ],
+            "webhookId": "fd6d1254-7b91-431c-97d8-2ca891da8fb3",
+            "credentials": {
+                "telegramApi": {
+                    "id": "qfA78oS3FSIahsbl",
+                    "name": "HowTo - Genie | Telegram account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "chatId": "={{ $('⚙️ Load Config (Daily)').item.json.TELEGRAM_CHAT_ID }}",
+                "text": "No Posts Today \n HowTo - Genie",
+                "additionalFields": {}
+            },
+            "id": "726d87f2-5f84-4eab-98d3-a1008aa816ca",
+            "name": "📱 Telegram: No Posts Today",
+            "type": "n8n-nodes-base.telegram",
+            "typeVersion": 1.2,
+            "position": [
+                864,
+                2576
+            ],
+            "webhookId": "3d02481f-1c32-4370-bd55-4bf03333a46d",
+            "alwaysOutputData": true,
+            "credentials": {
+                "telegramApi": {
+                    "id": "qfA78oS3FSIahsbl",
+                    "name": "HowTo - Genie | Telegram account"
+                }
+            }
         }
-      }
     ],
     "connections": {
-      "📥 Trigger 1: On Article Publish (Webhook)": {
-        "main": [[{ "node": "⚙️ Load Config (Publish)", "type": "main", "index": 0 }]]
-      },
-      "⏰ Trigger 2: Daily Post Check (7AM ET)": {
-        "main": [[{ "node": "⚙️ Load Config (Daily)", "type": "main", "index": 0 }]]
-      },
-      "⏰ Trigger 3: Monday Gap Check (8AM ET)": {
-        "main": [[{ "node": "⚙️ Load Config (Gap Check)", "type": "main", "index": 0 }]]
-      },
-      "⚙️ Load Config (Publish)": {
-        "main": [[{ "node": "🔀 Merge Publish Data + Config", "type": "main", "index": 0 }]]
-      },
-      "⚙️ Load Config (Daily)": {
-        "main": [[{ "node": "📋 Read Today's Social Posts", "type": "main", "index": 0 }]]
-      },
-      "⚙️ Load Config (Gap Check)": {
-        "main": [[{ "node": "📋 Count Planned Articles", "type": "main", "index": 0 }]]
-      },
-      "🔀 Merge Publish Data + Config": {
-        "main": [[{ "node": "🤖 Generate Social Captions (Ollama)", "type": "main", "index": 0 }]]
-      },
-      "🤖 Generate Social Captions (Ollama)": {
-        "main": [[{ "node": "📊 Parse Captions + Build Social Rows", "type": "main", "index": 0 }]]
-      },
-      "📊 Parse Captions + Build Social Rows": {
-        "main": [[{ "node": "🖼️ Fetch Image from Pexels", "type": "main", "index": 0 }]]
-      },
-      "🖼️ Fetch Image from Pexels": {
-        "main": [[{ "node": "🖼️ Extract Image URL", "type": "main", "index": 0 }]]
-      },
-      "🖼️ Extract Image URL": {
-        "main": [
-          [{ "node": "📝 Write Social Calendar Rows", "type": "main", "index": 0 }],
-          [{ "node": "📝 Write Manual Queue", "type": "main", "index": 0 }]
-        ]
-      },
-      "📝 Write Social Calendar Rows": {
-        "main": [[{ "node": "📊 Append Social Calendar", "type": "main", "index": 0 }]]
-      },
-      "📝 Write Manual Queue": {
-        "main": [[{ "node": "📊 Append Manual Queue Sheet", "type": "main", "index": 0 }]]
-      },
-      "📊 Append Social Calendar": {
-        "main": [[{ "node": "📱 Telegram: Social Posts Scheduled", "type": "main", "index": 0 }]]
-      },
-      "📋 Read Today's Social Posts": {
-        "main": [[{ "node": "🔍 Any Posts Today?", "type": "main", "index": 0 }]]
-      },
-      "🔍 Any Posts Today?": {
-        "main": [
-          [{ "node": "🔁 Loop Each Post", "type": "main", "index": 0 }],
-          []
-        ]
-      },
-      "🔁 Loop Each Post": {
-        "main": [[{ "node": "🖼️ Image Missing?", "type": "main", "index": 0 }]]
-      },
-      "🖼️ Image Missing?": {
-        "main": [
-          [{ "node": "🔗 Merge Post + Image", "type": "main", "index": 0 }],
-          [{ "node": "🖼️ Fetch Missing Image", "type": "main", "index": 0 }]
-        ]
-      },
-      "🖼️ Fetch Missing Image": {
-        "main": [[{ "node": "🔗 Merge Post + Image", "type": "main", "index": 1 }]]
-      },
-      "🔗 Merge Post + Image": {
-        "main": [[{ "node": "📤 Prepare Blotato Payload", "type": "main", "index": 0 }]]
-      },
-      "📤 Prepare Blotato Payload": {
-        "main": [[{ "node": "📤 Post via Blotato", "type": "main", "index": 0 }]]
-      },
-      "📤 Post via Blotato": {
-        "main": [[{ "node": "✅ Did Post Succeed?", "type": "main", "index": 0 }]]
-      },
-      "✅ Did Post Succeed?": {
-        "main": [
-          [{ "node": "✅ Update Status POSTED", "type": "main", "index": 0 }],
-          [{ "node": "❌ Update Status FAILED", "type": "main", "index": 0 }]
-        ]
-      },
-      "✅ Update Status POSTED": {
-        "main": [[{ "node": "📱 Telegram: Post Result", "type": "main", "index": 0 }]]
-      },
-      "❌ Update Status FAILED": {
-        "main": [[{ "node": "📱 Telegram: Post Result", "type": "main", "index": 0 }]]
-      },
-      "📋 Count Planned Articles": {
-        "main": [[{ "node": "🔍 Filter Next 7 Days", "type": "main", "index": 0 }]]
-      },
-      "🔍 Filter Next 7 Days": {
-        "main": [[{ "node": "🔍 Gap Exists?", "type": "main", "index": 0 }]]
-      },
-      "🔍 Gap Exists?": {
-        "main": [
-          [{ "node": "📱 Telegram: Gap Alert", "type": "main", "index": 0 }],
-          [{ "node": "📱 Telegram: Calendar Healthy", "type": "main", "index": 0 }]
-        ]
-      }
+        "📥 Trigger 1: On Article Publish (Webhook)": {
+            "main": [
+                [
+                    {
+                        "node": "⚙️ Load Config (Publish)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⏰ Trigger 2: Daily Post Check (7AM ET)": {
+            "main": [
+                [
+                    {
+                        "node": "⚙️ Load Config (Daily)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⏰ Trigger 3: Monday Gap Check (8AM ET)": {
+            "main": [
+                [
+                    {
+                        "node": "⚙️ Load Config (Gap Check)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚙️ Load Config (Publish)": {
+            "main": [
+                [
+                    {
+                        "node": "🔀 Merge Publish Data + Config",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚙️ Load Config (Daily)": {
+            "main": [
+                [
+                    {
+                        "node": "📋 Read Today's Social Posts",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "⚙️ Load Config (Gap Check)": {
+            "main": [
+                [
+                    {
+                        "node": "📋 Count Planned Articles",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔀 Merge Publish Data + Config": {
+            "main": [
+                [
+                    {
+                        "node": "🤖 Generate Social Captions (Ollama)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🤖 Generate Social Captions (Ollama)": {
+            "main": [
+                [
+                    {
+                        "node": "📊 Parse Captions + Build Social Rows",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📊 Parse Captions + Build Social Rows": {
+            "main": [
+                [
+                    {
+                        "node": "🖼️ Fetch Image from Pexels",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🖼️ Fetch Image from Pexels": {
+            "main": [
+                [
+                    {
+                        "node": "🖼️ Extract Image URL",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🖼️ Extract Image URL": {
+            "main": [
+                [
+                    {
+                        "node": "📝 Write Social Calendar Rows",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "📝 Write Manual Queue",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 Write Social Calendar Rows": {
+            "main": [
+                [
+                    {
+                        "node": "📊 Append Social Calendar",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📊 Append Social Calendar": {
+            "main": [
+                [
+                    {
+                        "node": "📱 Telegram: Social Posts Scheduled",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📝 Write Manual Queue": {
+            "main": [
+                [
+                    {
+                        "node": "📊 Append Manual Queue Sheet",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📊 Append Manual Queue Sheet": {
+            "main": [
+                [
+                    {
+                        "node": "📱 Telegram: Social Posts Scheduled",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📋 Read Today's Social Posts": {
+            "main": [
+                [
+                    {
+                        "node": "🔍 Any Posts Today?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔍 Any Posts Today?": {
+            "main": [
+                [
+                    {
+                        "node": "🔁 Loop Each Post",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "📱 Telegram: No Posts Today",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔁 Loop Each Post": {
+            "main": [
+                [
+                    {
+                        "node": "🖼️ Image Missing?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "📱 Telegram: Post Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🖼️ Image Missing?": {
+            "main": [
+                [
+                    {
+                        "node": "🖼️ Fetch Missing Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "🔗 Merge Post + Image",
+                        "type": "main",
+                        "index": 1
+                    }
+                ]
+            ]
+        },
+        "🖼️ Fetch Missing Image": {
+            "main": [
+                [
+                    {
+                        "node": "🔗 Merge Post + Image",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔗 Merge Post + Image": {
+            "main": [
+                [
+                    {
+                        "node": "📤 Prepare Blotato Payload",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📤 Prepare Blotato Payload": {
+            "main": [
+                [
+                    {
+                        "node": "📤 Post via Blotato",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📤 Post via Blotato": {
+            "main": [
+                [
+                    {
+                        "node": "✅ Did Post Succeed?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "✅ Did Post Succeed?": {
+            "main": [
+                [
+                    {
+                        "node": "✅ Update Status POSTED",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "❌ Update Status FAILED",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "✅ Update Status POSTED": {
+            "main": [
+                [
+                    {
+                        "node": "📱 Telegram: Post Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "❌ Update Status FAILED": {
+            "main": [
+                [
+                    {
+                        "node": "📱 Telegram: Post Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "📋 Count Planned Articles": {
+            "main": [
+                [
+                    {
+                        "node": "🔍 Filter Next 7 Days",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔍 Filter Next 7 Days": {
+            "main": [
+                [
+                    {
+                        "node": "🔍 Gap Exists?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "🔍 Gap Exists?": {
+            "main": [
+                [
+                    {
+                        "node": "📱 Telegram: Gap Alert",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "📱 Telegram: Calendar Healthy",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "pinData": {},
+    "meta": {
+        "templateCredsSetupCompleted": true,
+        "instanceId": "a79475f7095de8c37ff66ff0555048b9d09a434d2f5d3f0c0ad30a21a7b8cbc6"
     },
     "active": false,
     "settings": {
-      "timezone": "America/New_York",
-      "executionTimeout": 300,
-      "errorWorkflow": ""
+        "timezone": "America/New_York",
+        "executionTimeout": 300,
+        "errorWorkflow": ""
     },
-    "tags": ["htg", "content-calendar", "social-media"]
-  }
+    "tags": [
+        "htg",
+        "content-calendar",
+        "social-media"
+    ]
+}

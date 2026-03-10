@@ -74,7 +74,7 @@
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "6MuQNoVFMXOhUOOK",
-          "name": "HowTo-Genie - Google Sheets account"
+          "name": "HowTo - Genie | Google Sheets account"
         }
       }
     },
@@ -252,7 +252,7 @@
       "credentials": {
         "googleSheetsOAuth2Api": {
           "id": "6MuQNoVFMXOhUOOK",
-          "name": "HowTo-Genie - Google Sheets account"
+          "name": "HowTo - Genie | Google Sheets account"
         }
       }
     },
