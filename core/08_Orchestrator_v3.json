@@ -419,6 +419,115 @@
     },
     {
       "parameters": {
+        "jsCode": "const topic = $('✅ Parse & Validate Topic').item.json;\nconst inject = $('💉 Inject Approved Topic').item.json;\nconst useApproved = inject.use_approved_topic === true;\nconst rowNum = topic._row != null ? topic._row : null;\nif (!useApproved || rowNum == null) {\n  return [{ json: { skip_backlog_update: true } }];\n}\nreturn [{ json: { Row_Number: rowNum, status: 'rejected', Status: 'rejected' } }];"
+      },
+      "name": "📋 Build Backlog Rejection Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -800,
+        496
+      ],
+      "id": "a7f1qc03-build-backlog-rejection",
+      "notes": "When topic came from backlog (_row), outputs Row_Number + status for Sheets update; else skip_backlog_update."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "backlog-cond-001",
+              "leftValue": "={{ $json.skip_backlog_update }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Backlog Update Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -576,
+        496
+      ],
+      "id": "a7f1qc04-if-backlog-update"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.BLOG_IDEA_TAB || 'Blog Idea Backlog' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Row_Number": "={{ $json.Row_Number }}",
+            "status": "={{ $json.status }}",
+            "Status": "={{ $json.Status }}"
+          },
+          "matchingColumns": ["Row_Number"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "📊 Update Backlog Row (rejected)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -352,
+        496
+      ],
+      "id": "a7f1qc05-sheets-update-backlog",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
+        }
+      },
+      "notes": "Updates Blog Idea Backlog row to status=rejected when topic had _row."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}",
+        "text": "=QC rejected: {{ $json.topic }} — score {{ $json.qc_score }}/10, reasons: {{ $json.rejection_reasons }}. Fresh topic tomorrow.",
+        "additionalFields": {}
+      },
+      "name": "📱 Telegram: QC Rejected",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        -800,
+        592
+      ],
+      "id": "a7f1qc06-telegram-qc-rejected",
+      "credentials": {
+        "telegramApi": {
+          "id": "qfA78oS3FSIahsbl",
+          "name": "Telegram account"
+        }
+      },
+      "notes": "Sends QC rejection alert with topic, score, reasons."
+    },
+    {
+      "parameters": {
         "jsCode": "const topic = $('✅ Parse & Validate Topic').item.json;\nconst keyword = topic.primary_keyword || topic.topic || 'productivity';\nconst queries = [\n  keyword,\n  keyword.split(' ').slice(0,2).join(' '),\n  topic.secondary_keywords?.[0] || 'business success'\n];\nreturn [{ json: { queries, primary_query: queries[0] }}];"
       },
       "name": "🖼️ Build Image Queries",
@@ -1095,6 +1204,54 @@
           "name": "Telegram account"
         }
       }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "status-cond-001",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "publish_failed",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "🔀 Status is publish_failed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1104, 208],
+      "id": "e2f3a4b5-c6d7-8901-2345-67890abcdef1",
+      "notes": "After Log: route to Telegram Publish Failed or Send Success Alert."
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('⚙️ Load Config').item.json.TELEGRAM_CHAT_ID }}",
+        "text": "=❌ Publish failed: {{ $json.title || 'Article' }}. Check logs.",
+        "additionalFields": {}
+      },
+      "id": "b3c4d5e6-f7a8-9012-cdef-123456789012",
+      "name": "📱 Telegram: Publish Failed",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1328, 304],
+      "credentials": {
+        "telegramApi": {
+          "id": "qfA78oS3FSIahsbl",
+          "name": "Telegram account"
+        }
+      }
     }
   ],
   "connections": {
@@ -1420,10 +1577,17 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "📋 Assemble Content Log Row",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
-    "🔍 Request Google Indexing": {
+    "📋 Assemble Content Log Row": {
       "main": [
         [
           {
@@ -1434,8 +1598,37 @@
         ]
       ]
     },
+    "🔍 Request Google Indexing": {
+      "main": [
+        [
+          {
+            "node": "📋 Assemble Content Log Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "📊 Log to Google Sheets": {
       "main": [
+        [
+          {
+            "node": "🔀 Status is publish_failed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Status is publish_failed?": {
+      "main": [
+        [
+          {
+            "node": "📱 Telegram: Publish Failed",
+            "type": "main",
+            "index": 0
+          }
+        ],
         [
           {
             "node": "✅ Send Success Alert",
@@ -1484,37 +1677,13 @@
       ]
     },
     "🎨 Queue via Blotato": {
-      "main": [
-        [
-          {
-            "node": "📊 Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     },
     "🔍 Request Bing Indexing": {
-      "main": [
-        [
-          {
-            "node": "📊 Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     },
     "📡 Ping Sitemap": {
-      "main": [
-        [
-          {
-            "node": "📊 Log to Google Sheets",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": []
     },
     "🧠 Agent 0: Prompt Engineer": {
       "main": [
