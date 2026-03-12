@@ -1423,8 +1423,41 @@
             "node": "📊 Write to Rejected Posts Sheet",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "📋 Build Backlog Rejection Update",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📱 Telegram: QC Rejected",
+            "type": "main",
+            "index": 0
           }
         ]
+      ]
+    },
+    "📋 Build Backlog Rejection Update": {
+      "main": [
+        [
+          {
+            "node": "Backlog Update Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backlog Update Needed?": {
+      "main": [
+        [
+          {
+            "node": "📊 Update Backlog Row (rejected)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
       ]
     },
     "🖼️ Build Image Queries": {
