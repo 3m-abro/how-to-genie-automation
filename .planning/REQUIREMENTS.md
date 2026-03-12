@@ -20,7 +20,7 @@
 - [x] **GROW-03**: A/B testing engine creates and logs variant articles for yesterday's post
 - [x] **GROW-04**: Viral content amplifier reads GA4 data and promotes high-performing posts
 - [ ] **GROW-05**: Video production workflow generates TikTok/Shorts scripts and submits to Pictory/InVideo
-- [ ] **GROW-06**: Email newsletter automation sends welcome sequence to new subscribers via ConvertKit/MailerLite
+- [x] **GROW-06**: Email newsletter automation sends welcome sequence to new subscribers via ConvertKit/MailerLite
 
 ### Dashboard & Monitoring
 
@@ -72,7 +72,7 @@
 | GROW-03 | Phase 3 | Complete |
 | GROW-04 | Phase 3 | Complete |
 | GROW-05 | Phase 4 | Pending |
-| GROW-06 | Phase 4 | Pending |
+| GROW-06 | Phase 4 | Complete |
 | DASH-01 | Phase 5 | Pending |
 | DASH-02 | Phase 5 | Pending |
 | DASH-03 | Phase 5 | Pending |

@@ -78,7 +78,7 @@ Plans:
   1. Video production workflow runs at 10:30 AM, reads today's post from Sheets, and submits a script to Pictory or InVideo — a confirmation ID appears in the Sheets row
   2. New subscriber webhook fires, tags the subscriber in ConvertKit or MailerLite, and sends the first welcome email within 5 minutes of signup
   3. Email sequence sends subsequent messages on the configured schedule without any manual intervention
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — Video Production: Config Loader, VIDEO_PRODUCTION_ENABLED gate, today's post, multiple scripts → Blotato, Video Log one row per video (GROW-05)
@@ -118,6 +118,6 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | 1. Pipeline Reliability | 6/6 | Complete    | 2026-03-12 |
 | 2. Distribution Growth | 2/2 | Complete    | 2026-03-12 |
 | 3. Optimization Loops | 2/2 | Complete    | 2026-03-12 |
-| 4. Content Satellites | 0/TBD | Not started | - |
+| 4. Content Satellites | 1/2 | In Progress|  |
 | 5. Live Dashboards & Monitoring | 0/TBD | Not started | - |
 | 6. Affiliate & SEO Feedback | 0/TBD | Not started | - |
