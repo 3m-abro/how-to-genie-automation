@@ -53,7 +53,7 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 02-01-PLAN.md — Multi-language: Config Loader, enable gate, today's post filter, 8 subdomains, Multilingual Content log (GROW-01)
+- [x] 02-01-PLAN.md — Multi-language: Config Loader, enable gate, today's post filter, 8 subdomains, Multilingual Content log (GROW-01)
 - [ ] 02-02-PLAN.md — Messaging: Config Loader, enable gate, today's post + skip paths, subscribers, Telegram/WhatsApp send and log (GROW-02)
 
 ### Phase 3: Optimization Loops
@@ -108,7 +108,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline Reliability | 6/6 | Complete    | 2026-03-12 |
-| 2. Distribution Growth | 0/2 | Not started | - |
+| 2. Distribution Growth | 1/2 | In progress | - |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
 | 5. Live Dashboards & Monitoring | 0/TBD | Not started | - |

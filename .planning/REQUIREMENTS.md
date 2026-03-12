@@ -15,7 +15,7 @@
 
 ### Growth Workflows Activation
 
-- [ ] **GROW-01**: Multi-language expansion workflow translates and publishes today's post to 9 languages (enabled in config)
+- [x] **GROW-01**: Multi-language expansion workflow translates and publishes today's post to 9 languages (enabled in config)
 - [ ] **GROW-02**: WhatsApp/Telegram bot sends daily digest to subscribers (enabled in config)
 - [ ] **GROW-03**: A/B testing engine creates and logs variant articles for yesterday's post
 - [ ] **GROW-04**: Viral content amplifier reads GA4 data and promotes high-performing posts
@@ -67,7 +67,7 @@
 | PIPE-03 | Phase 1 | Complete |
 | PIPE-04 | Phase 1 | Complete |
 | PIPE-05 | Phase 1 | Complete |
-| GROW-01 | Phase 2 | Pending |
+| GROW-01 | Phase 2 | Complete |
 | GROW-02 | Phase 2 | Pending |
 | GROW-03 | Phase 3 | Pending |
 | GROW-04 | Phase 3 | Pending |
