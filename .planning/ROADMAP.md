@@ -31,7 +31,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. WordPress publish step retries on failure and writes `published` or `publish_failed` status to the Content Log — never a blank status
   4. QC rejection writes a structured row to Sheets (reason, score, topic) and the next day's run picks a fresh topic rather than re-running the rejected one
   5. Changing a value in htg_config.csv takes effect on the next scheduled run without re-importing the workflow JSON
-**Plans**: TBD
+**Plans:** 5 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Config & schedule verification; REJECTED_POSTS_TAB and Wave 0 doc
+- [ ] 01-02-PLAN.md — Agent migration to Ollama Central; Parse & Validate QC; QC Approved? boolean
+- [ ] 01-03-PLAN.md — WordPress native node, retry, Publish Succeeded? gate for satellites
+- [ ] 01-04-PLAN.md — QC rejection path: Rejected Posts sheet, Backlog update, Telegram alert
+- [ ] 01-05-PLAN.md — Assemble Content Log Row; wire Log and publish_failed path
 
 ### Phase 2: Distribution Growth
 **Goal**: Today's published post automatically reaches subscribers in their native language and via WhatsApp/Telegram every day, expanding audience without any manual content promotion
@@ -95,7 +102,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Reliability | 0/TBD | Not started | - |
+| 1. Pipeline Reliability | 0/5 | Not started | - |
 | 2. Distribution Growth | 0/TBD | Not started | - |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
