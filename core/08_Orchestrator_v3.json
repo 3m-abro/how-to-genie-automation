@@ -359,31 +359,63 @@
     },
     {
       "parameters": {
-        "workflowId": {
-          "__rl": true,
-          "value": "UuyF6a4KyZpZ7jQ3",
-          "mode": "list",
-          "cachedResultUrl": "/workflow/UuyF6a4KyZpZ7jQ3",
-          "cachedResultName": "Alert Handler"
-        },
-        "workflowInputs": {
-          "mappingMode": "defineBelow",
-          "value": {},
-          "matchingColumns": [],
-          "schema": [],
-          "attemptToConvertTypes": false,
-          "convertFieldsToString": true
-        },
-        "options": {}
+        "jsCode": "const qc = $('✅ Parse & Validate QC').item.json;\nconst topic = $('✅ Parse & Validate Topic').item.json;\nconst assemble = $('🔧 Assemble Final Article').item.json;\nconst config = $('⚙️ Load Config').item.json;\nconst pkg = $('📋 Parse Prompt Package').item.json;\n\nconst fallbacks = [];\nif (pkg.parse_error) fallbacks.push('agent_0');\nif (topic.status === 'fallback_topic' || topic.error) fallbacks.push('agent_1');\nif (qc.parse_error) fallbacks.push('agent_5');\n\nconst rejectionReasons = qc.scores && Object.keys(qc.scores).length\n  ? JSON.stringify(qc.scores)\n  : (qc.rejection_reason || 'QC rejected');\nconst now = new Date();\nreturn [{ json: {\n  date: now.toISOString().slice(0, 10),\n  topic: topic.topic || '',\n  primary_keyword: topic.primary_keyword || '',\n  qc_score: qc.average_score != null ? qc.average_score : 0,\n  rejection_reasons: rejectionReasons,\n  word_count: assemble.word_count != null ? assemble.word_count : 0,\n  agent_fallbacks_used: JSON.stringify(fallbacks),\n  run_timestamp: now.toISOString()\n}}];"
       },
-      "name": "⚠️ Alert: QC Rejected",
-      "type": "n8n-nodes-base.executeWorkflow",
-      "typeVersion": 1.2,
+      "name": "📋 Build QC Rejection Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [
         -1024,
         400
       ],
-      "id": "509f5ed0-592b-48f9-9580-64417679a28a"
+      "id": "a7f1qc01-build-rejection-row",
+      "notes": "Assembles rejection row from QC, Topic, Assemble, Config. agent_fallbacks_used from Parse Prompt Package, Topic, Parse & Validate QC."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.REJECTED_POSTS_TAB || 'Rejected Posts' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "topic": "={{ $json.topic }}",
+            "primary_keyword": "={{ $json.primary_keyword }}",
+            "qc_score": "={{ $json.qc_score }}",
+            "rejection_reasons": "={{ $json.rejection_reasons }}",
+            "word_count": "={{ $json.word_count }}",
+            "agent_fallbacks_used": "={{ $json.agent_fallbacks_used }}",
+            "run_timestamp": "={{ $json.run_timestamp }}"
+          },
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "📊 Write to Rejected Posts Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -800,
+        400
+      ],
+      "id": "a7f1qc02-write-rejected-sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
+        }
+      },
+      "notes": "Appends one row per QC rejection. Tab name from config REJECTED_POSTS_TAB."
     },
     {
       "parameters": {
@@ -1209,7 +1241,18 @@
         ],
         [
           {
-            "node": "⚠️ Alert: QC Rejected",
+            "node": "📋 Build QC Rejection Row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Build QC Rejection Row": {
+      "main": [
+        [
+          {
+            "node": "📊 Write to Rejected Posts Sheet",
             "type": "main",
             "index": 0
           }
