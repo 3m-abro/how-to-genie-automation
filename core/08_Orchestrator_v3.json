@@ -105,18 +105,34 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.research_context }}\\n\\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\\n{{ $json.reddit_context }}\\n\\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\\n{{ $('📡 Load Existing Topics').item.json.existing_keywords }}\\n\\nSelect the SINGLE best topic to write about today. Return JSON:\\n{\\n  \\\"topic\\\": \\\"exact article title\\\",\\n  \\\"primary_keyword\\\": \\\"main SEO keyword\\\",\\n  \\\"secondary_keywords\\\": [\\\"kw1\\\", \\\"kw2\\\", \\\"kw3\\\"],\\n  \\\"search_intent\\\": \\\"informational|transactional|navigational\\\",\\n  \\\"affiliate_angle\\\": \\\"which products could be recommended\\\",\\n  \\\"content_outline\\\": [\\\"H2 section 1\\\", \\\"H2 section 2\\\", \\\"...7-9 total\\\"],\\n  \\\"word_count_target\\\": 3000,\\n  \\\"is_halal_compliant\\\": true,\\n  \\\"not_duplicate\\\": true\\n}\\n\\nReturn only valid JSON.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.7 } }",
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant. Return only valid JSON.' }}",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.research_context }}\n\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\n{{ $('💉 Inject Approved Topic').item.json.reddit_context }}\n\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\n{{ $('💉 Inject Approved Topic').item.json.existing_keywords }}\n\nSelect the SINGLE best topic to write about today. Return JSON:\n{\n  \"topic\": \"exact article title\",\n  \"primary_keyword\": \"main SEO keyword\",\n  \"secondary_keywords\": [\"kw1\", \"kw2\", \"kw3\"],\n  \"search_intent\": \"informational|transactional|navigational\",\n  \"affiliate_angle\": \"which products could be recommended\",\n  \"content_outline\": [\"H2 section 1\", \"H2 section 2\", \"...7-9 total\"],\n  \"word_count_target\": 3000,\n  \"is_halal_compliant\": true,\n  \"not_duplicate\": true\n}\n\nReturn only valid JSON.",
+            "temperature": 0.7,
+            "num_predict": 4096
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "timeout": 300000
+          "waitForSubWorkflow": true
         }
       },
       "name": "🔍 Agent 1: Research & Topic",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -2816,
         304
@@ -139,18 +155,34 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.writer_instructions }}\\n\\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\\nCONTENT OUTLINE: {{ $('✅ Parse & Validate Topic').item.json.content_outline }}\\nTARGET WORDS: {{ $('✅ Parse & Validate Topic').item.json.word_count_target }}\\n\\nWrite the complete article now. Use HTML formatting (h1, h2, h3, p, ul, ol, strong).\\nReturn the full article HTML. No JSON wrapper, just the raw HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.8, \"num_predict\": 4000 } }",
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant.' }}",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.writer_instructions }}\n\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\nCONTENT OUTLINE: {{ $('✅ Parse & Validate Topic').item.json.content_outline }}\nTARGET WORDS: {{ $('✅ Parse & Validate Topic').item.json.word_count_target }}\n\nWrite the complete article now. Use HTML formatting (h1, h2, h3, p, ul, ol, strong).\nReturn the full article HTML. No JSON wrapper, just the raw HTML article.",
+            "temperature": 0.8,
+            "num_predict": 4096
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "timeout": 600000
+          "waitForSubWorkflow": true
         }
       },
       "name": "✍️ Agent 2: Content Writer",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -2368,
         304
@@ -160,18 +192,34 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.humanizer_instructions }}\\n\\nARTICLE TO HUMANIZE:\\n{{ $('✍️ Agent 2: Content Writer').item.json.message.content }}\\n\\nRewrite the entire article. Keep all HTML tags, structure, and factual content intact.\\nReturn only the rewritten HTML article.\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.9, \"num_predict\": 4000 } }",
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant.' }}",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.humanizer_instructions }}\n\nARTICLE TO HUMANIZE:\n{{ $('✍️ Agent 2: Content Writer').item.json.message.content }}\n\nRewrite the entire article. Keep all HTML tags, structure, and factual content intact.\nReturn only the rewritten HTML article.",
+            "temperature": 0.9,
+            "num_predict": 4096
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "timeout": 600000
+          "waitForSubWorkflow": true
         }
       },
       "name": "🫂 Agent 3: Humanizer",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -2144,
         304
@@ -180,18 +228,34 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.seo_instructions }}\\n\\nARTICLE:\\n{{ $('🫂 Agent 3: Humanizer').item.json.message.content }}\\n\\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\\nAFFILIATE ANGLE: {{ $('✅ Parse & Validate Topic').item.json.affiliate_angle }}\\n\\nIMPORTANT: You MUST add this exact disclosure at the very top of the article content, before the first paragraph:\\n<p><em><strong>Disclosure:</strong> This article contains affiliate links. If you purchase through our links, we may earn a commission at no extra cost to you. We only recommend products we genuinely believe in.</em></p>\\n\\nReturn JSON:\\n{\\n  \\\"optimized_content\\\": \\\"full HTML article with disclosure at top and affiliate CTAs integrated\\\",\\n  \\\"meta_title\\\": \\\"SEO title under 60 chars\\\",\\n  \\\"meta_description\\\": \\\"compelling description under 155 chars\\\",\\n  \\\"focus_keyword\\\": \\\"primary keyword\\\",\\n  \\\"slug\\\": \\\"url-friendly-slug\\\",\\n  \\\"tags\\\": [\\\"tag1\\\",\\\"tag2\\\",\\\"...up to 10\\\"],\\n  \\\"categories\\\": [\\\"Main Category\\\"],\\n  \\\"affiliate_ctas_added\\\": 3\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.4, \"num_predict\": 4000 } }",
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant. Return only valid JSON.' }}",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.seo_instructions }}\n\nARTICLE:\n{{ $('🫂 Agent 3: Humanizer').item.json.message.content }}\n\nTOPIC: {{ $('✅ Parse & Validate Topic').item.json.topic }}\nPRIMARY KEYWORD: {{ $('✅ Parse & Validate Topic').item.json.primary_keyword }}\nAFFILIATE ANGLE: {{ $('✅ Parse & Validate Topic').item.json.affiliate_angle }}\n\nIMPORTANT: You MUST add this exact disclosure at the very top of the article content, before the first paragraph:\n<p><em><strong>Disclosure:</strong> This article contains affiliate links. If you purchase through our links, we may earn a commission at no extra cost to you. We only recommend products we genuinely believe in.</em></p>\n\nReturn JSON:\n{\n  \"optimized_content\": \"full HTML article with disclosure at top and affiliate CTAs integrated\",\n  \"meta_title\": \"SEO title under 60 chars\",\n  \"meta_description\": \"compelling description under 155 chars\",\n  \"focus_keyword\": \"primary keyword\",\n  \"slug\": \"url-friendly-slug\",\n  \"tags\": [\"tag1\",\"tag2\",\"...up to 10\"],\n  \"categories\": [\"Main Category\"],\n  \"affiliate_ctas_added\": 3\n}",
+            "temperature": 0.4,
+            "num_predict": 4096
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "timeout": 600000
+          "waitForSubWorkflow": true
         }
       },
       "name": "🎯 Agent 4: SEO & Monetization",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -1920,
         304
@@ -214,18 +278,34 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "http://{{ ($('⚙️ Load Config').item.json.OLLAMA_URL || $vars.OLLAMA_URL || 'http://localhost:11434') | replace('http://', '') }}/api/chat",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"model\": \"llama3.2:latest\",   \"messages\": [{\"role\": \"user\", \"content\": \"{{ $('📋 Parse Prompt Package').item.json.qc_rubric }}\\n\\nARTICLE TO REVIEW:\\n{{ $('🔧 Assemble Final Article').item.json.content.substring(0, 3000) }}...\\n\\nMETADATA:\\n- Title: {{ $('🔧 Assemble Final Article').item.json.title }}\\n- Word Count: {{ $('🔧 Assemble Final Article').item.json.word_count }}\\n- Focus Keyword: {{ $('🔧 Assemble Final Article').item.json.focus_keyword }}\\n\\nReturn JSON:\\n{\\n  \\\"approved\\\": true,\\n  \\\"scores\\\": {\\n    \\\"word_count\\\": 8,\\n    \\\"readability\\\": 7,\\n    \\\"seo_compliance\\\": 8,\\n    \\\"affiliate_disclosure\\\": 10,\\n    \\\"factual_accuracy\\\": 8,\\n    \\\"reader_value\\\": 9\\n  },\\n  \\\"average_score\\\": 8.3,\\n  \\\"rejection_reason\\\": null,\\n  \\\"suggestions\\\": [\\\"optional improvement notes\\\"]\\n}\"}],   \"stream\": false,   \"options\": { \"temperature\": 0.3 } }",
+        "workflowId": {
+          "__rl": true,
+          "value": "18GE0djgSQJHhj8C",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/18GE0djgSQJHhj8C",
+          "cachedResultName": "Ollama Agent (Central)"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
+            "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant. Return only valid JSON.' }}",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.qc_rubric }}\n\nARTICLE TO REVIEW:\n{{ $('🔧 Assemble Final Article').item.json.content.substring(0, 3000) }}...\n\nMETADATA:\n- Title: {{ $('🔧 Assemble Final Article').item.json.title }}\n- Word Count: {{ $('🔧 Assemble Final Article').item.json.word_count }}\n- Focus Keyword: {{ $('🔧 Assemble Final Article').item.json.focus_keyword }}\n\nReturn JSON:\n{\n  \"approved\": true,\n  \"scores\": {\n    \"word_count\": 8,\n    \"readability\": 7,\n    \"seo_compliance\": 8,\n    \"affiliate_disclosure\": 10,\n    \"factual_accuracy\": 8,\n    \"reader_value\": 9\n  },\n  \"average_score\": 8.3,\n  \"rejection_reason\": null,\n  \"suggestions\": [\"optional improvement notes\"]\n}",
+            "temperature": 0.3,
+            "num_predict": 4096
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
         "options": {
-          "timeout": 300000
+          "waitForSubWorkflow": true
         }
       },
       "name": "🛡️ Agent 5: Quality Control",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
       "position": [
         -1472,
         304
@@ -455,24 +535,82 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://{{ $vars.WORDPRESS_URL | replace('https://', '') }}/wp-json/wp/v2/posts",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "wordpressApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={   \"title\": \"{{ $('🔧 Assemble Final Article').item.json.title }}\",   \"content\": \"{{ $('🔧 Assemble Final Article').item.json.content.replace(/\"/g, '\\\\\"').replace(/\\n/g, '\\\\n') }}\",   \"slug\": \"{{ $('🔧 Assemble Final Article').item.json.slug }}\",   \"status\": \"publish\",   \"featured_media\": {{ $('🔗 Capture Media ID').item.json.media_id || 0 }},   \"excerpt\": \"{{ $('🔧 Assemble Final Article').item.json.excerpt }}\",   \"meta\": {     \"_yoast_wpseo_title\": \"{{ $('🔧 Assemble Final Article').item.json.title }}\",     \"_yoast_wpseo_metadesc\": \"{{ $('🔧 Assemble Final Article').item.json.meta_description }}\",     \"_yoast_wpseo_focuskw\": \"{{ $('🔧 Assemble Final Article').item.json.focus_keyword }}\"   } }",
-        "options": {}
+        "resource": "post",
+        "operation": "create",
+        "title": "={{ $('🔧 Assemble Final Article').item.json.title }}",
+        "content": "={{ $('🔧 Assemble Final Article').item.json.content }}",
+        "slug": "={{ $('🔧 Assemble Final Article').item.json.slug }}",
+        "status": "publish",
+        "additionalFields": {
+          "excerpt": "={{ $('🔧 Assemble Final Article').item.json.excerpt }}",
+          "featuredMediaId": "={{ $('🔗 Capture Media ID').item.json.media_id || 0 }}"
+        }
       },
       "name": "📝 Publish to WordPress",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.4,
+      "type": "n8n-nodes-base.wordpress",
+      "typeVersion": 1,
       "position": [
         544,
         208
       ],
       "id": "d5cf0df3-5ae8-43e7-8c5f-3db1a9987726",
-      "notes": "Now includes featured_media ID. Post goes live immediately."
+      "notes": "Native WordPress node with retry. Post goes live immediately.",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "wordpressApi": {
+          "id": "placeholder",
+          "name": "wordpressApi"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "try {\n  const $json = $input.first().json;\n  const id = $json.id != null ? $json.id : '';\n  const link = $json.link || $json.url || '';\n  return [{ json: { id, link, status: 'published' } }];\n} catch(e) {\n  return [{ json: { id: '', link: '', status: 'publish_failed' } }];\n}"
+      },
+      "name": "🔗 Capture WP Post Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        208
+      ],
+      "id": "a1b2c3d4-5e6f-7890-abcd-ef1234567890",
+      "notes": "Normalizes WP node output to { id, link, status }. On error returns status publish_failed."
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "pub-cond-001",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "publish_failed",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "🔀 Publish Succeeded?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        992,
+        208
+      ],
+      "id": "b2c3d4e5-6f78-9012-bcde-f12345678901",
+      "notes": "True: run satellites (indexing, Blotato, Calendar, Telegram). False: 01-05 wires publish_failed log + Telegram."
     },
     {
       "parameters": {
@@ -645,7 +783,7 @@
         "url": "=https://ssl.bing.com/webmaster/api.svc/json/SubmitUrl?apikey={{ $('⚙️ Load Config').item.json.BING_WEBMASTER_KEY || 'YOUR_BING_KEY' }}",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\"siteUrl\": \"{{ $(\"⚙️ Load Config\").item.json.WORDPRESS_URL || $vars.WORDPRESS_URL }}\", \"url\": \"{{ $(\"📝 Publish to WordPress\").item.json.link }}\"}",
+        "jsonBody": "={\"siteUrl\": \"{{ $(\"⚙️ Load Config\").item.json.WORDPRESS_URL || $vars.WORDPRESS_URL }}\", \"url\": \"{{ $json.link }}\"}",
         "options": {
           "timeout": 10000
         }
@@ -688,8 +826,8 @@
           "mappingMode": "defineBelow",
           "value": {
             "streaming": false,
-            "num_predict": 0,
-            "ollama_model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART }}",
+            "num_predict": 4096,
+            "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
             "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA }}",
             "user_message": "=You are a master prompt engineer for a content automation system. \\nToday is {{ $now.format('dddd, MMMM D YYYY') }}. Niche: practical how-to guides.\\n\\nGenerate a JSON prompt package for today's content pipeline:\\n{\\n  \\\"research_context\\\": \\\"Instructions for finding 3 trending how-to topics with high search intent and affiliate potential. Prioritize topics with: clear actionable steps, product recommendations possible, large audience.\\\",\\n  \\\"writer_instructions\\\": \\\"Instructions for writing a 2800+ word expert how-to article. Must include: compelling H1, intro with problem hook, 7-9 H2 sections with numbered steps, expert tips callouts, FAQ section (5 questions), conclusion with CTA. Tone: conversational expert.\\\",\\n  \\\"humanizer_instructions\\\": \\\"Instructions for rewriting to sound like a genuine expert blogger sharing personal experience. Add first-person observations, vary sentence rhythm, remove generic phrases, keep all factual content.\\\",\\n  \\\"seo_instructions\\\": \\\"Instructions for SEO optimization. Must produce: meta_title (under 60 chars), meta_description (under 155 chars), focus_keyword, tags array (8-10), affiliate disclosure at article top, 3 naturally integrated affiliate CTAs.\\\",\\n  \\\"qc_rubric\\\": \\\"Scoring rubric: word_count (min 2800, max 5000), readability (plain English), seo_compliance, affiliate_disclosure_present, factual_accuracy, reader_value. Score each 1-10. Approved if all scores >= 6 and avg >= 7.\\\",\\n  \\\"social_instructions\\\": \\\"Instructions for creating platform posts from the article. Facebook: engaging caption with emoji. Instagram: caption + CTA + 10 relevant hashtags. Pinterest: pin title + 200 char description + board name. YouTube Short script: 60 sec, hook/problem/solution/CTA. Save TikTok as script only.\\\"\\n}\\n\\nReturn only valid JSON, no markdown.",
             "temperature": "0.4",
@@ -698,8 +836,8 @@
           "matchingColumns": [],
           "schema": [
             {
-              "id": "ollama_model",
-              "displayName": "ollama_model",
+              "id": "model",
+              "displayName": "model",
               "required": false,
               "defaultMatch": false,
               "display": true,
@@ -1155,6 +1293,28 @@
       ]
     },
     "📝 Publish to WordPress": {
+      "main": [
+        [
+          {
+            "node": "🔗 Capture WP Post Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔗 Capture WP Post Data": {
+      "main": [
+        [
+          {
+            "node": "🔀 Publish Succeeded?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Publish Succeeded?": {
       "main": [
         [
           {
