@@ -314,20 +314,33 @@
     },
     {
       "parameters": {
+        "jsCode": "const raw = $input.first().json.message?.content || $input.first().json.response || '';\nlet qc;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  qc = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (typeof qc.approved !== 'boolean') throw new Error('approved must be boolean');\n} catch(e) {\n  qc = { approved: false, average_score: 0, rejection_reason: 'QC parse failure', scores: {}, parse_error: true };\n}\nreturn [{ json: qc }];"
+      },
+      "name": "✅ Parse & Validate QC",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        304
+      ],
+      "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+    },
+    {
+      "parameters": {
         "conditions": {
           "options": {
             "caseSensitive": true,
             "leftValue": "",
-            "typeValidation": "loose"
+            "typeValidation": "strict"
           },
           "conditions": [
             {
               "id": "qc-cond-001",
-              "leftValue": "={{ $json.message.content }}",
-              "rightValue": "\"approved\": true",
+              "leftValue": "={{ $json.approved }}",
+              "rightValue": true,
               "operator": {
-                "type": "string",
-                "operation": "contains"
+                "type": "boolean",
+                "operation": "equals"
               }
             }
           ],
@@ -1164,6 +1177,17 @@
       ]
     },
     "🛡️ Agent 5: Quality Control": {
+      "main": [
+        [
+          {
+            "node": "✅ Parse & Validate QC",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "✅ Parse & Validate QC": {
       "main": [
         [
           {
