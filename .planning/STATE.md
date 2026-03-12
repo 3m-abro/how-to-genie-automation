@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: 1
+current_plan: 3
 status: executing
-stopped_at: Completed 01-pipeline-reliability-01-PLAN.md
-last_updated: "2026-03-12T06:32:21.603Z"
+stopped_at: Completed 01-03-PLAN.md
+last_updated: "2026-03-12T06:34:35.741Z"
 last_activity: 2026-03-12
 progress:
   total_phases: 6
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
+  completed_plans: 3
   percent: 0
 ---
 
@@ -27,7 +27,7 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 ## Current Position
 
 Phase: 1 of 6 (Pipeline Reliability)
-**Current Plan:** 1
+**Current Plan:** 3
 **Total Plans in Phase:** 5
 Plan: 0 of 5 in current phase
 Status: Ready to execute
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-pipeline-reliability P01 | 1min | 2 tasks | 2 files |
+| Phase 01-pipeline-reliability P03 | 8 | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,7 @@ Recent decisions affecting current work:
 - [Init]: Google Sheets as database — all satellites chain off Content Log tab; no SQL infrastructure needed
 - [Init]: htg_config.csv as single config source — parameter changes take effect without re-importing workflow JSON
 - [Init]: Separate satellite workflows — each can be enabled/disabled independently without touching core pipeline
+- [Phase 01-pipeline-reliability]: WordPress publish: native node with retry (3 tries, 5s); Capture WP Post Data + Publish Succeeded? gate so satellites run only when status !== publish_failed
 
 ### Pending Todos
 
@@ -78,6 +80,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T06:32:21.600Z
-Stopped at: Completed 01-pipeline-reliability-01-PLAN.md
+Last session: 2026-03-12T06:34:21.813Z
+Stopped at: Completed 01-03-PLAN.md
 Resume file: None
