@@ -12,7 +12,7 @@ The core 8-agent content pipeline already exists and is production-ready. This r
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Pipeline Reliability** - Harden the core 8 AM pipeline so it never silently fails or stops mid-run
+- [x] **Phase 1: Pipeline Reliability** - Harden the core 8 AM pipeline so it never silently fails or stops mid-run (completed 2026-03-12)
 - [ ] **Phase 2: Distribution Growth** - Activate multi-language expansion and WhatsApp/Telegram digest so content reaches more people daily
 - [ ] **Phase 3: Optimization Loops** - Enable A/B testing and viral amplifier so the system learns which content performs best
 - [ ] **Phase 4: Content Satellites** - Activate video production and email newsletter so every post spawns video and subscriber sequences
@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. WordPress publish step retries on failure and writes `published` or `publish_failed` status to the Content Log — never a blank status
   4. QC rejection writes a structured row to Sheets (reason, score, topic) and the next day's run picks a fresh topic rather than re-running the rejected one
   5. Changing a value in htg_config.csv takes effect on the next scheduled run without re-importing the workflow JSON
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Config & schedule verification; REJECTED_POSTS_TAB and Wave 0 doc
@@ -102,7 +102,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Reliability | 4/5 | In Progress|  |
+| 1. Pipeline Reliability | 5/5 | Complete   | 2026-03-12 |
 | 2. Distribution Growth | 0/TBD | Not started | - |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
