@@ -33,7 +33,7 @@
       "type": "n8n-nodes-base.executeWorkflow",
       "typeVersion": 1.2,
       "position": [-640, 176],
-      "notes": "Runs core/01_Config_Loader.json for EMAIL_NEWSLETTER_ENABLED, EMAIL_PROVIDER, CONVERTKIT_*, MAILERLITE_*, GOOGLE_SHEET_ID. Replace workflowId if using a different n8n instance."
+      "notes": "Runs core/01_Config_Loader.json for EMAIL_NEWSLETTER_ENABLED, EMAIL_PROVIDER, CONVERTKIT_*, MAILERLITE_*, GOOGLE_SHEET_ID. Replace workflowId if using a different n8n instance. Single-provider (convertkit|mailerlite) from config; ESP sends first welcome and sequence."
     },
     {
       "parameters": {
