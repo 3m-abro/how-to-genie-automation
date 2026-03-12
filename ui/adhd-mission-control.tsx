@@ -1,11 +1,82 @@
 import { useState, useEffect } from 'react';
 import { CheckCircle, AlertCircle, Zap, TrendingUp, Clock, Award } from 'lucide-react';
 
+const API_BASE = (typeof process !== 'undefined' && process.env?.REACT_APP_MISSION_CONTROL_API) ||
+  (typeof import.meta !== 'undefined' && (import.meta as { env?: { VITE_MISSION_CONTROL_API?: string } }).env?.VITE_MISSION_CONTROL_API) ||
+  '';
+
+const defaultSystemStatus = {
+  overall: 'all_green' as const,
+  modules: [] as { name: string; status: string; lastRun: string; nextRun: string }[],
+  needsAttention: [] as string[],
+  todayProgress: 0,
+};
+
 export default function ADHDMissionControl() {
   const [currentFocus, setCurrentFocus] = useState('monitor');
-  const [streak, setStreak] = useState(7);
+  const [streak, setStreak] = useState(0);
   const [pomodoroActive, setPomodoroActive] = useState(false);
   const [pomodoroTime, setPomodoroTime] = useState(25 * 60);
+  const [systemStatus, setSystemStatus] = useState(defaultSystemStatus);
+  const [weeklyWins, setWeeklyWins] = useState<{ icon: string; text: string; points: number }[]>([]);
+  const [priorities, setPriorities] = useState<{
+    id: number;
+    title: string;
+    description: string;
+    action: string;
+    urgency: string;
+    timeEstimate: string;
+    icon: React.ReactNode;
+  }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const url = `${API_BASE}/api/n8n/status`.replace(/\/+/g, '/');
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status}`))))
+      .then((data) => {
+        const ss = data.system_status || {};
+        setSystemStatus({
+          overall: ss.overall || 'all_green',
+          modules: (ss.modules || []).map((m: { name?: string; status?: string; last_run?: string; next_run?: string }) => ({
+            name: m.name ?? 'Unknown',
+            status: m.status ?? 'stopped',
+            lastRun: m.last_run ?? 'N/A',
+            nextRun: m.next_run ?? 'Scheduled',
+          })),
+          needsAttention: ss.needsAttention ?? [],
+          todayProgress: typeof data.today_progress === 'number' ? data.today_progress : (ss.todayProgress ?? 0),
+        });
+        setStreak(typeof data.streak === 'number' ? data.streak : 0);
+        setWeeklyWins(Array.isArray(data.weekly_wins) ? data.weekly_wins : []);
+        const rawPriorities = Array.isArray(data.priorities) ? data.priorities : [];
+        const iconByUrgency = (u: string) => {
+          if (u === 'high') return <AlertCircle className="w-6 h-6 text-amber-500" />;
+          if (u === 'low') return <Clock className="w-6 h-6 text-blue-500" />;
+          return <CheckCircle className="w-6 h-6 text-green-500" />;
+        };
+        setPriorities(
+          rawPriorities.slice(0, 5).map((p: { title?: string; description?: string; action?: string; urgency?: string; time_estimate?: string }, i: number) => ({
+            id: i + 1,
+            title: p.title ?? '',
+            description: p.description ?? '',
+            action: p.action ?? '',
+            urgency: p.urgency ?? 'none',
+            timeEstimate: p.time_estimate ?? '',
+            icon: iconByUrgency(p.urgency ?? 'none'),
+          }))
+        );
+        setError(null);
+      })
+      .catch((err) => {
+        setError(err?.message ?? 'Failed to load mission control data');
+        setSystemStatus(defaultSystemStatus);
+        setWeeklyWins([]);
+        setPriorities([]);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     if (!pomodoroActive) return;
@@ -21,65 +92,29 @@ export default function ADHDMissionControl() {
     return () => clearInterval(timer);
   }, [pomodoroActive]);
 
-  const systemStatus = {
-    overall: 'all_green',
-    modules: [
-      { name: 'Blog Pipeline', status: 'running', lastRun: '2 hrs ago', nextRun: 'Tomorrow 8 AM' },
-      { name: 'Video Creation', status: 'running', lastRun: '4 hrs ago', nextRun: 'Tomorrow 10:30 AM' },
-      { name: 'Translations', status: 'running', lastRun: '6 hrs ago', nextRun: 'Tomorrow 2 PM' },
-      { name: 'Social Distribution', status: 'running', lastRun: '8 hrs ago', nextRun: 'Tomorrow 10 AM' },
-      { name: 'Email Campaigns', status: 'success', lastRun: 'Yesterday', nextRun: 'Next Tuesday' },
-    ],
-    needsAttention: [],
-    todayProgress: 85
-  };
-
-  const weeklyWins = [
-    { icon: '📝', text: '63 blog posts published (9 languages)', points: 630 },
-    { icon: '🎬', text: '63 videos created automatically', points: 630 },
-    { icon: '💰', text: 'Revenue: $420 this week (+28%)', points: 420 },
-    { icon: '📈', text: '145K page views this week', points: 145 },
-    { icon: '🔥', text: '7-day streak maintained!', points: 100 }
-  ];
-
-  const priorities = [
-    {
-      id: 1,
-      title: 'System is running perfectly',
-      description: 'All 11 modules operational. No action needed.',
-      action: 'Just monitor',
-      urgency: 'none',
-      timeEstimate: '5 min check',
-      icon: <CheckCircle className="w-6 h-6 text-green-500" />
-    },
-    {
-      id: 2,
-      title: 'Weekly Review (Weekend Task)',
-      description: 'Review analytics, approve winning A/B tests, check revenue.',
-      action: 'Open weekly dashboard',
-      urgency: 'low',
-      timeEstimate: '30 minutes',
-      icon: <Clock className="w-6 h-6 text-blue-500" />
-    },
-    {
-      id: 3,
-      title: 'Optional: Content Ideas Queue',
-      description: '47 AI-generated content ideas waiting. Review if you feel like it.',
-      action: 'Browse ideas',
-      urgency: 'none',
-      timeEstimate: '10 minutes',
-      icon: <Zap className="w-6 h-6 text-purple-500" />
-    }
-  ];
-
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  if (loading) {
+    return (
+      <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', fontFamily: 'Inter, sans-serif', color: '#fff', padding: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ fontSize: '18px', opacity: 0.9 }}>Loading mission control…</p>
+      </div>
+    );
+  }
+
+  const needsAttentionCount = Array.isArray(systemStatus.needsAttention) ? systemStatus.needsAttention.length : 0;
+
   return (
     <div style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', minHeight: '100vh', fontFamily: 'Inter, sans-serif', color: '#fff', padding: '24px' }}>
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.2)', border: '1px solid #ef4444', borderRadius: '12px', padding: '16px', marginBottom: '24px' }}>
+          <p style={{ margin: 0, fontSize: '14px' }}>⚠️ {error}</p>
+        </div>
+      )}
       
       {/* Header */}
       <div style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '24px', marginBottom: '24px', border: '1px solid rgba(255,255,255,0.2)' }}>
@@ -111,7 +146,7 @@ export default function ADHDMissionControl() {
         <p style={{ margin: 0, fontSize: '16px', opacity: 0.9 }}>
           {systemStatus.overall === 'all_green' 
             ? 'All systems operational. You can relax. Check back next week.' 
-            : `${systemStatus.needsAttention.length} items need a quick look`}
+            : `${needsAttentionCount} items need a quick look`}
         </p>
       </div>
 
@@ -185,12 +220,12 @@ export default function ADHDMissionControl() {
 
       {/* Module Status Grid */}
       <div style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)', borderRadius: '16px', padding: '24px', border: '1px solid rgba(255,255,255,0.2)' }}>
-        <h3 style={{ margin: '0 0 20px', fontSize: '20px', fontWeight: '700' }}>⚙️ System Status (11 Modules)</h3>
+        <h3 style={{ margin: '0 0 20px', fontSize: '20px', fontWeight: '700' }}>⚙️ System Status ({systemStatus.modules.length} Modules)</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
           {systemStatus.modules.map((module, idx) => (
             <div key={idx} style={{ background: 'rgba(255,255,255,0.1)', borderRadius: '12px', padding: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: module.status === 'running' ? '#10b981' : '#3b82f6' }}></div>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: module.status === 'error' ? '#ef4444' : module.status === 'running' ? '#10b981' : '#3b82f6' }}></div>
                 <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '600' }}>{module.name}</h4>
               </div>
               <p style={{ margin: '0 0 4px', fontSize: '12px', opacity: 0.8 }}>Last: {module.lastRun}</p>
