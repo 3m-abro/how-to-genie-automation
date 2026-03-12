@@ -168,7 +168,7 @@
     },
     {
       "parameters": {
-        "url": "=https://your-blog.com/wp-json/wp/v2/posts?slug={{ $json['WP URL']?.split('/').filter(Boolean).pop() }}",
+        "url": "={{ ($('⚙️ Load Config').item.json.WORDPRESS_URL || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts?slug={{ $json.slug }}",
         "options": {}
       },
       "name": "📥 Fetch English Article",
@@ -213,7 +213,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse translation and prepare for WordPress MultiSite or subdomain\nconst raw = $input.first().json.response || '';\nconst sourceData = $input.first().json;\n\nlet translation;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  translation = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  translation = {\n    translated_title: sourceData.title + ' (' + sourceData.target_name + ')',\n    translated_content: sourceData.content,\n    translated_excerpt: sourceData.excerpt,\n    parse_error: e.message\n  };\n}\n\n// Build localized affiliate links\nconst localAffiliateNetworks = {\n  'es': { primary: 'Digistore24', secondary: 'ClickBank', note: 'Spain + LATAM' },\n  'pt-BR': { primary: 'Hotmart', secondary: 'Monetizze', note: 'Brazil-specific networks' },\n  'de': { primary: 'Digistore24', secondary: 'CopeCart', note: 'German market leaders' },\n  'fr': { primary: 'Digistore24', secondary: '1TPE', note: 'French networks' },\n  'hi': { primary: 'vCommission', secondary: 'AdmitAd', note: 'Indian networks' },\n  'id': { primary: 'Ratakan', secondary: 'Involve Asia', note: 'Indonesian networks' },\n  'ar': { primary: 'Admitad', secondary: 'ArabClicks', note: 'Arabic affiliate networks' },\n  'ja': { primary: 'A8.net', secondary: 'ValueCommerce', note: 'Top Japanese networks' }\n};\n\nconst affiliateConfig = localAffiliateNetworks[sourceData.target_language] || \n  { primary: 'ClickBank', secondary: 'JVZoo', note: 'International fallback' };\n\nconst translatedPost = {\n  source_post_id: sourceData.post_id,\n  language_code: sourceData.target_language,\n  language_name: sourceData.target_name,\n  country: sourceData.target_country,\n  subdomain: sourceData.target_subdomain,\n  currency: sourceData.target_currency,\n  \n  title: translation.translated_title,\n  content: translation.translated_content,\n  excerpt: translation.translated_excerpt,\n  meta_description: translation.translated_meta_description,\n  slug: translation.translated_slug,\n  keywords: translation.local_keywords || [],\n  \n  affiliate_networks: affiliateConfig,\n  translation_quality: translation.translation_quality_score || 0,\n  cultural_adaptations: translation.cultural_adaptations_made || [],\n  \n  wp_url: `https://${sourceData.target_subdomain}.howtogenie.com/`,\n  hreflang_tag: sourceData.target_language,\n  \n  status: 'ready_to_publish',\n  translated_at: new Date().toISOString()\n};\n\nreturn [{ json: translatedPost }];"
+        "jsCode": "// Parse translation and prepare for WordPress MultiSite or subdomain\nconst raw = $input.first().json.response || '';\nconst sourceData = $input.first().json;\n\nlet translation;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  translation = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  translation = {\n    translated_title: sourceData.title + ' (' + sourceData.target_name + ')',\n    translated_content: sourceData.content,\n    translated_excerpt: sourceData.excerpt,\n    parse_error: e.message\n  };\n}\n\n// Build localized affiliate links\nconst localAffiliateNetworks = {\n  'es': { primary: 'Digistore24', secondary: 'ClickBank', note: 'Spain + LATAM' },\n  'pt-BR': { primary: 'Hotmart', secondary: 'Monetizze', note: 'Brazil-specific networks' },\n  'de': { primary: 'Digistore24', secondary: 'CopeCart', note: 'German market leaders' },\n  'fr': { primary: 'Digistore24', secondary: '1TPE', note: 'French networks' },\n  'hi': { primary: 'vCommission', secondary: 'AdmitAd', note: 'Indian networks' },\n  'id': { primary: 'Ratakan', secondary: 'Involve Asia', note: 'Indonesian networks' },\n  'ar': { primary: 'Admitad', secondary: 'ArabClicks', note: 'Arabic affiliate networks' },\n  'ja': { primary: 'A8.net', secondary: 'ValueCommerce', note: 'Top Japanese networks' }\n};\n\nconst affiliateConfig = localAffiliateNetworks[sourceData.target_language] || \n  { primary: 'ClickBank', secondary: 'JVZoo', note: 'International fallback' };\n\nconst translatedPost = {\n  source_post_id: sourceData.post_id,\n  language_code: sourceData.target_language,\n  language_name: sourceData.target_name,\n  country: sourceData.target_country,\n  subdomain: sourceData.target_subdomain,\n  currency: sourceData.target_currency,\n  \n  title: translation.translated_title,\n  content: translation.translated_content,\n  excerpt: translation.translated_excerpt,\n  meta_description: translation.translated_meta_description,\n  slug: translation.translated_slug,\n  keywords: translation.local_keywords || [],\n  \n  affiliate_networks: affiliateConfig,\n  translation_quality: translation.translation_quality_score || 0,\n  cultural_adaptations: translation.cultural_adaptations_made || [],\n  \n  wp_url: (() => { const config = $('⚙️ Load Config').item.json; const baseUrl = (config.WORDPRESS_URL || 'https://howtogenie.com').replace(/\\/$/, ''); const sub = sourceData.target_subdomain; const key = 'WORDPRESS_URL_' + sub.toUpperCase(); if (config[key]) return (config[key].replace(/\\/$/, '') + '/'); try { const u = new URL(baseUrl); const host = u.host.replace(/^www\\./, ''); return u.protocol + '//' + sub + '.' + host + '/'; } catch(e) { return 'https://' + sub + '.howtogenie.com/'; } })(),\n  hreflang_tag: sourceData.target_language,\n  \n  status: 'ready_to_publish',\n  translated_at: new Date().toISOString()\n};\n\nreturn [{ json: translatedPost }];"
       },
       "name": "🔧 Build Localized Post",
       "type": "n8n-nodes-base.code",
@@ -254,7 +254,7 @@
     },
     {
       "parameters": {
-        "url": "=https://es.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -274,7 +274,7 @@
     },
     {
       "parameters": {
-        "url": "=https://pt.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -294,7 +294,7 @@
     },
     {
       "parameters": {
-        "url": "=https://de.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -314,7 +314,7 @@
     },
     {
       "parameters": {
-        "url": "=https://fr.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -333,7 +333,7 @@
     },
     {
       "parameters": {
-        "url": "=https://hi.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -353,7 +353,7 @@
     },
     {
       "parameters": {
-        "url": "=https://id.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -372,7 +372,7 @@
     },
     {
       "parameters": {
-        "url": "=https://ar.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -392,7 +392,7 @@
     },
     {
       "parameters": {
-        "url": "=https://ja.howtogenie.com/wp-json/wp/v2/posts",
+        "url": "={{ ($json.wp_url || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -413,8 +413,16 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Multilingual Content",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MULTILINGUAL_CONTENT_TAB || 'Multilingual Content' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
