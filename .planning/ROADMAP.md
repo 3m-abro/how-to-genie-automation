@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. WordPress publish step retries on failure and writes `published` or `publish_failed` status to the Content Log — never a blank status
   4. QC rejection writes a structured row to Sheets (reason, score, topic) and the next day's run picks a fresh topic rather than re-running the rejected one
   5. Changing a value in htg_config.csv takes effect on the next scheduled run without re-importing the workflow JSON
-**Plans:** 6 plans (5 complete + 1 gap-closure)
+**Plans:** 6/6 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Config & schedule verification; REJECTED_POSTS_TAB and Wave 0 doc
@@ -103,7 +103,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Pipeline Reliability | 5/5 | Complete    | 2026-03-12 |
+| 1. Pipeline Reliability | 6/6 | Complete   | 2026-03-12 |
 | 2. Distribution Growth | 0/TBD | Not started | - |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
