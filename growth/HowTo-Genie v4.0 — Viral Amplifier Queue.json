@@ -1,0 +1,224 @@
+{
+  "name": "HowTo-Genie v4.0 — Viral Amplifier Queue",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 */6 * * *"
+            }
+          ]
+        }
+      },
+      "name": "⏰ Every 6 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [-800, 0],
+      "id": "vaq-trigger",
+      "typeVersion": 1,
+      "notes": "Runs after Viral Amplifier Engine can have written pending rows."
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "vaq-load-config",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-600, 0]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.VIRAL_AMPLIFIER_TAB || 'Viral Amplifier' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "📋 Read Viral Amplifier",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [-400, 0],
+      "id": "vaq-read-viral",
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nif (items.length === 0) return [{ json: { no_pending: true } }];\nconst first = items[0].json || {};\nconst keys = Object.keys(first);\nconst statusKey = keys.find(k => k.toLowerCase().includes('promotion')) || 'promotion_status';\nconst pending = [];\nitems.forEach((item, i) => {\n  const j = item.json;\n  const status = (j[statusKey] || j.Promotion_Status || j.promotion_status || '').toString().trim().toLowerCase();\n  if (status !== 'pending') return;\n  const rowNumber = i + 2;\n  pending.push({\n    ...j,\n    _row_number: rowNumber,\n    row_id: j.row_id || j.Row_ID || (j.detected_at || '') + (j.post_url || j.Post_URL || '')\n  });\n});\nif (pending.length === 0) return [{ json: { no_pending: true } }];\nreturn pending.map(p => ({ json: p }));"
+      },
+      "name": "🔍 Filter pending",
+      "type": "n8n-nodes-base.code",
+      "position": [-200, 0],
+      "id": "vaq-filter-pending",
+      "typeVersion": 2,
+      "mode": "runOnceForAllItems"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "has-pending",
+              "leftValue": "={{ $json.no_pending }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Any pending?",
+      "type": "n8n-nodes-base.if",
+      "position": [0, 0],
+      "id": "vaq-if-pending",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('⚙️ Load Config').item.json;\nconst inOneHour = new Date(Date.now() + 60 * 60 * 1000).toISOString();\nconst items = $input.all();\n\nreturn items.map(item => {\n  const j = item.json;\n  const postUrl = j.post_url || j.Post_URL || j.page_url || '';\n  const postTitle = j.post_title || j.Post_Title || j.page_title || '';\n  return {\n    json: {\n      WP_Post_URL: postUrl,\n      Caption: 'Re-share: ' + (postTitle || postUrl),\n      Platform: 'facebook',\n      Media_URL: '',\n      Status: 'Queued',\n      Scheduled_Time: inOneHour,\n      Retry_Count: 0,\n      row_id: j.row_id,\n      _row_number: j._row_number,\n      post_url: postUrl,\n      post_title: postTitle\n    }\n  };\n});"
+      },
+      "name": "📦 Prepare Social Queue rows",
+      "type": "n8n-nodes-base.code",
+      "position": [200, -80],
+      "id": "vaq-prepare-queue",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.SOCIAL_QUEUE_TAB || 'Social Queue' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "WP_Post_URL": "={{ $json.WP_Post_URL }}",
+            "Caption": "={{ $json.Caption }}",
+            "Platform": "={{ $json.Platform }}",
+            "Media_URL": "={{ $json.Media_URL }}",
+            "Status": "={{ $json.Status }}",
+            "Scheduled_Time": "={{ $json.Scheduled_Time }}",
+            "Retry_Count": "={{ $json.Retry_Count }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📤 Append to Social Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [400, -80],
+      "id": "vaq-append-social",
+      "typeVersion": 4.5
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nreturn items.map(item => ({\n  json: {\n    row_id: item.json.row_id,\n    promotion_status: 'sent',\n    _row_number: item.json._row_number\n  }\n}));"
+      },
+      "name": "📝 Prepare update sent",
+      "type": "n8n-nodes-base.code",
+      "position": [600, -80],
+      "id": "vaq-prepare-update",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.VIRAL_AMPLIFIER_TAB || 'Viral Amplifier' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "row_id": "={{ $json.row_id }}",
+            "promotion_status": "={{ $json.promotion_status }}"
+          },
+          "matchingColumns": ["row_id"],
+          "schema": []
+        },
+        "options": {}
+      },
+      "name": "✅ Update Viral row to sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [800, -80],
+      "id": "vaq-update-sent",
+      "typeVersion": 4.5
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "⏰ Every 6 Hours": {
+      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
+    },
+    "⚙️ Load Config": {
+      "main": [[{ "node": "📋 Read Viral Amplifier", "type": "main", "index": 0 }]]
+    },
+    "📋 Read Viral Amplifier": {
+      "main": [[{ "node": "🔍 Filter pending", "type": "main", "index": 0 }]]
+    },
+    "🔍 Filter pending": {
+      "main": [[{ "node": "Any pending?", "type": "main", "index": 0 }]]
+    },
+    "Any pending?": {
+      "main": [
+        [],
+        [{ "node": "📦 Prepare Social Queue rows", "type": "main", "index": 0 }]
+      ]
+    },
+    "📦 Prepare Social Queue rows": {
+      "main": [[{ "node": "📤 Append to Social Queue", "type": "main", "index": 0 }]]
+    },
+    "📤 Append to Social Queue": {
+      "main": [[{ "node": "📝 Prepare update sent", "type": "main", "index": 0 }]]
+    },
+    "📝 Prepare update sent": {
+      "main": [[{ "node": "✅ Update Viral row to sent", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "03-02-vaq-v1",
+  "meta": {},
+  "tags": []
+}
