@@ -1,0 +1,306 @@
+{
+  "name": "HowTo-Genie v4.0 — Video Production Engine",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 10 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🕙 Video Pipeline Trigger (10:30 AM Daily)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [0, 0],
+      "id": "vpe-trigger-01",
+      "typeVersion": 1,
+      "notes": "Runs after main pipeline; reads today's post and generates video scripts for Blotato."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultName": "⚙️ Config Loader",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "vpe-config-02",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [220, 0],
+      "notes": "Set workflowId to your Config Loader workflow ID after import if different."
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('⚙️ Load Config').item.json;\nconst raw = cfg.VIDEO_PRODUCTION_ENABLED;\nconst enabled = raw === true || String(raw).toLowerCase() === 'true';\nreturn [{ json: { VIDEO_PRODUCTION_ENABLED: enabled, config: cfg } }];"
+      },
+      "id": "vpe-normalize-03",
+      "name": "🔧 Normalize VIDEO_PRODUCTION_ENABLED",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-enabled",
+              "leftValue": "={{ $json.VIDEO_PRODUCTION_ENABLED }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "vpe-if-enabled-04",
+      "name": "IF VIDEO_PRODUCTION_ENABLED",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "📄 Read Content Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [880, 0],
+      "id": "vpe-sheets-05",
+      "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst tz = config.CONTENT_DAY_TIMEZONE || config.TIMEZONE || 'UTC';\nconst today = new Date().toLocaleDateString('en-CA', { timeZone: tz });\nconst rows = $input.all().map(i => i.json);\nconst dateKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'date') || 'date';\nconst statusKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'status') || 'status';\nconst urlKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase().includes('url') || k === 'WP URL') || 'wp_url';\nconst valid = rows.filter(r => {\n  const d = (r[dateKey] || r.date || '').toString().slice(0, 10);\n  const s = (r[statusKey] || r.status || '').toLowerCase();\n  return d === today && s !== 'publish_failed';\n});\nif (valid.length === 0) return [{ json: { noPostToday: true } }];\nconst latest = valid[valid.length - 1];\nconst wpUrl = latest[urlKey] || latest.wp_url || '';\nconst slug = wpUrl.split('/').filter(Boolean).pop() || '';\nreturn [{ json: { ...latest, slug, noPostToday: false } }];"
+      },
+      "id": "vpe-filter-06",
+      "name": "Filter today's post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-no-post",
+              "leftValue": "={{ $json.noPostToday }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "vpe-if-post-07",
+      "name": "IF Has Post Today",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1320, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ ($('⚙️ Load Config').item.json.WORDPRESS_URL || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts?slug={{ $json.slug }}",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "name": "📥 Fetch Post Body",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1540, 0],
+      "id": "vpe-fetch-08",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "const post = $input.first().json[0] || $input.first().json;\nconst filterRow = $('Filter today\\'s post').item.json;\nconst title = post?.title?.rendered || filterRow.title || '';\nconst content = (post?.content?.rendered || '').replace(/<[^>]*>/g, '\\n').replace(/&nbsp;/g, ' ').replace(/\\s+/g, ' ').trim();\nconst summary = content.slice(0, 3000);\nreturn [{ json: { title, summary, wp_url: filterRow.wp_url || filterRow['WP URL'] || '', keyword: filterRow.keyword || title, slug: filterRow.slug } }];"
+      },
+      "id": "vpe-prep-09",
+      "name": "Prepare for LLM",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const d = $input.first().json;\nconst schema = '{\\\"success\\\": true, \\\"data\\\": { \\\"scripts\\\": [ { \\\"platform\\\": \\\"tiktok\\\", \\\"script\\\": \\\"...\\\", \\\"title\\\": \\\"...\\\" }, { \\\"platform\\\": \\\"yt_short\\\", \\\"script\\\": \\\"...\\\", \\\"title\\\": \\\"...\\\" } ] }, \\\"error\\\": null }';\nconst prompt = 'Return only valid JSON. No text. No markdown. No explanations.\\nSchema: ' + schema + '\\n\\nFrom this blog post, generate short video scripts for TikTok and YouTube Shorts (and optionally ig_reel). Use the title and summary below. Each script 30-60 seconds when read aloud, hook in first line, CTA to blog.\\n\\nTitle: ' + (d.title || '') + '\\n\\nSummary: ' + (d.summary || '').slice(0, 3000) + '\\n\\nReturn the JSON object with success, data.scripts array, and error null.';\nreturn [{ json: { ...d, prompt } }];"
+      },
+      "id": "vpe-build-prompt-10",
+      "name": "Build LLM Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1980, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"qwen2.5:7b\",\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"stream\": false,\n  \"options\": { \"temperature\": 0.7, \"num_predict\": 2048 }\n}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "name": "🎬 LLM: Generate Video Scripts",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [2200, 0],
+      "id": "vpe-llm-11",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nconst prep = $('Prepare for LLM').item.json;\nlet parsed;\ntry {\n  const str = (typeof raw === 'string' ? raw : '').replace(/\\\\n/g, '\\n');\n  const match = str.match(/```json\\n([\\s\\S]*?)\\n```/) || str.match(/(\\{[\\s\\S]*\\})/);\n  const jsonStr = match ? (match[1] || match[0] || '{}').trim() : str;\n  parsed = JSON.parse(jsonStr);\n} catch(e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: e.message } };\n}\nconst scripts = (parsed.success && parsed.data && Array.isArray(parsed.data.scripts) && parsed.data.scripts.length > 0)\n  ? parsed.data.scripts\n  : [{ platform: 'tiktok', script: 'Check out our full guide at the link in bio!', title: prep.title }];\nreturn [{ json: { success: parsed.success, data: { scripts }, error: parsed.error || null, wp_url: prep.wp_url, keyword: prep.keyword, title: prep.title } }];"
+      },
+      "id": "vpe-parse-12",
+      "name": "Parse & Validate Scripts",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst scripts = input.data?.scripts || [];\nconst wpUrl = input.wp_url || '';\nconst keyword = input.keyword || '';\nconst postTitle = input.title || '';\nreturn scripts.map(s => ({\n  json: {\n    script: s.script || '',\n    title: s.title || postTitle,\n    platform: (s.platform || 'tiktok').toLowerCase().replace(/\\s/g, '_'),\n    blog_url: wpUrl,\n    keyword\n  }\n}));"
+      },
+      "id": "vpe-split-13",
+      "name": "Split Into Script Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2640, 0],
+      "notes": "One item per script; Execute Workflow runs once per item."
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_14_VIDEO_PRODUCTION_ID",
+          "mode": "id"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "script": "={{ $json.script }}",
+            "title": "={{ $json.title }}",
+            "platform": "={{ $json.platform }}",
+            "blog_url": "={{ $json.blog_url }}",
+            "keyword": "={{ $json.keyword }}"
+          },
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "vpe-exec-14-14",
+      "name": "Execute 14_Video_Production",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [2860, 0],
+      "notes": "Set workflowId to your 14_Video_Production workflow ID after import."
+    }
+  ],
+  "connections": {
+    "🕙 Video Pipeline Trigger (10:30 AM Daily)": {
+      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
+    },
+    "⚙️ Load Config": {
+      "main": [[{ "node": "🔧 Normalize VIDEO_PRODUCTION_ENABLED", "type": "main", "index": 0 }]]
+    },
+    "🔧 Normalize VIDEO_PRODUCTION_ENABLED": {
+      "main": [[{ "node": "IF VIDEO_PRODUCTION_ENABLED", "type": "main", "index": 0 }]]
+    },
+    "IF VIDEO_PRODUCTION_ENABLED": {
+      "main": [
+        [{ "node": "📄 Read Content Log", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "📄 Read Content Log": {
+      "main": [[{ "node": "Filter today's post", "type": "main", "index": 0 }]]
+    },
+    "Filter today's post": {
+      "main": [[{ "node": "IF Has Post Today", "type": "main", "index": 0 }]]
+    },
+    "IF Has Post Today": {
+      "main": [
+        [{ "node": "📥 Fetch Post Body", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "📥 Fetch Post Body": {
+      "main": [[{ "node": "Prepare for LLM", "type": "main", "index": 0 }]]
+    },
+    "Prepare for LLM": {
+      "main": [[{ "node": "Build LLM Prompt", "type": "main", "index": 0 }]]
+    },
+    "Build LLM Prompt": {
+      "main": [[{ "node": "🎬 LLM: Generate Video Scripts", "type": "main", "index": 0 }]]
+    },
+    "🎬 LLM: Generate Video Scripts": {
+      "main": [[{ "node": "Parse & Validate Scripts", "type": "main", "index": 0 }]]
+    },
+    "Parse & Validate Scripts": {
+      "main": [[{ "node": "Split Into Script Items", "type": "main", "index": 0 }]]
+    },
+    "Split Into Script Items": {
+      "main": [[{ "node": "Execute 14_Video_Production", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "meta": {
+    "templateCredsSetupCompleted": false
+  }
+}
