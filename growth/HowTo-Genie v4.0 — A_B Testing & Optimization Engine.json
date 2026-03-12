@@ -14,40 +14,145 @@
       },
       "name": "🧪 A/B Test Setup (Daily 6AM)",
       "type": "n8n-nodes-base.scheduleTrigger",
-      "position": [
-        -144,
-        -144
-      ],
+      "position": [-144, -144],
       "id": "8b7dcfc3-4289-4d5a-981c-f66b36981efd",
       "typeVersion": 1,
       "notes": "Creates test variants for yesterday's published post."
     },
     {
       "parameters": {
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Content Log",
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultName": "⚙️ Config Loader",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "ab-load-config-01",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [64, -144]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cfg = $('⚙️ Load Config').item.json;\nconst raw = cfg.A_B_TESTING_ENABLED;\nconst enabled = raw === true || String(raw).toLowerCase() === 'true';\nreturn [{ json: { A_B_TESTING_ENABLED: enabled, ...cfg } }];"
+      },
+      "id": "ab-normalize-enable-01",
+      "name": "🔧 Normalize A_B_TESTING_ENABLED",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [272, -144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-ab-enabled",
+              "leftValue": "={{ $json.A_B_TESTING_ENABLED }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
         "options": {}
       },
-      "name": "📄 Get Yesterday's Post",
+      "id": "ab-if-enabled-01",
+      "name": "IF A_B_TESTING_ENABLED",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, -144]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "📄 Read Content Log",
       "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        64,
-        -144
-      ],
-      "id": "8d964cf6-59cb-44f5-8677-d72acad2aa5a",
+      "position": [688, -144],
+      "id": "ab-read-content-log-01",
       "typeVersion": 4
     },
     {
       "parameters": {
-        "url": "={{ $json['WP URL'] }}",
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst tz = config.CONTENT_DAY_TIMEZONE || config.TIMEZONE || 'UTC';\nconst today = new Date().toLocaleDateString('en-CA', { timeZone: tz });\nconst yesterday = new Date(new Date(today).getTime() - 86400000).toISOString().slice(0, 10);\nconst rows = $input.all().map(i => i.json);\nconst dateKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'date') || 'date';\nconst statusKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'status') || 'status';\nconst urlKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase().includes('url') || k === 'WP URL') || 'wp_url';\nconst valid = rows.filter(r => {\n  const d = (r[dateKey] || r.date || '').toString().slice(0, 10);\n  const s = (r[statusKey] || r.status || '').toLowerCase();\n  return d === yesterday && s !== 'publish_failed';\n});\nif (valid.length === 0) return [{ json: { noPostYesterday: true } }];\nconst latest = valid[valid.length - 1];\nconst wpUrl = (latest[urlKey] || latest.wp_url || '').toString();\nconst slug = wpUrl.split('/').filter(Boolean).pop() || '';\nreturn [{ json: { ...latest, slug, wpUrl, noPostYesterday: false } }];"
+      },
+      "id": "ab-filter-yesterday-01",
+      "name": "Filter yesterday's post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [896, -144]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-has-post",
+              "leftValue": "={{ $json.noPostYesterday }}",
+              "rightValue": false,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "ab-if-has-post-01",
+      "name": "IF Has Post Yesterday",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1104, -144]
+    },
+    {
+      "parameters": {
+        "url": "={{ ($('⚙️ Load Config').item.json.WORDPRESS_URL || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts?slug={{ $json.slug }}",
         "options": {}
       },
       "name": "📥 Fetch Post Content",
       "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        256,
-        -144
-      ],
+      "position": [1312, -144],
       "id": "f5cf3ade-61f1-4858-b6b4-2ce139cdbc53",
       "typeVersion": 4.1
     },
@@ -60,36 +165,27 @@
       },
       "name": "🎨 AI: Generate Test Variants",
       "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        464,
-        -144
-      ],
+      "position": [1520, -144],
       "id": "f992dc84-4944-4377-bdd1-d1c068684518",
       "typeVersion": 1
     },
     {
       "parameters": {
-        "jsCode": "// Parse test variants\nconst raw = $input.first().json.response || '';\nconst postData = $('Fetch Post Content').item.json;\n\nlet testSuite;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  testSuite = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  testSuite = {\n    test_suite_id: 'TEST_' + Date.now(),\n    title_variants: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_id: postData.id,\n    post_url: postData.link,\n    original_title: postData.title?.rendered,\n    test_suite: testSuite,\n    test_start_date: new Date().toISOString(),\n    test_duration_hours: 72, // 3 days\n    test_status: 'ready',\n    traffic_split: { A: 33, B: 33, C: 34 } // Equal split\n  }\n}];"
+        "jsCode": "// Parse test variants\nconst raw = $input.first().json.response || '';\nconst postData = $('Fetch Post Content').item.json;\n\nlet testSuite;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  testSuite = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  testSuite = {\n    test_suite_id: 'TEST_' + Date.now(),\n    title_variants: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_id: postData.id,\n    post_url: postData.link,\n    original_title: postData.title?.rendered,\n    test_suite: testSuite,\n    test_start_date: new Date().toISOString(),\n    test_duration_hours: 72,\n    test_status: 'ready',\n    traffic_split: { A: 33, B: 33, C: 34 }\n  }\n}];"
       },
       "name": "📋 Parse Test Suite",
       "type": "n8n-nodes-base.code",
-      "position": [
-        656,
-        -144
-      ],
+      "position": [1728, -144],
       "id": "7f92c356-84d5-4553-a464-61587a13bafc",
       "typeVersion": 2
     },
     {
       "parameters": {
-        "jsCode": "// Update WordPress post with variant tracking\nconst testData = $input.first().json;\n\n// Inject A/B test JavaScript into post content\nconst abTestScript = `\n<script>\n(function() {\n  const testId = '${testData.test_suite.test_suite_id}';\n  const variants = {\n    title: ${JSON.stringify(testData.test_suite.title_variants.map(v => ({id: v.id, text: v.text})))},\n    intro: ${JSON.stringify(testData.test_suite.intro_variants.map(v => ({id: v.id, text: v.text})))},\n    cta: ${JSON.stringify(testData.test_suite.cta_variants.map(v => ({id: v.id, text: v.text, color: v.color})))}\n  };\n  \n  // Simple variant assignment (use cookie or localStorage)\n  let userVariant = localStorage.getItem('ab_variant_' + testId);\n  if (!userVariant) {\n    const rand = Math.random();\n    userVariant = rand < 0.33 ? 'A' : rand < 0.67 ? 'B' : 'C';\n    localStorage.setItem('ab_variant_' + testId, userVariant);\n  }\n  \n  // Apply variant\n  const titleVar = variants.title.find(v => v.id === userVariant);\n  const introVar = variants.intro.find(v => v.id === userVariant);\n  const ctaVar = variants.cta.find(v => v.id === userVariant);\n  \n  if (titleVar) document.title = titleVar.text;\n  if (introVar && document.querySelector('.entry-content p:first-child')) {\n    document.querySelector('.entry-content p:first-child').textContent = introVar.text;\n  }\n  if (ctaVar && document.querySelector('.cta-button')) {\n    const btn = document.querySelector('.cta-button');\n    btn.textContent = ctaVar.text;\n    btn.style.backgroundColor = ctaVar.color;\n  }\n  \n  // Track impression\n  fetch('/wp-json/howtogenie/v1/ab-impression', {\n    method: 'POST',\n    headers: {'Content-Type': 'application/json'},\n    body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'impression'})\n  });\n  \n  // Track engagement\n  let engaged = false;\n  setTimeout(() => {\n    if (!engaged) {\n      engaged = true;\n      fetch('/wp-json/howtogenie/v1/ab-impression', {\n        method: 'POST',\n        headers: {'Content-Type': 'application/json'},\n        body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'engaged'})\n      });\n    }\n  }, 30000); // 30 seconds = engaged\n})();\n</script>\n`;\n\nreturn [{\n  json: {\n    ...testData,\n    ab_script: abTestScript,\n    tracking_endpoint: '/wp-json/howtogenie/v1/ab-impression',\n    ready_to_deploy: true\n  }\n}];"
+        "jsCode": "// Update WordPress post with variant tracking\nconst testData = $input.first().json;\n\n// Inject A/B test JavaScript into post content\nconst abTestScript = `\n<script>\n(function() {\n  const testId = '${testData.test_suite.test_suite_id}';\n  const variants = {\n    title: ${JSON.stringify(testData.test_suite.title_variants.map(v => ({id: v.id, text: v.text})))},\n    intro: ${JSON.stringify(testData.test_suite.intro_variants.map(v => ({id: v.id, text: v.text})))},\n    cta: ${JSON.stringify(testData.test_suite.cta_variants.map(v => ({id: v.id, text: v.text, color: v.color})))}\n  };\n  \n  // Simple variant assignment (use cookie or localStorage)\n  let userVariant = localStorage.getItem('ab_variant_' + testId);\n  if (!userVariant) {\n    const rand = Math.random();\n    userVariant = rand < 0.33 ? 'A' : rand < 0.67 ? 'B' : 'C';\n    localStorage.setItem('ab_variant_' + testId, userVariant);\n  }\n  \n  // Apply variant\n  const titleVar = variants.title.find(v => v.id === userVariant);\n  const introVar = variants.intro.find(v => v.id === userVariant);\n  const ctaVar = variants.cta.find(v => v.id === userVariant);\n  \n  if (titleVar) document.title = titleVar.text;\n  if (introVar && document.querySelector('.entry-content p:first-child')) {\n    document.querySelector('.entry-content p:first-child').textContent = introVar.text;\n  }\n  if (ctaVar && document.querySelector('.cta-button')) {\n    const btn = document.querySelector('.cta-button');\n    btn.textContent = ctaVar.text;\n    btn.style.backgroundColor = ctaVar.color;\n  }\n  \n  // Track impression\n  fetch('/wp-json/howtogenie/v1/ab-impression', {\n    method: 'POST',\n    headers: {'Content-Type': 'application/json'},\n    body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'impression'})\n  });\n  \n  // Track engagement\n  let engaged = false;\n  setTimeout(() => {\n    if (!engaged) {\n      engaged = true;\n      fetch('/wp-json/howtogenie/v1/ab-impression', {\n        method: 'POST',\n        headers: {'Content-Type': 'application/json'},\n        body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'engaged'})\n      });\n    }\n  }, 30000);\n})();\n</script>\n`;\n\nreturn [{\n  json: {\n    ...testData,\n    ab_script: abTestScript,\n    tracking_endpoint: '/wp-json/howtogenie/v1/ab-impression',\n    ready_to_deploy: true\n  }\n}];"
       },
       "name": "💉 Inject A/B Test Code",
       "type": "n8n-nodes-base.code",
-      "position": [
-        864,
-        -144
-      ],
+      "position": [1936, -144],
       "id": "aff3ad21-41a0-4d16-b0a6-5b2ef7a78b6e",
       "typeVersion": 2,
       "notes": "Generates JavaScript to dynamically serve variants and track results."
@@ -120,315 +216,51 @@
       },
       "name": "📊 Log Active Test",
       "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        1056,
-        -144
-      ],
+      "position": [2144, -144],
       "id": "ba235495-22a2-4052-85d2-fea1abde088c",
       "typeVersion": 4
-    },
-    {
-      "parameters": {
-        "rule": {
-          "interval": [
-            {
-              "field": "cronExpression",
-              "expression": "0 18 * * *"
-            }
-          ]
-        }
-      },
-      "name": "📈 Test Results Check (Daily 6PM)",
-      "type": "n8n-nodes-base.scheduleTrigger",
-      "position": [
-        -144,
-        160
-      ],
-      "id": "047be17a-e6cf-4c8b-98e1-1fabf928e8e5",
-      "typeVersion": 1,
-      "notes": "Checks test results every 24 hours to determine winners."
-    },
-    {
-      "parameters": {
-        "operation": "readRange",
-        "documentId": "YOUR_GOOGLE_SHEET_ID"
-      },
-      "name": "📋 Load Active Tests",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        64,
-        160
-      ],
-      "id": "6708beea-6f3c-452e-8afb-5d52dfc2c3b2",
-      "typeVersion": 4
-    },
-    {
-      "parameters": {
-        "url": "=https://your-blog.com/wp-json/howtogenie/v1/ab-results/{{ $json['Test ID'] }}",
-        "options": {}
-      },
-      "name": "📊 Fetch Test Results",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        256,
-        160
-      ],
-      "id": "0c8c8308-2ec5-471d-9fcb-1563994ff8e0",
-      "typeVersion": 4.1,
-      "notes": "Custom WordPress endpoint that aggregates test metrics from database."
-    },
-    {
-      "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.3
-        }
-      },
-      "name": "🧠 AI: Analyze Test Results",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        464,
-        160
-      ],
-      "id": "4ac11d51-5ea1-45de-b9a8-a6460242e640",
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse analysis results\nconst raw = $input.first().json.response || '';\nconst testData = $('Load Active Tests').item.json;\n\nlet analysis;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  analysis = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  analysis = {\n    test_complete: false,\n    winner: 'inconclusive',\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    test_id: testData['Test ID'],\n    post_url: testData['Post URL'],\n    original_title: testData['Original Title'],\n    winning_variant: analysis.winner,\n    winning_title: testData[`Title ${analysis.winner}`],\n    confidence: analysis.confidence_level,\n    improvement: analysis.improvement_vs_original,\n    key_insight: analysis.key_insight,\n    recommendation: analysis.recommendation,\n    action_required: analysis.action,\n    test_complete: analysis.test_complete,\n    apply_pattern: analysis.apply_to_similar_posts,\n    analyzed_at: new Date().toISOString()\n  }\n}];"
-      },
-      "name": "📋 Parse Analysis",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        656,
-        160
-      ],
-      "id": "b8d9fc74-1df4-4b14-b81c-00df649c33c2",
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.action_required }}",
-              "operation": "equals",
-              "value2": "update_post_with_winner"
-            }
-          ]
-        }
-      },
-      "name": "🏆 Winner Found?",
-      "type": "n8n-nodes-base.if",
-      "position": [
-        864,
-        160
-      ],
-      "id": "84f85700-8ec0-44ca-8bed-41d11aacd89b",
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "={{ $json.post_url }}",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "wordpressApi",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"title\": \"{{ $json.winning_title }}\",\n  \"meta\": {\n    \"_yoast_wpseo_title\": \"{{ $json.winning_title }}\"\n  }\n}",
-        "options": {}
-      },
-      "name": "✏️ Update Post with Winner",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        1056,
-        112
-      ],
-      "id": "ddb627b9-2d38-47de-9783-09ca3bd58bbf",
-      "typeVersion": 4.1,
-      "notes": "Permanently implements the winning variant."
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "AB Test Results",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Test ID": "={{ $json.test_id }}",
-            "Completed": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
-            "Post URL": "={{ $json.post_url }}",
-            "Original": "={{ $json.original_title }}",
-            "Winner": "={{ $json.winning_variant }}",
-            "Winning Title": "={{ $json.winning_title }}",
-            "Confidence": "={{ $json.confidence }}%",
-            "Improvement": "={{ $json.improvement }}",
-            "Key Insight": "={{ $json.key_insight }}",
-            "Recommendation": "={{ $json.recommendation }}",
-            "Applied": "YES"
-          }
-        },
-        "options": {}
-      },
-      "name": "📊 Log Test Results",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        1264,
-        160
-      ],
-      "id": "6817fc8e-8445-437c-b315-652652bc59a7",
-      "typeVersion": 4
-    },
-    {
-      "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.4
-        }
-      },
-      "name": "🔍 AI: Identify Optimization Patterns",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        864,
-        368
-      ],
-      "id": "51c55f42-ec27-47a1-b6d5-df2239eca723",
-      "typeVersion": 1,
-      "notes": "Runs monthly to extract learnings from all tests."
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Optimization Playbook",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Analysis": "Pattern Recognition",
-            "Tests Analyzed": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).total_tests_analyzed }}",
-            "Top Pattern": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).winning_patterns[0]?.pattern }}",
-            "Win Rate": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).winning_patterns[0]?.win_rate }}",
-            "Key Insights": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).audience_insights.join(' | ') }}",
-            "Optimization Rules": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).optimization_rules.map(r => r.rule).join(' | ') }}",
-            "Strategic Rec": "={{ JSON.parse($json.response.match(/\\{[\\s\\S]*\\}/)[0]).strategic_recommendations }}",
-            "Full Report": "={{ $json.response.substring(0, 2000) }}"
-          }
-        },
-        "options": {}
-      },
-      "name": "📚 Update Optimization Playbook",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        1056,
-        368
-      ],
-      "id": "30e5bce0-c8e3-4c9e-808a-278c1dda66af",
-      "typeVersion": 4,
-      "notes": "Builds a knowledge base of what works for our audience."
     }
   ],
   "pinData": {},
   "connections": {
     "🧪 A/B Test Setup (Daily 6AM)": {
+      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
+    },
+    "⚙️ Load Config": {
+      "main": [[{ "node": "🔧 Normalize A_B_TESTING_ENABLED", "type": "main", "index": 0 }]]
+    },
+    "🔧 Normalize A_B_TESTING_ENABLED": {
+      "main": [[{ "node": "IF A_B_TESTING_ENABLED", "type": "main", "index": 0 }]]
+    },
+    "IF A_B_TESTING_ENABLED": {
       "main": [
-        [
-          {
-            "node": "📄 Get Yesterday's Post",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "📄 Read Content Log", "type": "main", "index": 0 }],
+        []
       ]
     },
-    "📄 Get Yesterday's Post": {
+    "📄 Read Content Log": {
+      "main": [[{ "node": "Filter yesterday's post", "type": "main", "index": 0 }]]
+    },
+    "Filter yesterday's post": {
+      "main": [[{ "node": "IF Has Post Yesterday", "type": "main", "index": 0 }]]
+    },
+    "IF Has Post Yesterday": {
       "main": [
-        [
-          {
-            "node": "📥 Fetch Post Content",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [{ "node": "📥 Fetch Post Content", "type": "main", "index": 0 }],
+        []
       ]
+    },
+    "📥 Fetch Post Content": {
+      "main": [[{ "node": "🎨 AI: Generate Test Variants", "type": "main", "index": 0 }]]
+    },
+    "🎨 AI: Generate Test Variants": {
+      "main": [[{ "node": "📋 Parse Test Suite", "type": "main", "index": 0 }]]
     },
     "📋 Parse Test Suite": {
-      "main": [
-        [
-          {
-            "node": "💉 Inject A/B Test Code",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "💉 Inject A/B Test Code", "type": "main", "index": 0 }]]
     },
     "💉 Inject A/B Test Code": {
-      "main": [
-        [
-          {
-            "node": "📊 Log Active Test",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📈 Test Results Check (Daily 6PM)": {
-      "main": [
-        [
-          {
-            "node": "📋 Load Active Tests",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📋 Load Active Tests": {
-      "main": [
-        [
-          {
-            "node": "📊 Fetch Test Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📋 Parse Analysis": {
-      "main": [
-        [
-          {
-            "node": "🏆 Winner Found?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🏆 Winner Found?": {
-      "main": [
-        [
-          {
-            "node": "✏️ Update Post with Winner",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "✏️ Update Post with Winner": {
-      "main": [
-        [
-          {
-            "node": "📊 Log Test Results",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+      "main": [[{ "node": "📊 Log Active Test", "type": "main", "index": 0 }]]
     }
   },
   "active": false,
