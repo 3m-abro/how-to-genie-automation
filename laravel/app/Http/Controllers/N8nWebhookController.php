@@ -33,10 +33,8 @@ class N8nWebhookController extends Controller
     public function status()
     {
         $mission = app(MissionControlController::class);
-        $systemStatus = $mission->getSystemStatus();
-        return response()->json([
-            'system_status' => $systemStatus,
-            'modules' => $systemStatus['modules'] ?? [],
-        ]);
+        $data = $mission->getMissionControlData();
+        $data['modules'] = $data['system_status']['modules'] ?? [];
+        return response()->json($data);
     }
 }

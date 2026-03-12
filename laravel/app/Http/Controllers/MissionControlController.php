@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\ContentLog;
+use App\Services\N8nApiService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -20,20 +21,39 @@ class MissionControlController extends Controller
         return view('mission-control.dashboard', $data);
     }
 
-    /** Return mission control data (cached); used by dashboard view and API. */
+    /** Return mission control data (cached); used by dashboard view and API. Resilient when DB or n8n is unavailable. */
     public function getMissionControlData(): array
     {
         return Cache::remember('mission_control_data', 300, function () {
-            return [
-                'system_status' => $this->getSystemStatus(),
-                'today_progress' => $this->getTodayProgress(),
-                'weekly_wins' => $this->getWeeklyWins(),
-                'priorities' => $this->getPriorities(),
-                'streak' => $this->getStreak(),
-                'next_actions' => $this->getNextActions(),
-                'quick_stats' => $this->getQuickStats(),
-            ];
+            try {
+                return [
+                    'system_status' => $this->getSystemStatus(),
+                    'today_progress' => $this->getTodayProgress(),
+                    'weekly_wins' => $this->getWeeklyWins(),
+                    'priorities' => $this->getPriorities(),
+                    'streak' => $this->getStreak(),
+                    'next_actions' => $this->getNextActions(),
+                    'quick_stats' => $this->getQuickStats(),
+                ];
+            } catch (\Throwable $e) {
+                report($e);
+                return $this->getMissionControlDataFallback();
+            }
         });
+    }
+
+    /** Minimal payload when DB is unavailable (e.g. tests without database). */
+    private function getMissionControlDataFallback(): array
+    {
+        return [
+            'system_status' => $this->getSystemStatus(),
+            'today_progress' => 0,
+            'weekly_wins' => [],
+            'priorities' => [['title' => 'System check', 'description' => 'Data temporarily unavailable.', 'urgency' => 'none', 'time_estimate' => '0 min', 'action' => 'Retry later']],
+            'streak' => 0,
+            'next_actions' => ['next_post' => '—', 'next_email' => '—', 'next_review' => '—'],
+            'quick_stats' => ['total_posts' => 0, 'total_revenue' => '$0', 'subscribers' => 0, 'this_month_views' => '0'],
+        ];
     }
 
     public function weeklySummary()
@@ -70,56 +90,66 @@ class MissionControlController extends Controller
         }
     }
 
-    /** Public for API use when DB may be unavailable (e.g. tests without sqlite). */
+    /** Public for API use when DB may be unavailable (e.g. tests without sqlite). Builds modules from n8n workflows + last execution per workflow. */
     public function getSystemStatus(): array
     {
-        $modules = [
-            'blog_pipeline' => $this->checkN8nWorkflow('main-blog-pipeline'),
-            'video_creation' => $this->checkN8nWorkflow('video-creation-pipeline'),
-            'translations' => $this->checkN8nWorkflow('multi-language-pipeline'),
-            'social_media' => $this->checkN8nWorkflow('social-distribution'),
-            'email_campaigns' => $this->checkN8nWorkflow('email-newsletter'),
-            'audio_podcast' => $this->checkN8nWorkflow('audio-pipeline'),
-            'seo_linking' => $this->checkN8nWorkflow('seo-interlinking'),
-            'viral_amplifier' => $this->checkN8nWorkflow('viral-amplifier'),
-            'competitor_monitor' => $this->checkN8nWorkflow('competitor-monitor'),
-            'ab_testing' => $this->checkN8nWorkflow('ab-testing'),
-            'messaging_apps' => $this->checkN8nWorkflow('messaging-distribution'),
-            'islamic_content' => $this->checkN8nWorkflow('islamic-content-pipeline'),
-        ];
+        $n8n = app(N8nApiService::class);
+        $workflows = $n8n->getWorkflows();
+        $modules = [];
+        $needsAttention = [];
 
-        $allGreen = collect($modules)->every(fn ($status) => $status['status'] === 'running');
+        foreach ($workflows as $workflow) {
+            $id = $workflow['id'] ?? null;
+            $name = $workflow['name'] ?? 'Unknown';
+            $active = (bool) ($workflow['active'] ?? false);
+
+            $lastRun = 'N/A';
+            $outcome = null;
+            $executions = $id ? $n8n->getExecutions($id, null, 1) : [];
+            $lastExecution = $executions[0] ?? null;
+            if ($lastExecution) {
+                $startedAt = $lastExecution['startedAt'] ?? null;
+                if ($startedAt) {
+                    $lastRun = $this->formatLastRun($startedAt);
+                }
+                $outcome = $lastExecution['status'] ?? ($lastExecution['finished'] ?? false ? 'success' : 'running');
+            }
+
+            $status = 'stopped';
+            if ($outcome === 'error' || $outcome === 'crashed') {
+                $status = 'error';
+                $needsAttention[] = $name;
+            } elseif ($active) {
+                $status = $outcome === 'running' || $outcome === 'waiting' ? 'running' : 'running';
+            }
+
+            $modules[] = [
+                'name' => $name,
+                'status' => $status,
+                'last_run' => $lastRun,
+                'next_run' => 'Scheduled',
+            ];
+        }
+
+        $allGreen = count($needsAttention) === 0 && (count($modules) === 0 || collect($modules)->every(fn ($m) => $m['status'] !== 'error'));
 
         return [
             'overall' => $allGreen ? 'all_green' : 'needs_attention',
             'modules' => $modules,
+            'needsAttention' => $needsAttention,
             'last_check' => now()->toDateTimeString(),
         ];
     }
 
-    private function checkN8nWorkflow(string $workflowName): array
+    private function formatLastRun(string $iso): string
     {
         try {
-            $url = $this->n8nBaseUrl() . '/api/v1/workflows';
-            $request = Http::timeout(3);
-            if (config('services.n8n.api_key')) {
-                $request = $request->withHeaders(['X-N8N-API-KEY' => config('services.n8n.api_key')]);
-            }
-            $request = $request->get($url);
-            if ($request->successful()) {
-                $workflow = collect($request->json('data', []))->firstWhere('name', $workflowName);
-                if ($workflow) {
-                    return [
-                        'status' => $workflow['active'] ?? false ? 'running' : 'stopped',
-                        'last_run' => $workflow['updatedAt'] ?? 'unknown',
-                        'next_run' => 'Scheduled',
-                    ];
-                }
-            }
+            $dt = \Carbon\Carbon::parse($iso);
+            $diff = $dt->diffForHumans(now(), true);
+            return $diff . ' ago';
         } catch (\Throwable $e) {
-            report($e);
+            return $iso;
         }
-        return ['status' => 'unknown', 'last_run' => 'N/A', 'next_run' => 'N/A'];
     }
 
     private function getTodayProgress(): int

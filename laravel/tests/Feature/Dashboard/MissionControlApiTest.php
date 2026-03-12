@@ -14,5 +14,9 @@ class MissionControlApiTest extends TestCase
         $data = $response->json();
         $this->assertArrayHasKey('system_status', $data);
         $this->assertArrayHasKey('modules', $data);
+        $this->assertIsArray($data['modules']);
+        $this->assertArrayHasKey('overall', $data['system_status']);
+        $this->assertArrayHasKey('modules', $data['system_status']);
+        $this->assertIsArray($data['system_status']['modules']);
     }
 }
