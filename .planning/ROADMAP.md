@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. WordPress publish step retries on failure and writes `published` or `publish_failed` status to the Content Log — never a blank status
   4. QC rejection writes a structured row to Sheets (reason, score, topic) and the next day's run picks a fresh topic rather than re-running the rejected one
   5. Changing a value in htg_config.csv takes effect on the next scheduled run without re-importing the workflow JSON
-**Plans:** 5/5 plans complete
+**Plans:** 6 plans (5 complete + 1 gap-closure)
 
 Plans:
 - [ ] 01-01-PLAN.md — Config & schedule verification; REJECTED_POSTS_TAB and Wave 0 doc
@@ -39,6 +39,7 @@ Plans:
 - [ ] 01-03-PLAN.md — WordPress native node, retry, Publish Succeeded? gate for satellites
 - [ ] 01-04-PLAN.md — QC rejection path: Rejected Posts sheet, Backlog update, Telegram alert
 - [ ] 01-05-PLAN.md — Assemble Content Log Row; wire Log and publish_failed path
+- [ ] 01-06-PLAN.md — (gap) Wire 📊 Log to Google Sheets to Load Config; add CONTENT_LOG_TAB
 
 ### Phase 2: Distribution Growth
 **Goal**: Today's published post automatically reaches subscribers in their native language and via WhatsApp/Telegram every day, expanding audience without any manual content promotion
