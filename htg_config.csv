@@ -7,6 +7,7 @@ OLLAMA_URL,http://172.20.0.1:11434
 OLLAMA_MODEL_FAST,mistral
 OLLAMA_MODEL_SMART,llama3
 BLOG_IDEA_TAB,Blog Idea Backlog
+CONTENT_LOG_TAB,Content Log
 AFFILIATE_TAB,Affiliate Programs
 AFFILIATE_LINKS_TAB,Affiliate Link Registry
 SOCIAL_QUEUE_TAB,Social Queue
