@@ -27,7 +27,7 @@
 - [x] **DASH-01**: Revenue dashboard fetches live data from Google Sheets (replaces hardcoded demo data)
 - [x] **DASH-02**: ADHD Mission Control dashboard shows real system status from n8n API
 - [x] **DASH-03**: System health monitor sends Discord/Slack alert when any scheduled workflow fails
-- [ ] **DASH-04**: Weekly summary report is auto-generated and sent to owner (posts published, revenue, top performers)
+- [x] **DASH-04**: Weekly summary report is auto-generated and sent to owner (posts published, revenue, top performers)
 
 ### Affiliate & SEO
 
@@ -76,7 +76,7 @@
 | DASH-01 | Phase 5 | Complete |
 | DASH-02 | Phase 5 | Complete |
 | DASH-03 | Phase 5 | Complete |
-| DASH-04 | Phase 5 | Pending |
+| DASH-04 | Phase 5 | Complete |
 | AFF-01 | Phase 6 | Pending |
 | AFF-02 | Phase 6 | Pending |
 | SEO-01 | Phase 6 | Pending |
