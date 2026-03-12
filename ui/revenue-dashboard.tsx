@@ -1,71 +1,61 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from "recharts";
 
 const COLORS = ["#FF6B35","#4ECDC4","#45B7D1","#96CEB4","#FFEAA7","#DDA0DD","#98D8C8","#F7DC6F"];
 
-const revenueData = [
-  { month: "Jan", adsense: 0, adsterra: 12, affiliates: 0, total: 12, posts: 31 },
-  { month: "Feb", adsense: 0, adsterra: 28, affiliates: 45, total: 73, posts: 28 },
-  { month: "Mar", adsense: 0, adsterra: 67, affiliates: 120, total: 187, posts: 31 },
-  { month: "Apr", adsense: 89, adsterra: 112, affiliates: 280, total: 481, posts: 30 },
-  { month: "May", adsense: 210, adsterra: 198, affiliates: 520, total: 928, posts: 31 },
-  { month: "Jun", adsense: 445, adsterra: 320, affiliates: 890, total: 1655, posts: 30 },
-];
+const API_BASE = (typeof window !== "undefined" && (window as unknown as { API_BASE?: string }).API_BASE) || process.env.REACT_APP_API_URL || "";
 
-const trafficData = [
-  { month: "Jan", organic: 450, social: 280, email: 0, referral: 90 },
-  { month: "Feb", organic: 1200, social: 680, email: 340, referral: 220 },
-  { month: "Mar", organic: 3400, social: 1200, email: 890, referral: 450 },
-  { month: "Apr", organic: 7800, social: 2100, email: 1450, referral: 780 },
-  { month: "May", organic: 14200, social: 3800, email: 2100, referral: 1200 },
-  { month: "Jun", organic: 22000, social: 5600, email: 3200, referral: 1800 },
-];
+type RevenueRow = { month: string; adsense: number; adsterra: number; affiliates: number; total: number; posts: number };
+type TrafficRow = { month: string; organic: number; social: number; email: number; referral: number };
+type ContentStat = { label: string; value: string; icon: string; change: string; color: string };
+type TopPost = { title: string; views: number; revenue: string; network: string };
+type AgentRow = { agent: string; runs: number; success: string; avg_time: string };
 
-const affiliateData = [
-  { name: "ClickBank", value: 45, revenue: 780, color: "#FF6B35" },
-  { name: "Digistore24", value: 28, revenue: 490, color: "#4ECDC4" },
-  { name: "JVZoo", value: 18, revenue: 310, color: "#45B7D1" },
-  { name: "Muncheye", value: 9, revenue: 155, color: "#96CEB4" },
-];
-
-const contentStats = [
-  { label: "Total Posts", value: "181", icon: "📝", change: "+31 this month", color: "#FF6B35" },
-  { label: "Total Revenue", value: "$3,336", icon: "💰", change: "+78% vs last month", color: "#4ECDC4" },
-  { label: "Email Subscribers", value: "2,847", icon: "📧", change: "+340 this month", color: "#45B7D1" },
-  { label: "Total Traffic", value: "32.6K", icon: "📊", change: "+55% vs last month", color: "#96CEB4" },
-  { label: "Videos Created", value: "181", icon: "🎬", change: "1 per post", color: "#FFEAA7" },
-  { label: "Content Assets", value: "1,810", icon: "♻️", change: "10x per post", color: "#DDA0DD" },
-];
-
-const socialData = [
-  { platform: "Facebook", followers: 1240, posts: 181, engagement: "4.2%" },
-  { platform: "Instagram", followers: 890, posts: 181, engagement: "6.8%" },
-  { platform: "TikTok", followers: 3200, posts: 120, engagement: "9.4%" },
-  { platform: "Pinterest", followers: 560, posts: 181, engagement: "3.1%" },
-  { platform: "YouTube", followers: 280, posts: 60, engagement: "7.2%" },
-];
-
-const topPosts = [
-  { title: "How to Start Affiliate Marketing as a Beginner", views: 4200, revenue: "$210", network: "ClickBank" },
-  { title: "How to Set Up a Blog in 30 Minutes", views: 3800, revenue: "$145", network: "Digistore24" },
-  { title: "How to Use AI Tools to Grow Your Business", views: 3100, revenue: "$320", network: "JVZoo" },
-  { title: "How to Create Viral TikTok Content", views: 2900, revenue: "$89", network: "Adsterra" },
-  { title: "How to Earn Passive Income Online", views: 2600, revenue: "$440", network: "ClickBank" },
-];
-
-const agentActivity = [
-  { agent: "🧠 Prompt Engineer", runs: 181, success: "99%", avg_time: "45s" },
-  { agent: "🔍 Research Agent", runs: 181, success: "97%", avg_time: "2m 10s" },
-  { agent: "✍️ Content Writer", runs: 181, success: "98%", avg_time: "4m 30s" },
-  { agent: "🫂 Humanizer", runs: 181, success: "99%", avg_time: "3m 15s" },
-  { agent: "🎯 SEO Agent", runs: 181, success: "96%", avg_time: "2m 45s" },
-  { agent: "🛡️ QC Agent", runs: 181, success: "94%", avg_time: "1m 30s" },
-  { agent: "📱 Social Agent", runs: 181, success: "97%", avg_time: "3m 00s" },
-  { agent: "💬 Comment Agent", runs: 540, success: "99%", avg_time: "30s" },
-];
+const emptyRevenue: RevenueRow[] = [];
+const emptyTraffic: TrafficRow[] = [];
+const emptyContentStats: ContentStat[] = [];
+const emptyTopPosts: TopPost[] = [];
+const emptyAgentActivity: AgentRow[] = [];
+const emptyAffiliate = [{ name: "—", value: 0, revenue: 0, color: "#8888AA" }];
+const emptySocial = [{ platform: "—", followers: 0, posts: 0, engagement: "—" }];
 
 export default function Dashboard() {
   const [activeTab, setActiveTab] = useState("overview");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [revenueData, setRevenueData] = useState<RevenueRow[]>(emptyRevenue);
+  const [trafficData, setTrafficData] = useState<TrafficRow[]>(emptyTraffic);
+  const [contentStats, setContentStats] = useState<ContentStat[]>(emptyContentStats);
+  const [agentActivity, setAgentActivity] = useState<AgentRow[]>(emptyAgentActivity);
+  const [topPosts, setTopPosts] = useState<TopPost[]>(emptyTopPosts);
+  const [affiliateData, setAffiliateData] = useState<{ name: string; value: number; revenue: number; color: string }[]>(emptyAffiliate);
+  const [socialData, setSocialData] = useState<{ platform: string; followers: number; posts: number; engagement: string }[]>(emptySocial);
+
+  useEffect(() => {
+    const url = `${API_BASE.replace(/\/$/, "")}/api/dashboard/revenue`;
+    fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((data: {
+        content_stats?: ContentStat[];
+        revenue_data?: RevenueRow[];
+        traffic_data?: TrafficRow[];
+        agent_activity?: AgentRow[];
+        top_posts?: TopPost[];
+      }) => {
+        setContentStats(Array.isArray(data.content_stats) ? data.content_stats : emptyContentStats);
+        setRevenueData(Array.isArray(data.revenue_data) ? data.revenue_data : emptyRevenue);
+        setTrafficData(Array.isArray(data.traffic_data) ? data.traffic_data : emptyTraffic);
+        setAgentActivity(Array.isArray(data.agent_activity) ? data.agent_activity : emptyAgentActivity);
+        setTopPosts(Array.isArray(data.top_posts) ? data.top_posts : emptyTopPosts);
+        setAffiliateData(emptyAffiliate);
+        setSocialData(emptySocial);
+      })
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Failed to load dashboard"))
+      .finally(() => setLoading(false));
+  }, []);
 
   const tabs = [
     { id: "overview", label: "📊 Overview" },
@@ -111,7 +101,16 @@ export default function Dashboard() {
       </div>
 
       <div style={{ padding: "24px 32px" }}>
-
+        {loading && (
+          <div style={{ textAlign: "center", padding: "48px", color: "#8888AA" }}>Loading dashboard…</div>
+        )}
+        {error && (
+          <div style={{ background: "rgba(255,107,53,0.1)", border: "1px solid #FF6B35", borderRadius: "12px", padding: "20px", marginBottom: "24px", color: "#FF6B35" }}>
+            Could not load data: {error}. Check API base URL and ensure the Laravel revenue API is reachable.
+          </div>
+        )}
+        {!loading && !error && (
+        <>
         {/* OVERVIEW TAB */}
         {activeTab === "overview" && (
           <div>
@@ -364,7 +363,7 @@ export default function Dashboard() {
                         <td style={{ padding: "12px 10px" }}>
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <div style={{ flex: 1, height: "4px", background: "#2A2A4A", borderRadius: "2px", maxWidth: "80px" }}>
-                              <div style={{ height: "100%", width: a.success, background: parseInt(a.success) >= 98 ? "#4ECDC4" : "#FF6B35", borderRadius: "2px" }}></div>
+                              <div style={{ height: "100%", width: `${parseInt(String(a.success), 10) || 0}%`, background: (parseInt(String(a.success), 10) || 0) >= 98 ? "#4ECDC4" : "#FF6B35", borderRadius: "2px" }}></div>
                             </div>
                             <span style={{ color: parseInt(a.success) >= 98 ? "#4ECDC4" : "#FF6B35", fontSize: "12px" }}>{a.success}</span>
                           </div>
@@ -425,6 +424,8 @@ export default function Dashboard() {
               </div>
             </div>
           </div>
+        )}
+        </>
         )}
 
       </div>
