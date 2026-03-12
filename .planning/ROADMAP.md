@@ -93,12 +93,12 @@ Plans:
   2. ADHD Mission Control dashboard shows actual n8n workflow run statuses fetched from the n8n API, not hardcoded `systemStatus` values
   3. When any scheduled workflow fails, a Discord or Slack alert arrives within 10 minutes containing the workflow name, error message, and timestamp
   4. Every Sunday (or configured day), a weekly summary message is sent to the owner listing posts published, top performer, and revenue estimate for the week
-**Plans:** 1/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — Bootstrap Laravel, config, Wave 0 tests; GoogleSheetsService + Revenue API; wire Revenue dashboard (DASH-01)
 - [ ] 05-02-PLAN.md — N8nApiService + mission-control API; wire ADHD Mission Control UI (DASH-02)
-- [ ] 05-03-PLAN.md — N8nFailureMonitorCommand + TelegramAlertService; schedule every 5–10 min (DASH-03)
+- [x] 05-03-PLAN.md — N8nFailureMonitorCommand + TelegramAlertService; schedule every 5–10 min (DASH-03)
 - [ ] 05-04-PLAN.md — WeeklySummaryCommand + Mailable; schedule Sunday (config) (DASH-04)
 
 ### Phase 6: Affiliate & SEO Feedback
@@ -125,5 +125,5 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | 2. Distribution Growth | 2/2 | Complete    | 2026-03-12 |
 | 3. Optimization Loops | 2/2 | Complete    | 2026-03-12 |
 | 4. Content Satellites | 2/2 | Complete   | 2026-03-12 |
-| 5. Live Dashboards & Monitoring | 1/4 | In Progress|  |
+| 5. Live Dashboards & Monitoring | 3/4 | In Progress|  |
 | 6. Affiliate & SEO Feedback | 0/TBD | Not started | - |
