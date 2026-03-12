@@ -805,12 +805,12 @@
         "operation": "append",
         "documentId": {
           "__rl": true,
-          "value": "{{ $vars.GOOGLE_SHEET_ID }}",
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
           "mode": "id"
         },
         "sheetName": {
           "__rl": true,
-          "value": "Content Log",
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
           "mode": "name"
         },
         "columns": {
