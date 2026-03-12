@@ -24,33 +24,248 @@
     },
     {
       "parameters": {
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Content Log",
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+          "cachedResultName": "⚙️ Config Loader"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        -1184,
+        64
+      ],
+      "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+      "notes": "Runs core/01_Config_Loader.json. Replace workflowId if using a different n8n instance."
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst raw = config.MESSAGING_DIGEST_ENABLED;\nconst enabled = raw === true || String(raw).toLowerCase().trim() === 'true';\nreturn [{ json: { ...config, MESSAGING_DIGEST_ENABLED: enabled } }];"
+      },
+      "name": "🔧 Normalize Messaging Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1008,
+        64
+      ],
+      "id": "b2c3d4e5-f6a7-5b6c-9d0e-1f2a3b4c5d6e"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.MESSAGING_DIGEST_ENABLED }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🔀 Messaging Digest Enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -832,
+        64
+      ],
+      "id": "c3d4e5f6-a7b8-6c7d-0e1f-2a3b4c5d6e7f"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
+          "mode": "name"
+        },
         "options": {}
       },
       "name": "📄 Get Today's Post",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        -1152,
+        -656,
         64
       ],
       "id": "128deb16-5c26-45b4-b338-e7a2e7558121",
-      "typeVersion": 4
+      "typeVersion": 4.5
     },
     {
       "parameters": {
-        "operation": "readRange",
-        "documentId": "YOUR_GOOGLE_SHEET_ID"
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst tz = config.CONTENT_DAY_TIMEZONE || config.TIMEZONE || 'UTC';\nconst today = new Date().toLocaleDateString('en-CA', { timeZone: tz });\nconst rows = $input.all().map(i => i.json);\nconst valid = rows.filter(r => {\n  const d = (r.date || r.Date || '').toString().slice(0, 10);\n  const st = (r.status || r.Status || '').toString().toLowerCase();\n  return d === today && st !== 'publish_failed';\n});\nif (valid.length === 0) {\n  return [{ json: { noPostToday: true } }];\n}\nconst row = valid[valid.length - 1];\nconst wpUrl = (row.wp_url || row['WP URL'] || row.WP_URL || '').toString();\nconst slug = wpUrl.split('/').filter(Boolean).pop() || '';\nreturn [{ json: { noPostToday: false, ...row, slug } }];"
+      },
+      "name": "📅 Filter today's post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        64
+      ],
+      "id": "d4e5f6a7-b8c9-7d8e-1f2a-3b4c5d6e7f8a"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.noPostToday }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🔀 No post today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -304,
+        64
+      ],
+      "id": "e5f6a7b8-c9d0-8e9f-2a3b-4c5d6e7f8a9b"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MESSAGING_DISTRIBUTION_LOG_TAB || 'Messaging Distribution Log' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
+            "Status": "Skipped",
+            "reason": "no_post_today",
+            "Recipients": 0
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Skipped (no post)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        -128,
+        -80
+      ],
+      "id": "f6a7b8c9-d0e1-9f0a-3b4c-5d6e7f8a9b0c"
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MESSAGING_SUBSCRIBERS_TAB || 'Messaging Subscribers' }}",
+          "mode": "name"
+        },
+        "options": {}
       },
       "name": "👥 Load Messaging Subscribers",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        -960,
+        -128,
         64
       ],
       "id": "add06029-fe8c-446b-8794-c1f898137fa2",
-      "typeVersion": 4,
-      "notes": "Columns: Phone, Platform (WhatsApp/Telegram), Language, Timezone, Preferences, Status"
+      "typeVersion": 4.5,
+      "notes": "Columns: Platform, Chat ID or Phone, Status (active/inactive), Language optional."
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst active = items.filter(i => {\n  const s = (i.json.Status || i.json.status || '').toString().toLowerCase().trim();\n  return s === 'active';\n});\nif (active.length === 0) {\n  return [{ json: { zeroActiveSubscribers: true, count: 0 } }];\n}\nreturn active.map(a => ({ json: { ...a.json, zeroActiveSubscribers: false } }));"
+      },
+      "name": "🔍 Filter active subscribers",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        64
+      ],
+      "id": "a7b8c9d0-e1f2-0a1b-4c5d-6e7f8a9b0c1d"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.zeroActiveSubscribers }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "🔀 Zero active subscribers?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        224,
+        64
+      ],
+      "id": "b8c9d0e1-f2a3-1b2c-5d6e-7f8a9b0c1d2e"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MESSAGING_DISTRIBUTION_LOG_TAB || 'Messaging Distribution Log' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
+            "Status": "Skipped",
+            "Recipients": 0,
+            "reason": "zero_active_subscribers"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Log Skipped (zero subscribers)",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        400,
+        -80
+      ],
+      "id": "c9d0e1f2-a3b4-2c3d-6e7f-8a9b0c1d2e3f"
     },
     {
       "parameters": {
@@ -341,18 +556,121 @@
       "main": [
         [
           {
-            "node": "📄 Get Today's Post",
+            "node": "⚙️ Load Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
+    "⚙️ Load Config": {
+      "main": [
+        [
+          {
+            "node": "🔧 Normalize Messaging Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔧 Normalize Messaging Config": {
+      "main": [
+        [
+          {
+            "node": "🔀 Messaging Digest Enabled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Messaging Digest Enabled?": {
+      "main": [
+        [
+          {
+            "node": "📄 Get Today's Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
     "📄 Get Today's Post": {
       "main": [
         [
           {
+            "node": "📅 Filter today's post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📅 Filter today's post": {
+      "main": [
+        [
+          {
+            "node": "🔀 No post today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 No post today?": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Skipped (no post)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
             "node": "👥 Load Messaging Subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "👥 Load Messaging Subscribers": {
+      "main": [
+        [
+          {
+            "node": "🔍 Filter active subscribers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔍 Filter active subscribers": {
+      "main": [
+        [
+          {
+            "node": "🔀 Zero active subscribers?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Zero active subscribers?": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Skipped (zero subscribers)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "💬 AI: Adapt for Messaging",
             "type": "main",
             "index": 0
           }
