@@ -64,7 +64,7 @@ Plans:
   1. A/B testing engine runs at 6 AM and creates at least one variant (different headline or intro) for the previous day's post, logging both variants to Google Sheets
   2. Viral amplifier reads GA4 data every 6 hours and marks high-performing posts in Sheets with an `amplify` flag that triggers social re-promotion
   3. Owner can see which variant won for any given post by checking the Sheets A/B log tab
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — A/B Testing: Config Loader, enable gate, yesterday filter, variants to Sheets only (GROW-03)
@@ -113,7 +113,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 |-------|----------------|--------|-----------|
 | 1. Pipeline Reliability | 6/6 | Complete    | 2026-03-12 |
 | 2. Distribution Growth | 2/2 | Complete    | 2026-03-12 |
-| 3. Optimization Loops | 0/TBD | Not started | - |
+| 3. Optimization Loops | 2/2 | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
 | 5. Live Dashboards & Monitoring | 0/TBD | Not started | - |
 | 6. Affiliate & SEO Feedback | 0/TBD | Not started | - |
