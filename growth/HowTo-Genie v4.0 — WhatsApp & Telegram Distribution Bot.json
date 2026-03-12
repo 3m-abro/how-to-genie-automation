@@ -285,7 +285,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse messaging content\nconst raw = $input.first().json.response || '';\nconst postData = $('Get Today\\'s Post').item.json;\n\nlet messaging;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  messaging = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  messaging = {\n    whatsapp_1to1: 'Check out our latest post: ' + postData['WP URL'],\n    telegram_channel: '**New Post:** ' + postData['Title'] + '\\n\\nRead: ' + postData['WP URL'],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_url: postData['WP URL'],\n    post_title: postData['Title'],\n    messaging_content: messaging,\n    distribution_date: new Date().toISOString()\n  }\n}];"
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nconst postRow = $('📅 Filter today\\'s post').item.json;\nconst postUrl = postRow.wp_url || postRow['WP URL'] || postRow.WP_URL || '';\nconst postTitle = postRow.title || postRow.Title || postRow.topic || '';\n\nlet messaging;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  const parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false && parsed.data == null) throw new Error(parsed.error?.message || 'Invalid');\n  messaging = parsed.data || parsed;\n  if (!messaging.whatsapp_1to1) messaging.whatsapp_1to1 = 'Check out our latest post: ' + postUrl;\n  if (!messaging.telegram_channel) messaging.telegram_channel = '**New Post:** ' + postTitle + '\\n\\nRead: ' + postUrl;\n} catch(e) {\n  messaging = {\n    whatsapp_1to1: 'Check out our latest post: ' + postUrl,\n    telegram_channel: '**New Post:** ' + postTitle + '\\n\\nRead: ' + postUrl,\n    parse_error: e.message\n  };\n}\n\nreturn [{ json: { post_url: postUrl, post_title: postTitle, messaging_content: messaging, distribution_date: new Date().toISOString() } }];"
       },
       "name": "📋 Parse Messaging Content",
       "type": "n8n-nodes-base.code",
@@ -298,7 +298,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build subscriber batches with personalized content\nconst subscribers = $('Load Messaging Subscribers').all().slice(1); // Skip header\nconst content = $('Parse Messaging Content').item.json;\n\nreturn subscribers.map(sub => {\n  const row = sub.json;\n  const phone = row['Phone'];\n  const platform = row['Platform'] || 'whatsapp';\n  const language = row['Language'] || 'en';\n  const timezone = row['Timezone'] || 'UTC';\n  const preferences = row['Preferences'] || 'daily';\n  const status = row['Status'] || 'active';\n  \n  if (status !== 'active') return null;\n  \n  // Get content in subscriber's language\n  let message;\n  if (platform.toLowerCase() === 'whatsapp') {\n    message = language !== 'en' && content.messaging_content.translations?.[language]?.whatsapp_1to1\n      ? content.messaging_content.translations[language].whatsapp_1to1\n      : content.messaging_content.whatsapp_1to1;\n  } else {\n    message = language !== 'en' && content.messaging_content.translations?.[language]?.telegram_channel\n      ? content.messaging_content.translations[language].telegram_channel\n      : content.messaging_content.telegram_channel;\n  }\n  \n  return {\n    json: {\n      phone: phone,\n      platform: platform.toLowerCase(),\n      language: language,\n      message: message,\n      post_url: content.post_url,\n      post_title: content.post_title,\n      telegram_button: content.messaging_content.telegram_button\n    }\n  };\n}).filter(Boolean);"
+        "jsCode": "const subscribers = $input.all();\nconst content = $('📋 Parse Messaging Content').item.json;\nconst config = $('⚙️ Load Config').item.json;\nconst whatsappEnabled = config.WHATSAPP_DIGEST_ENABLED === true || String(config.WHATSAPP_DIGEST_ENABLED || '').toLowerCase().trim() === 'true';\n\nreturn subscribers.map(sub => {\n  const row = sub.json;\n  const platform = (row.Platform || row.platform || 'telegram').toString().toLowerCase();\n  const identifier = row['Chat ID or Phone'] || row['Identifier'] || row.Phone || row.chat_id || '';\n  const language = (row.Language || row.language || 'en').toString();\n  const status = (row.Status || row.status || '').toString().toLowerCase();\n  if (status !== 'active') return null;\n  let message;\n  if (platform === 'whatsapp') {\n    message = content.messaging_content.translations?.[language]?.whatsapp_1to1 || content.messaging_content.whatsapp_1to1;\n  } else {\n    message = content.messaging_content.translations?.[language]?.telegram_channel || content.messaging_content.telegram_channel;\n  }\n  return {\n    json: {\n      chat_id: identifier,\n      phone: identifier,\n      platform,\n      message,\n      post_url: content.post_url,\n      post_title: content.post_title,\n      telegram_button: content.messaging_content?.telegram_button,\n      skip_whatsapp: !whatsappEnabled\n    }\n  };\n}).filter(Boolean);"
       },
       "name": "👤 Personalize for Each Subscriber",
       "type": "n8n-nodes-base.code",
@@ -328,7 +328,41 @@
         64
       ],
       "id": "741443ef-0560-40aa-8e91-8afafd7c3e4a",
-      "typeVersion": 1
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.skip_whatsapp }}",
+              "value2": false
+            }
+          ]
+        }
+      },
+      "name": "🔀 WhatsApp send enabled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        48,
+        -48
+      ],
+      "id": "d0e1f2a3-b4c5-3d4e-7f8a-9b0c1d2e3f4a",
+      "notes": "When WHATSAPP_DIGEST_ENABLED is false, WhatsApp branch goes to no-op."
+    },
+    {
+      "parameters": {
+        "jsCode": "return $input.all();"
+      },
+      "name": "⏭️ No-op (WhatsApp disabled)",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        -160
+      ],
+      "id": "e1f2a3b4-c5d6-4e5f-8a9b-0c1d2e3f4a5b"
     },
     {
       "parameters": {
@@ -362,7 +396,7 @@
         "url": "=https://api.telegram.org/botYOUR_BOT_TOKEN/sendMessage",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"chat_id\": \"{{ $json.phone }}\",\n  \"text\": \"{{ $json.message }}\",\n  \"parse_mode\": \"Markdown\",\n  \"reply_markup\": {\n    \"inline_keyboard\": [[\n      {\n        \"text\": \"{{ $json.telegram_button?.text || 'Read Full Article →' }}\",\n        \"url\": \"{{ $json.post_url }}\"\n      }\n    ]]\n  }\n}",
+        "jsonBody": "={\n  \"chat_id\": \"{{ $json.chat_id }}\",\n  \"text\": \"{{ $json.message }}\",\n  \"parse_mode\": \"Markdown\",\n  \"reply_markup\": {\n    \"inline_keyboard\": [[\n      {\n        \"text\": \"{{ $json.telegram_button?.text || 'Read Full Article →' }}\",\n        \"url\": \"{{ $json.post_url }}\"\n      }\n    ]]\n  }\n}",
         "options": {}
       },
       "name": "✈️ Send Telegram Message",
@@ -378,20 +412,26 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Messaging Distribution Log",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.MESSAGING_DISTRIBUTION_LOG_TAB || 'Messaging Distribution Log' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
             "Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
-            "Platform": "={{ $json.platform }}",
-            "Recipients": "={{ $('Personalize for Each Subscriber').all().length }}",
-            "Post Title": "={{ $('Parse Messaging Content').item.json.post_title }}",
-            "Post URL": "={{ $('Parse Messaging Content').item.json.post_url }}",
-            "WhatsApp Sent": "={{ $('Personalize for Each Subscriber').all().filter(s => s.json.platform === 'whatsapp').length }}",
-            "Telegram Sent": "={{ $('Personalize for Each Subscriber').all().filter(s => s.json.platform === 'telegram').length }}",
-            "Languages": "en, es, pt-BR, hi, id, ar, de, fr, ja",
-            "Status": "Sent"
+            "Status": "Sent",
+            "Recipients": "={{ $('👤 Personalize for Each Subscriber').all().length }}",
+            "Post Title": "={{ $('📋 Parse Messaging Content').item.json.post_title }}",
+            "Post URL": "={{ $('📋 Parse Messaging Content').item.json.post_url }}",
+            "WhatsApp Sent": "={{ $('👤 Personalize for Each Subscriber').all().filter(s => s.json.platform === 'whatsapp' && !s.json.skip_whatsapp).length }}",
+            "Telegram Sent": "={{ $('👤 Personalize for Each Subscriber').all().filter(s => s.json.platform === 'telegram').length }}"
           }
         },
         "options": {}
@@ -403,7 +443,7 @@
         64
       ],
       "id": "20c7c258-f32f-494e-afe5-7bfd4ee18a06",
-      "typeVersion": 4
+      "typeVersion": 4.5
     },
     {
       "parameters": {
@@ -703,7 +743,7 @@
       "main": [
         [
           {
-            "node": "💚 Send WhatsApp Message",
+            "node": "🔀 WhatsApp send enabled?",
             "type": "main",
             "index": 0
           }
@@ -711,6 +751,35 @@
         [
           {
             "node": "✈️ Send Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 WhatsApp send enabled?": {
+      "main": [
+        [
+          {
+            "node": "💚 Send WhatsApp Message",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "⏭️ No-op (WhatsApp disabled)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⏭️ No-op (WhatsApp disabled)": {
+      "main": [
+        [
+          {
+            "node": "📊 Log Distribution",
             "type": "main",
             "index": 0
           }
