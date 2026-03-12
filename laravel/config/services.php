@@ -52,5 +52,9 @@ return [
         'credentials' => env('GOOGLE_APPLICATION_CREDENTIALS'),
     ],
 
-    'weekly_summary_day' => (int) env('WEEKLY_SUMMARY_DAY', 7), // 1=Monday, 7=Sunday
+    'weekly_summary' => [
+        'recipient' => env('WEEKLY_SUMMARY_RECIPIENT') ?: env('MAIL_FROM_ADDRESS'),
+        'day' => (int) env('WEEKLY_SUMMARY_DAY', 0), // 0=Sunday (Carbon), 1=Monday, ...
+        'time' => env('WEEKLY_SUMMARY_TIME', '08:00'),
+    ],
 ];
