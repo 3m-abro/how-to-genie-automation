@@ -158,65 +158,83 @@
     },
     {
       "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.9
-        }
+        "jsCode": "const raw = $input.first().json;\nconst post = Array.isArray(raw) ? raw[0] : raw;\nif (!post || !post.link) return [{ json: { parse_error: 'No post from WP' } }];\nreturn [{ json: post }];"
       },
-      "name": "🎨 AI: Generate Test Variants",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [1520, -144],
-      "id": "f992dc84-4944-4377-bdd1-d1c068684518",
-      "typeVersion": 1
+      "id": "ab-normalize-wp-01",
+      "name": "📌 First post from response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1520, -144]
     },
     {
       "parameters": {
-        "jsCode": "// Parse test variants\nconst raw = $input.first().json.response || '';\nconst postData = $('Fetch Post Content').item.json;\n\nlet testSuite;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  testSuite = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  testSuite = {\n    test_suite_id: 'TEST_' + Date.now(),\n    title_variants: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    post_id: postData.id,\n    post_url: postData.link,\n    original_title: postData.title?.rendered,\n    test_suite: testSuite,\n    test_start_date: new Date().toISOString(),\n    test_duration_hours: 72,\n    test_status: 'ready',\n    traffic_split: { A: 33, B: 33, C: 34 }\n  }\n}];"
+        "jsCode": "const post = $input.first().json;\nconst title = post.title?.rendered || post.title || '';\nconst content = (post.content?.rendered || post.content || '').replace(/<[^>]+>/g, ' ').slice(0, 800);\nconst schema = JSON.stringify({\n  success: true,\n  data: {\n    original_title: '',\n    original_intro: '',\n    original_cta: '',\n    variant_title: '',\n    variant_intro: '',\n    variant_cta: ''\n  },\n  error: null\n});\nconst prompt = `Return only valid JSON.\\nNo text.\\nNo markdown.\\nNo explanations.\\n\\nSchema (use exactly these keys in data):\\n${schema}\\n\\nGenerate one variant set. Extract original headline (title), first paragraph as intro, and one CTA phrase from the post below. Then write one alternate for each: variant_title (new headline), variant_intro (new first paragraph), variant_cta (new CTA). Return { \\\"success\\\": true, \\\"data\\\": { original_title, original_intro, original_cta, variant_title, variant_intro, variant_cta }, \\\"error\\\": null }.\\n\\nPost title: ${title}\\n\\nContent excerpt: ${content}`;\nreturn [{ json: { prompt } }];"
       },
-      "name": "📋 Parse Test Suite",
+      "id": "ab-build-prompt-01",
+      "name": "📝 Build variant prompt",
       "type": "n8n-nodes-base.code",
-      "position": [1728, -144],
+      "typeVersion": 2,
+      "position": [1728, -144]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"llama3.2:latest\",\n  \"prompt\": {{ JSON.stringify($json.prompt) }},\n  \"stream\": false\n}",
+        "options": {}
+      },
+      "name": "🎨 AI: Generate Test Variants",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1936, -144],
+      "id": "f992dc84-4944-4377-bdd1-d1c068684518",
+      "typeVersion": 4.1
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || '';\nconst postData = $('📌 First post from response').item.json;\nconst postUrl = postData.link || '';\nlet parsed;\ntry {\n  const str = (typeof raw === 'string' ? raw : '').replace(/\\\\n/g, '\\n');\n  const match = str.match(/```json\\\\n([\\\\s\\\\S]*?)\\\\n```/) || str.match(/(\\\\{[\\\\s\\\\S]*\\\\})/);\n  const jsonStr = match ? (match[1] || match[0] || '{}').trim() : str;\n  parsed = JSON.parse(jsonStr);\n} catch(e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: e.message } };\n}\nconst d = parsed.success && parsed.data ? parsed.data : {};\nconst testId = 'TEST_' + Date.now();\nconst createdAt = new Date().toISOString();\nreturn [{ json: {\n  test_id: testId,\n  post_url: postUrl,\n  original_title: d.original_title || '',\n  original_intro: d.original_intro || '',\n  original_cta: d.original_cta || '',\n  variant_title: d.variant_title || '',\n  variant_intro: d.variant_intro || '',\n  variant_cta: d.variant_cta || '',\n  created_at: createdAt,\n  status: 'ready',\n  winner: ''\n} }];"
+      },
+      "name": "📋 Parse & Validate",
+      "type": "n8n-nodes-base.code",
+      "position": [2144, -144],
       "id": "7f92c356-84d5-4553-a464-61587a13bafc",
       "typeVersion": 2
     },
     {
       "parameters": {
-        "jsCode": "// Update WordPress post with variant tracking\nconst testData = $input.first().json;\n\n// Inject A/B test JavaScript into post content\nconst abTestScript = `\n<script>\n(function() {\n  const testId = '${testData.test_suite.test_suite_id}';\n  const variants = {\n    title: ${JSON.stringify(testData.test_suite.title_variants.map(v => ({id: v.id, text: v.text})))},\n    intro: ${JSON.stringify(testData.test_suite.intro_variants.map(v => ({id: v.id, text: v.text})))},\n    cta: ${JSON.stringify(testData.test_suite.cta_variants.map(v => ({id: v.id, text: v.text, color: v.color})))}\n  };\n  \n  // Simple variant assignment (use cookie or localStorage)\n  let userVariant = localStorage.getItem('ab_variant_' + testId);\n  if (!userVariant) {\n    const rand = Math.random();\n    userVariant = rand < 0.33 ? 'A' : rand < 0.67 ? 'B' : 'C';\n    localStorage.setItem('ab_variant_' + testId, userVariant);\n  }\n  \n  // Apply variant\n  const titleVar = variants.title.find(v => v.id === userVariant);\n  const introVar = variants.intro.find(v => v.id === userVariant);\n  const ctaVar = variants.cta.find(v => v.id === userVariant);\n  \n  if (titleVar) document.title = titleVar.text;\n  if (introVar && document.querySelector('.entry-content p:first-child')) {\n    document.querySelector('.entry-content p:first-child').textContent = introVar.text;\n  }\n  if (ctaVar && document.querySelector('.cta-button')) {\n    const btn = document.querySelector('.cta-button');\n    btn.textContent = ctaVar.text;\n    btn.style.backgroundColor = ctaVar.color;\n  }\n  \n  // Track impression\n  fetch('/wp-json/howtogenie/v1/ab-impression', {\n    method: 'POST',\n    headers: {'Content-Type': 'application/json'},\n    body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'impression'})\n  });\n  \n  // Track engagement\n  let engaged = false;\n  setTimeout(() => {\n    if (!engaged) {\n      engaged = true;\n      fetch('/wp-json/howtogenie/v1/ab-impression', {\n        method: 'POST',\n        headers: {'Content-Type': 'application/json'},\n        body: JSON.stringify({test_id: testId, variant: userVariant, metric: 'engaged'})\n      });\n    }\n  }, 30000);\n})();\n</script>\n`;\n\nreturn [{\n  json: {\n    ...testData,\n    ab_script: abTestScript,\n    tracking_endpoint: '/wp-json/howtogenie/v1/ab-impression',\n    ready_to_deploy: true\n  }\n}];"
-      },
-      "name": "💉 Inject A/B Test Code",
-      "type": "n8n-nodes-base.code",
-      "position": [1936, -144],
-      "id": "aff3ad21-41a0-4d16-b0a6-5b2ef7a78b6e",
-      "typeVersion": 2,
-      "notes": "Generates JavaScript to dynamically serve variants and track results."
-    },
-    {
-      "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "AB Tests Active",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.AB_TESTS_TAB || 'AB Tests' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Test ID": "={{ $json.test_suite.test_suite_id }}",
-            "Start Date": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
-            "Post URL": "={{ $json.post_url }}",
-            "Original Title": "={{ $json.original_title }}",
-            "Title A": "={{ $json.test_suite.title_variants[0]?.text }}",
-            "Title B": "={{ $json.test_suite.title_variants[1]?.text }}",
-            "Title C": "={{ $json.test_suite.title_variants[2]?.text }}",
-            "Duration": "={{ $json.test_duration_hours }} hours",
-            "Primary Metric": "={{ $json.test_suite.primary_metric }}",
-            "Hypothesis": "={{ $json.test_suite.test_hypothesis }}",
-            "Status": "Running",
-            "Winner": "TBD"
+            "test_id": "={{ $json.test_id }}",
+            "post_url": "={{ $json.post_url }}",
+            "original_title": "={{ $json.original_title }}",
+            "original_intro": "={{ $json.original_intro }}",
+            "original_cta": "={{ $json.original_cta }}",
+            "variant_title": "={{ $json.variant_title }}",
+            "variant_intro": "={{ $json.variant_intro }}",
+            "variant_cta": "={{ $json.variant_cta }}",
+            "created_at": "={{ $json.created_at }}",
+            "status": "={{ $json.status }}",
+            "winner": "={{ $json.winner }}"
           }
         },
         "options": {}
       },
       "name": "📊 Log Active Test",
       "type": "n8n-nodes-base.googleSheets",
-      "position": [2144, -144],
+      "position": [2352, -144],
       "id": "ba235495-22a2-4052-85d2-fea1abde088c",
       "typeVersion": 4
     }
@@ -251,15 +269,18 @@
       ]
     },
     "📥 Fetch Post Content": {
+      "main": [[{ "node": "📌 First post from response", "type": "main", "index": 0 }]]
+    },
+    "📌 First post from response": {
+      "main": [[{ "node": "📝 Build variant prompt", "type": "main", "index": 0 }]]
+    },
+    "📝 Build variant prompt": {
       "main": [[{ "node": "🎨 AI: Generate Test Variants", "type": "main", "index": 0 }]]
     },
     "🎨 AI: Generate Test Variants": {
-      "main": [[{ "node": "📋 Parse Test Suite", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "📋 Parse & Validate", "type": "main", "index": 0 }]]
     },
-    "📋 Parse Test Suite": {
-      "main": [[{ "node": "💉 Inject A/B Test Code", "type": "main", "index": 0 }]]
-    },
-    "💉 Inject A/B Test Code": {
+    "📋 Parse & Validate": {
       "main": [[{ "node": "📊 Log Active Test", "type": "main", "index": 0 }]]
     }
   },

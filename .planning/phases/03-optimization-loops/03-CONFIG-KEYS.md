@@ -1,25 +1,41 @@
-# Phase 3: Config Keys
+# Phase 3 — Config Keys and Sheets Tabs
 
-Keys consumed by Phase 3 workflows. Same config source as Phase 2 (Config Loader / htg_config).
+Config is read by `core/01_Config_Loader.json` (Execute Workflow at workflow start). Keys live in htg_config (or equivalent Key/Value store). Sheet/tab names are config-driven so one document can serve multiple environments.
 
-## Viral Content Amplifier Engine & Viral Amplifier Queue
+---
 
-| Key | Purpose | Example / Default |
-|-----|---------|-------------------|
-| `VIRAL_AMPLIFIER_ENABLED` | Gate: when false, workflow exits without writing | `true` / `false` |
-| `VIRAL_VIEWS_7D_MIN` | Minimum 7-day views for viral detection | `5000` |
-| `VIRAL_ENGAGEMENT_MIN` | Minimum engagement rate (0–1) for viral detection | `0.08` |
-| `VIRAL_AMPLIFIER_TAB` | Google Sheets tab for viral rows (append/read/update) | `Viral Amplifier` |
-| `GOOGLE_SHEET_ID` | Spreadsheet ID (or `SPREADSHEET_ID`) | (sheet ID) |
-| `GA4_PROPERTY_ID` | GA4 property for runReport URL | (property ID) |
-| `GOOGLE_ANALYTICS_TOKEN` | Bearer token for GA4 Data API | (secret) |
-| `WORDPRESS_URL` | Base URL for post_url (no trailing slash) | `https://howtogenie.com` |
-| `SOCIAL_QUEUE_TAB` | Tab for Social Queue (Viral Amplifier Queue appends here) | `Social Queue` |
+## A/B Testing (Plan 01 — GROW-03)
 
-## A/B Testing (Plan 01)
+| Key | Purpose | Example |
+|-----|---------|---------|
+| `A_B_TESTING_ENABLED` | Gate: when false, workflow exits without reading Content Log or writing A/B tab | `true` / `false` |
+| `AB_TESTS_TAB` | Google Sheets tab name for A/B variant log | `AB Tests` or `AB Tests Active` |
+| `CONTENT_LOG_TAB` | Tab for published post log (yesterday filter) | `Content Log` |
+| `GOOGLE_SHEET_ID` | Spreadsheet ID (same doc for Content Log and A/B tab) | from sheet URL |
+| `WORDPRESS_URL` | Base URL for WP REST (no trailing slash) | `https://your-blog.com` |
+| `CONTENT_DAY_TIMEZONE` | Timezone for “yesterday” (date in Content Log) | `UTC` / `America/New_York` |
+| `TIMEZONE` | Fallback if CONTENT_DAY_TIMEZONE not set | `UTC` |
 
-| Key | Purpose |
-|-----|---------|
-| `A_B_TESTING_ENABLED` | Gate for A/B workflow |
-| `AB_TESTS_TAB` | Sheet tab for A/B test log |
-| `CONTENT_LOG_TAB` | Content Log tab for yesterday's post |
+**Required Sheets tabs:** Content Log (existing), **AB Tests** or **AB Tests Active** (Phase 3 A/B log).
+
+---
+
+## Viral Amplifier (Plan 02 — GROW-04)
+
+| Key | Purpose | Example |
+|-----|---------|---------|
+| `VIRAL_AMPLIFIER_ENABLED` | Gate: when false, workflow exits without GA4 or Viral tab write | `true` / `false` |
+| `VIRAL_AMPLIFIER_TAB` | Google Sheets tab for viral rows and promotion_status | `Viral Amplifier` |
+| `VIRAL_VIEWS_7D_MIN` | Minimum 7-day views to consider viral | `5000` |
+| `VIRAL_ENGAGEMENT_MIN` | Minimum engagement rate (e.g. 0.08 = 8%) | `0.08` |
+| `GA4_PROPERTY_ID` | GA4 property ID for runReport | numeric property ID |
+| `GOOGLE_ANALYTICS_TOKEN` | Bearer token for GA4 Data API | OAuth2 or service account token |
+
+**Required Sheets tabs:** **Viral Amplifier** (Phase 3 viral log and promotion_status).
+
+---
+
+## Shared (both workflows)
+
+- `GOOGLE_SHEET_ID` / `SPREADSHEET_ID`: same spreadsheet for Content Log, A/B tab, and Viral Amplifier tab.
+- Config Loader runs first; all sheet IDs and tab names come from config (no hardcoded tab names in Phase 3).
