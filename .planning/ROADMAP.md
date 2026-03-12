@@ -78,7 +78,11 @@ Plans:
   1. Video production workflow runs at 10:30 AM, reads today's post from Sheets, and submits a script to Pictory or InVideo — a confirmation ID appears in the Sheets row
   2. New subscriber webhook fires, tags the subscriber in ConvertKit or MailerLite, and sends the first welcome email within 5 minutes of signup
   3. Email sequence sends subsequent messages on the configured schedule without any manual intervention
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Video Production: Config Loader, VIDEO_PRODUCTION_ENABLED gate, today's post, multiple scripts → Blotato, Video Log one row per video (GROW-05)
+- [ ] 04-02-PLAN.md — Email Newsletter: Config Loader, EMAIL_NEWSLETTER_ENABLED gate (200 when disabled), single provider (EMAIL_PROVIDER), ESP sends first email (GROW-06)
 
 ### Phase 5: Live Dashboards & Monitoring
 **Goal**: The owner can open either dashboard and see real system data, and gets a Discord/Slack alert within minutes of any scheduled workflow failure plus an automated weekly summary in their inbox
