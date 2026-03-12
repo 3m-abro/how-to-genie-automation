@@ -50,7 +50,11 @@ Plans:
   2. Translated posts appear in the Multilingual Content Google Sheets tab with language codes and WP URLs
   3. WhatsApp/Telegram bot sends a daily digest message to subscribers at 10 AM containing today's post title and link
   4. Both workflows read their enable/disable state from htg_config.csv — toggling a config value turns them on or off without touching workflow JSON
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Multi-language: Config Loader, enable gate, today's post filter, 8 subdomains, Multilingual Content log (GROW-01)
+- [ ] 02-02-PLAN.md — Messaging: Config Loader, enable gate, today's post + skip paths, subscribers, Telegram/WhatsApp send and log (GROW-02)
 
 ### Phase 3: Optimization Loops
 **Goal**: The system automatically tests content variants and amplifies posts that GA4 confirms are gaining traction, creating a self-improving content engine
@@ -104,7 +108,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline Reliability | 6/6 | Complete    | 2026-03-12 |
-| 2. Distribution Growth | 0/TBD | Not started | - |
+| 2. Distribution Growth | 0/2 | Not started | - |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
 | 5. Live Dashboards & Monitoring | 0/TBD | Not started | - |
