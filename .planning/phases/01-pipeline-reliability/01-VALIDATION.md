@@ -55,8 +55,17 @@ Config Loader verified as first node after triggers; schedule `0 8 * * *`. In `c
 
 ## Wave 0 Requirements
 
-- [ ] `Rejected Posts` tab in Google Sheets
-- [ ] `REJECTED_POSTS_TAB` in n8n `htg_config` data table
+1. **Rejected Posts tab in Google Sheets**  
+   Create a tab named **"Rejected Posts"** with columns: `date`, `topic`, `primary_keyword`, `qc_score`, `rejection_reasons`, `word_count`, `agent_fallbacks_used`.
+
+2. **n8n htg_config data table**  
+   Add key `REJECTED_POSTS_TAB` with value **"Rejected Posts"** to the n8n `htg_config` data table so the orchestrator can read it at runtime (QC rejection path writes to this tab).
+
+3. **Ollama Agent (Central)**  
+   Credential set in orchestrator (for Agent migration).
+
+- [ ] `Rejected Posts` tab in Google Sheets (columns as above)
+- [ ] `REJECTED_POSTS_TAB` in n8n `htg_config` data table = "Rejected Posts"
 - [ ] Ollama Agent (Central) credential set in orchestrator (for Agent migration)
 
 *Ref: RESEARCH.md § Wave 0 Gaps*
