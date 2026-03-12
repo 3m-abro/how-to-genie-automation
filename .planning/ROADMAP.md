@@ -13,7 +13,7 @@ The core 8-agent content pipeline already exists and is production-ready. This r
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Pipeline Reliability** - Harden the core 8 AM pipeline so it never silently fails or stops mid-run (completed 2026-03-12)
-- [ ] **Phase 2: Distribution Growth** - Activate multi-language expansion and WhatsApp/Telegram digest so content reaches more people daily
+- [x] **Phase 2: Distribution Growth** - Activate multi-language expansion and WhatsApp/Telegram digest so content reaches more people daily (completed 2026-03-12)
 - [ ] **Phase 3: Optimization Loops** - Enable A/B testing and viral amplifier so the system learns which content performs best
 - [ ] **Phase 4: Content Satellites** - Activate video production and email newsletter so every post spawns video and subscriber sequences
 - [ ] **Phase 5: Live Dashboards & Monitoring** - Replace hardcoded demo data with live feeds and wire Discord/Slack alerts plus weekly reports
@@ -50,7 +50,7 @@ Plans:
   2. Translated posts appear in the Multilingual Content Google Sheets tab with language codes and WP URLs
   3. WhatsApp/Telegram bot sends a daily digest message to subscribers at 10 AM containing today's post title and link
   4. Both workflows read their enable/disable state from htg_config.csv — toggling a config value turns them on or off without touching workflow JSON
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 02-01-PLAN.md — Multi-language: Config Loader, enable gate, today's post filter, 8 subdomains, Multilingual Content log (GROW-01)
@@ -108,7 +108,7 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Pipeline Reliability | 6/6 | Complete    | 2026-03-12 |
-| 2. Distribution Growth | 1/2 | In progress | - |
+| 2. Distribution Growth | 2/2 | Complete   | 2026-03-12 |
 | 3. Optimization Loops | 0/TBD | Not started | - |
 | 4. Content Satellites | 0/TBD | Not started | - |
 | 5. Live Dashboards & Monitoring | 0/TBD | Not started | - |
