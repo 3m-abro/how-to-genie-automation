@@ -8,7 +8,7 @@
 ### Pipeline Reliability
 
 - [x] **PIPE-01**: Orchestrator runs daily at 8 AM and completes without manual intervention
-- [ ] **PIPE-02**: Failed LLM nodes fall back to defaults and log the error to Google Sheets rather than stopping the pipeline
+- [x] **PIPE-02**: Failed LLM nodes fall back to defaults and log the error to Google Sheets rather than stopping the pipeline
 - [x] **PIPE-03**: WordPress publish step retries on transient failures and reports final status to Sheets
 - [ ] **PIPE-04**: QC agent rejection routes to Sheets log (not silent failure) and triggers next-day retry topic
 - [x] **PIPE-05**: Config Loader reads htg_config.csv at runtime so parameter changes take effect without re-importing workflows
@@ -63,7 +63,7 @@
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | PIPE-01 | Phase 1 | Complete |
-| PIPE-02 | Phase 1 | Pending |
+| PIPE-02 | Phase 1 | Complete |
 | PIPE-03 | Phase 1 | Complete |
 | PIPE-04 | Phase 1 | Pending |
 | PIPE-05 | Phase 1 | Complete |
