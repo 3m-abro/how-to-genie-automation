@@ -24,8 +24,45 @@
     },
     {
       "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultName": "⚙️ Config Loader",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "seo06-4-load-config-01",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-2064, -16],
+      "notes": "Load runtime config (sheet ID, tab names). Set workflowId to your Config Loader after import if different."
+    },
+    {
+      "parameters": {
         "operation": "readRange",
-        "documentId": "YOUR_GOOGLE_SHEET_ID"
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
+          "mode": "name"
+        }
       },
       "name": "📊 Load All Published Posts",
       "type": "n8n-nodes-base.googleSheets",
@@ -257,6 +294,17 @@
   "pinData": {},
   "connections": {
     "🔗 Weekly Interlinking Scan (Sunday 3AM)": {
+      "main": [
+        [
+          {
+            "node": "⚙️ Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Load Config": {
       "main": [
         [
           {
