@@ -71,7 +71,10 @@ Plans:
   2. Workflow writes deduplicated, recency-ordered trend list to config-driven Sheet tab.
   3. Workflow uses Config Loader first; delay/IF after each HTTP to avoid 429/blocking.
   4. No hardcoded YOUR_GOOGLE_SHEET_ID or sheet names; config-gated.
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 09-01-PLAN.md — Config Loader first; config-driven RSS/Reddit and COMPETITOR_INTEL_TAB; IF+Wait after HTTP; one deduplicated trend list to sheet (COMP-01–COMP-04)
 
 ### Phase 10: Content Repurposing
 **Goal**: Repurposing workflow reads today's post (timezone-aware), produces 3–5 platform-native formats, logs to config-driven tabs, and is idempotent.
