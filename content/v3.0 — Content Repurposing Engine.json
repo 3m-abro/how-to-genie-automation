@@ -23,14 +23,43 @@
     },
     {
       "parameters": {
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Content Log",
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultName": "⚙️ Config Loader",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-e5f6-7890-rep0-loadconfig",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -720,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.CONTENT_LOG_TAB || 'Content Log' }}",
+          "mode": "name"
+        },
         "options": {}
       },
       "name": "📄 Get Today's Post Data",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        -736,
+        -512,
         224
       ],
       "id": "c23188f1-b490-438c-af5f-0438bd923f3b",
@@ -38,13 +67,58 @@
     },
     {
       "parameters": {
-        "url": "=https://your-blog.com/wp-json/wp/v2/posts?slug={{ $json['WP URL']?.split('/').filter(Boolean).pop() }}",
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst tz = config.CONTENT_DAY_TIMEZONE || config.TIMEZONE || 'UTC';\nconst today = new Date().toLocaleDateString('en-CA', { timeZone: tz });\nconst rows = $input.all().map(i => i.json);\nconst dateKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'date') || 'date';\nconst statusKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'status') || 'status';\nconst urlKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase().includes('url') || k === 'WP URL') || 'wp_url';\nconst valid = rows.filter(r => {\n  const d = (r[dateKey] || r.date || '').toString().slice(0, 10);\n  const s = (r[statusKey] || r.status || '').toLowerCase();\n  return d === today && s !== 'publish_failed';\n});\nif (valid.length === 0) return [{ json: { noPostToday: true } }];\nconst latest = valid[valid.length - 1];\nconst wpUrl = latest[urlKey] || latest.wp_url || '';\nconst slug = wpUrl.split('/').filter(Boolean).pop() || '';\nreturn [{ json: { ...latest, slug, noPostToday: false } }];"
+      },
+      "name": "Filter today's post",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        -304,
+        224
+      ],
+      "id": "b2c3d4e5-f6a7-8901-rep0-filter",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-no-post",
+              "leftValue": "={{ $json.noPostToday }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "No post today?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        224
+      ],
+      "id": "c3d4e5f6-a7b8-9012-rep0-nopost"
+    },
+    {
+      "parameters": {
+        "url": "={{ ($('⚙️ Load Config').item.json.WORDPRESS_URL || '').replace(/\\/$/, '') }}/wp-json/wp/v2/posts?slug={{ $json.slug }}",
         "options": {}
       },
       "name": "📥 Fetch Full Article",
       "type": "n8n-nodes-base.httpRequest",
       "position": [
-        -528,
+        112,
         224
       ],
       "id": "25b9bde3-6226-49c8-8dd3-75a6a50959c6",
@@ -57,7 +131,7 @@
       "name": "🧹 Clean & Extract Article",
       "type": "n8n-nodes-base.code",
       "position": [
-        -336,
+        304,
         224
       ],
       "id": "ecc120ac-199b-4914-894a-3b7334cbdaa5",
@@ -150,7 +224,7 @@
       "name": "📦 Assemble 10 Content Assets",
       "type": "n8n-nodes-base.code",
       "position": [
-        80,
+        496,
         224
       ],
       "id": "2408a97d-c71a-4858-aa20-c7d880b72211",
@@ -159,7 +233,11 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
         "sheetName": "Repurposed Content",
         "columns": {
           "mappingMode": "defineBelow",
@@ -182,7 +260,7 @@
       "name": "📊 Log to Repurposed Content Sheet",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        272,
+        688,
         224
       ],
       "id": "67d529eb-9e72-48ca-8f5f-ea03b715114f",
@@ -191,7 +269,11 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
         "sheetName": "Twitter Queue",
         "columns": {
           "mappingMode": "defineBelow",
@@ -210,7 +292,7 @@
       "name": "🐦 Save Twitter Thread Queue",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        272,
+        688,
         80
       ],
       "id": "f6a04420-216a-43b5-aea4-f01453afaaa5",
@@ -219,7 +301,11 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
         "sheetName": "Podcast Queue",
         "columns": {
           "mappingMode": "defineBelow",
@@ -238,7 +324,7 @@
       "name": "🎙️ Save Podcast Queue",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        272,
+        688,
         384
       ],
       "id": "e2b49d79-8323-434c-ba3f-b7e0a3503249",
@@ -251,6 +337,17 @@
       "main": [
         [
           {
+            "node": "⚙️ Load Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "⚙️ Load Config": {
+      "main": [
+        [
+          {
             "node": "📄 Get Today's Post Data",
             "type": "main",
             "index": 0
@@ -260,6 +357,29 @@
     },
     "📄 Get Today's Post Data": {
       "main": [
+        [
+          {
+            "node": "Filter today's post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter today's post": {
+      "main": [
+        [
+          {
+            "node": "No post today?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No post today?": {
+      "main": [
+        [],
         [
           {
             "node": "📥 Fetch Full Article",
