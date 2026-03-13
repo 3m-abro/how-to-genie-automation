@@ -24,15 +24,15 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - ✓ System health monitoring and alert handler — existing
 - ✓ Google Sheets as data backbone (Content Log, Social Queue, Affiliate Registry) — existing
 - ✓ Config-driven architecture via htg_config.csv — existing
+- ✓ Pipeline reliability (Config Loader, QC rejection path, WordPress retry, Content Log) — v1.0
+- ✓ Growth workflows: multi-language, WhatsApp/Telegram, A/B testing, viral amplifier, video production, email newsletter — v1.0
+- ✓ Revenue and ADHD dashboards connected to live data (Laravel APIs, n8n status) — v1.0
+- ✓ Monitoring: failure alerts (Telegram), weekly summary email — v1.0
+- ✓ Affiliate registry + Affiliate Link Manager (Muncheye RSS); GA4 → topic selection; SEO Interlinking — v1.0
 
 ### Active
 
-- [ ] Growth workflows activated and validated (multi-language, WhatsApp/Telegram, A/B testing, viral amplifier, video production, email newsletter)
-- [ ] Revenue and ADHD dashboards connected to live n8n data (replace hardcoded demo data)
-- [ ] Core pipeline reliability hardened (error recovery, retry logic, fallback chains verified)
-- [ ] Monitoring and alerting fully operational (Discord/Slack alerts, weekly health reports)
-- [ ] Affiliate link registry kept current and niche-relevant
-- [ ] SEO performance feedback loop (GA4 → content strategy)
+- [ ] (Next milestone — define via `$gsd-new-milestone`) — e.g. Islamic content, competitor intelligence, voice/audio, content repurposing (v2 requirements)
 
 ### Out of Scope
 
@@ -49,7 +49,7 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - **Niche targets:** productivity, finance, home, health, tech (+ halal filtering enabled)
 - **Revenue model:** AdSense + Adsterra + affiliate commissions (ClickBank, JVZoo, Digistore24)
 - **Target:** $2K–10K+/month passive revenue by Month 12+
-- **Current state:** Core pipeline production-ready; 7 growth workflows exist as templates but are disabled/hardcoded
+- **Current state:** v1.0 MVP shipped 2026-03-13. Core pipeline + 6 phases complete: reliability, distribution, optimization, satellites, dashboards/monitoring, affiliate/SEO. Laravel app with Revenue + Mission Control APIs; n8n workflows config-gated via htg_config.csv.
 - **Schedule design:** Staggered — Islamic content (5 AM) → A/B test (6 AM) → Orchestrator (8 AM) → social/video/translation satellites (10 AM–4 PM) → competitor monitor (every 3h) → viral amplifier (every 6h) → SEO rebuild (Sunday 3 AM)
 
 ## Constraints
@@ -65,11 +65,11 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Local Ollama over cloud APIs | Zero inference cost; ~$0/month AI spend | — Pending |
-| Google Sheets as database | Zero infrastructure; human-readable; all satellites chain off Content Log tab | — Pending |
-| Separate satellite workflows | Each can be enabled/disabled/debugged independently without touching core pipeline | — Pending |
-| Staggered schedule design | Satellites must read today's post from Sheets; all must run after 8 AM orchestrator | — Pending |
-| htg_config.csv as config source | Single file to update for all system parameters; no hardcoded values in workflow JSON | — Pending |
+| Local Ollama over cloud APIs | Zero inference cost; ~$0/month AI spend | ✓ Good — v1.0 |
+| Google Sheets as database | Zero infrastructure; human-readable; all satellites chain off Content Log tab | ✓ Good — v1.0 |
+| Separate satellite workflows | Each can be enabled/disabled/debugged independently without touching core pipeline | ✓ Good — v1.0 |
+| Staggered schedule design | Satellites must read today's post from Sheets; all must run after 8 AM orchestrator | ✓ Good — v1.0 |
+| htg_config.csv as config source | Single file to update for all system parameters; no hardcoded values in workflow JSON | ✓ Good — v1.0 |
 
 ---
-*Last updated: 2026-03-12 after initialization*
+*Last updated: 2026-03-13 after v1.0 milestone*
