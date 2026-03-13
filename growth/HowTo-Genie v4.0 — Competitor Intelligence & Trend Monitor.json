@@ -24,9 +24,29 @@
     },
     {
       "parameters": {
-        "jsCode": "// Define competitor list and monitoring sources\nconst competitors = [\n  { name: 'WikiHow', url: 'https://www.wikihow.com', category: 'how-to' },\n  { name: 'Lifehacker', url: 'https://lifehacker.com', category: 'productivity' },\n  { name: 'MakeUseOf', url: 'https://www.makeuseof.com', category: 'tech' },\n  { name: 'Digital Trends', url: 'https://www.digitaltrends.com', category: 'tech' },\n  { name: 'The Balance', url: 'https://www.thebalancemoney.com', category: 'business' },\n  { name: 'Investopedia', url: 'https://www.investopedia.com', category: 'business' },\n  { name: 'Creative Bloq', url: 'https://www.creativebloq.com', category: 'creativity' },\n  { name: 'Skillshare Blog', url: 'https://www.skillshare.com/blog', category: 'learning' },\n  { name: 'Neil Patel Blog', url: 'https://neilpatel.com/blog', category: 'marketing' },\n  { name: 'HubSpot Blog', url: 'https://blog.hubspot.com', category: 'marketing' }\n];\n\nconst subreddits = [\n  'r/howto', 'r/lifeprotips', 'r/learnuselesstalents', 'r/everymanshouldknow',\n  'r/entrepreneur', 'r/smallbusiness', 'r/productivity', 'r/getdisciplined',\n  'r/webdev', 'r/learnprogramming', 'r/technology', 'r/digitalnomad'\n];\n\nreturn competitors.map(c => ({ json: { ...c, type: 'competitor' } }))\n  .concat(subreddits.map(s => ({ json: { name: s, url: 'https://reddit.com/' + s, type: 'reddit' } })));"
+        "workflowId": {
+          "__rl": true,
+          "value": "CVc7gJbrt1baZLxG",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/CVc7gJbrt1baZLxG",
+          "cachedResultName": "⚙️ Config Loader"
+        },
+        "options": {}
       },
-      "name": "🎯 Load Monitoring Targets",
+      "id": "b1a2c3d4-e5f6-7890-abcd-000000000001",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.1,
+      "position": [
+        -448,
+        16
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $input.first().json;\nconst rssRaw = (config.COMPETITOR_RSS_FEEDS || '').toString().trim();\nconst redditRaw = (config.REDDIT_SUBREDDITS || '').toString().trim();\nconst rssUrls = rssRaw ? rssRaw.split(',').map(s => s.trim()).filter(Boolean) : [];\nconst subreddits = redditRaw ? redditRaw.split(',').map(s => s.trim()).filter(Boolean) : [];\nconst normalized = subreddits.map(s => /^r\\//.test(s) ? s : 'r/' + s);\nif (rssUrls.length === 0 && normalized.length === 0) {\n  return [{ json: { no_sources: true } }];\n}\nconst out = [];\nrssUrls.forEach(url => out.push({ json: { type: 'rss', url } }));\nnormalized.forEach(sub => out.push({ json: { type: 'reddit', subreddit: sub } }));\nreturn out;"
+      },
+      "name": "🎯 Build Source List",
       "type": "n8n-nodes-base.code",
       "position": [
         -320,
@@ -36,7 +56,37 @@
       "typeVersion": 2
     },
     {
-      "parameters": {},
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  { "leftValue": "={{ $json.type }}", "rightValue": "rss", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "rss"
+            },
+            {
+              "conditions": {
+                "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+                "conditions": [
+                  { "leftValue": "={{ $json.type }}", "rightValue": "reddit", "operator": { "type": "string", "operation": "equals" } }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "reddit"
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": "extra"
+        }
+      },
       "name": "🔀 Route by Type",
       "type": "n8n-nodes-base.switch",
       "position": [
@@ -44,11 +94,11 @@
         16
       ],
       "id": "94281d48-2b8a-43c6-a39f-f18456de78e7",
-      "typeVersion": 1
+      "typeVersion": 3.2
     },
     {
       "parameters": {
-        "url": "={{ $json.url }}/feed/",
+        "url": "={{ $json.url }}",
         "options": {}
       },
       "name": "📡 Fetch Competitor RSS Feed",
@@ -63,7 +113,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse RSS feed and extract latest posts\nconst xml = $input.first().json;\nconst competitorName = $input.first().json.name || 'Unknown';\n\n// Simple RSS parsing (in production, use a proper XML parser)\nconst items = [];\nconst itemMatches = String(xml).match(/<item[^>]*>([\\s\\S]*?)<\\/item>/gi) || [];\n\nitemMatches.slice(0, 10).forEach((item, idx) => {\n  const title = (item.match(/<title[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/title>/) || \n                 item.match(/<title[^>]*>([^<]+)<\\/title>/))?.[1] || '';\n  const link = (item.match(/<link[^>]*>([^<]+)<\\/link>/))?.[1] || '';\n  const pubDate = (item.match(/<pubDate[^>]*>([^<]+)<\\/pubDate>/))?.[1] || '';\n  const description = (item.match(/<description[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/description>/) || \n                       item.match(/<description[^>]*>([^<]+)<\\/description>/))?.[1] || '';\n  \n  items.push({\n    competitor: competitorName,\n    title: title.trim(),\n    url: link.trim(),\n    published: pubDate,\n    snippet: description.replace(/<[^>]*>/g, '').substring(0, 200),\n    detected_at: new Date().toISOString()\n  });\n});\n\nreturn items.map(i => ({ json: i }));"
+        "jsCode": "const all = $input.all();\nconst out = [];\nfor (let i = 0; i < all.length; i++) {\n  const xml = all[i].json.body || all[i].json;\n  const feedUrl = typeof $('🔀 Route by Type').item(i).json !== 'undefined' ? $('🔀 Route by Type').item(i).json.url : '';\n  const source = feedUrl || 'rss';\n  const itemMatches = String(xml).match(/<item[^>]*>([\\s\\S]*?)<\\/item>/gi) || [];\n  itemMatches.slice(0, 10).forEach((item) => {\n    const title = (item.match(/<title[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/title>/) || item.match(/<title[^>]*>([^<]+)<\\/title>/))?.[1] || '';\n    const link = (item.match(/<link[^>]*>([^<]+)<\\/link>/))?.[1] || '';\n    const pubDate = (item.match(/<pubDate[^>]*>([^<]+)<\\/pubDate>/))?.[1] || '';\n    const description = (item.match(/<description[^>]*><!\\[CDATA\\[([^\\]]+)\\]\\]><\\/description>/) || item.match(/<description[^>]*>([^<]+)<\\/description>/))?.[1] || '';\n    out.push({ json: { source, title: title.trim(), url: link.trim(), published: pubDate, detected_at: new Date().toISOString() } });\n  });\n}\nreturn out.length ? out : [{ json: { source: 'rss', title: '', url: '', published: '', detected_at: new Date().toISOString() } }];"
       },
       "name": "📰 Parse Competitor Posts",
       "type": "n8n-nodes-base.code",
@@ -76,7 +126,7 @@
     },
     {
       "parameters": {
-        "url": "=https://www.reddit.com/{{ $json.name }}/hot.json?limit=25",
+        "url": "=https://www.reddit.com/{{ $json.subreddit.replace(/^r\\//, '') }}/hot.json?limit=25",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -100,7 +150,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse Reddit posts\nconst data = $input.first().json?.data?.children || [];\nconst subreddit = $input.first().json.name;\n\nreturn data.filter(post => post.data.ups >= 100).map(post => ({\n  json: {\n    source: 'reddit',\n    subreddit: subreddit,\n    title: post.data.title,\n    url: 'https://reddit.com' + post.data.permalink,\n    upvotes: post.data.ups,\n    comments: post.data.num_comments,\n    created: new Date(post.data.created_utc * 1000).toISOString(),\n    snippet: post.data.selftext ? post.data.selftext.substring(0, 200) : '',\n    detected_at: new Date().toISOString()\n  }\n}));"
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json?.data?.children || [];\n  const subreddit = $('🔀 Route by Type').item(i).json?.subreddit || 'reddit';\n  data.filter(post => post.data && post.data.ups >= 100).forEach(post => {\n    out.push({ json: { source: 'reddit', title: post.data.title, url: 'https://reddit.com' + post.data.permalink, published: new Date(post.data.created_utc * 1000).toISOString(), detected_at: new Date().toISOString() } });\n  });\n}\nreturn out.length ? out : [{ json: { source: 'reddit', title: '', url: '', published: '', detected_at: new Date().toISOString() } }];"
       },
       "name": "💬 Parse Reddit Posts",
       "type": "n8n-nodes-base.code",
@@ -138,220 +188,6 @@
       ],
       "id": "39ad1b04-ba55-4e6e-9e24-31e4f9bb65cf",
       "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.5
-        }
-      },
-      "name": "🧠 AI: Analyze Intelligence & Generate Ideas",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        480,
-        80
-      ],
-      "id": "22720e7a-ec35-4434-a623-6491cef72fd1",
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "jsCode": "// Parse intelligence report\nconst raw = $input.first().json.response || '';\n\nlet report;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  report = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  report = {\n    scan_summary: { total_items_analyzed: 0, high_priority_opportunities: 0 },\n    top_opportunities: [],\n    parse_error: e.message\n  };\n}\n\nreturn [{\n  json: {\n    report_id: 'INTEL_' + Date.now(),\n    scan_date: new Date().toISOString(),\n    scan_summary: report.scan_summary,\n    top_opportunities: report.top_opportunities || [],\n    competitor_insights: report.competitor_insights || [],\n    trending_summary: report.trending_topics_summary || '',\n    recommended_actions: report.recommended_actions || [],\n    total_opportunities: report.top_opportunities?.length || 0\n  }\n}];"
-      },
-      "name": "📋 Parse Intelligence Report",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        688,
-        80
-      ],
-      "id": "c0f13c4d-9364-4b18-b5c4-42398363257b",
-      "typeVersion": 2
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Content Ideas Queue",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Date Added": "={{ $now.format('YYYY-MM-DD HH:mm') }}",
-            "Priority": "={{ $json.rank }}",
-            "Score": "={{ $json.opportunity_score }}",
-            "Title": "={{ $json.suggested_title }}",
-            "Keyword": "={{ $json.target_keyword }}",
-            "Content Angle": "={{ $json.content_angle }}",
-            "Source": "={{ $json.source }}",
-            "Est. Searches": "={{ $json.estimated_monthly_searches }}",
-            "Competition": "={{ $json.competition_level }}",
-            "Monetization": "={{ $json.monetization_potential }}",
-            "Urgency": "={{ $json.urgency }}",
-            "Why Valuable": "={{ $json.why_valuable }}",
-            "Status": "Queued"
-          }
-        },
-        "options": {}
-      },
-      "name": "📝 Add to Content Ideas Queue",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        880,
-        16
-      ],
-      "id": "4e4e4546-18d9-40f5-853c-245ab0e345a3",
-      "typeVersion": 4,
-      "notes": "Each opportunity becomes a row in the content calendar."
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Competitor Intelligence",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Scan Date": "={{ $('Parse Intelligence Report').item.json.scan_date }}",
-            "Report ID": "={{ $('Parse Intelligence Report').item.json.report_id }}",
-            "Items Analyzed": "={{ $('Parse Intelligence Report').item.json.scan_summary.total_items_analyzed }}",
-            "High Priority": "={{ $('Parse Intelligence Report').item.json.scan_summary.high_priority_opportunities }}",
-            "Content Gaps": "={{ $('Parse Intelligence Report').item.json.scan_summary.content_gaps_found }}",
-            "Trending Topics": "={{ $('Parse Intelligence Report').item.json.scan_summary.trending_topics }}",
-            "Top Opportunity": "={{ $('Parse Intelligence Report').item.json.top_opportunities[0]?.suggested_title }}",
-            "Trending Summary": "={{ $('Parse Intelligence Report').item.json.trending_summary }}",
-            "Actions": "={{ $('Parse Intelligence Report').item.json.recommended_actions.join(' | ') }}",
-            "Full Report": "={{ JSON.stringify($('Parse Intelligence Report').item.json).substring(0, 3000) }}"
-          }
-        },
-        "options": {}
-      },
-      "name": "📊 Log Intelligence Report",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        880,
-        160
-      ],
-      "id": "36705546-272f-42ca-9b88-decee030a9bf",
-      "typeVersion": 4
-    },
-    {
-      "parameters": {
-        "url": "https://api.ahrefs.com/v3/site-explorer/metrics",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "target",
-              "value": "howtogenie.com"
-            },
-            {
-              "name": "mode",
-              "value": "domain"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_AHREFS_API_KEY"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "🔗 Fetch Our Backlink Profile",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        80,
-        512
-      ],
-      "id": "58c33a87-04f7-4223-899b-0f8c76bee387",
-      "typeVersion": 4.1,
-      "notes": "Ahrefs API. Monitors our backlink health. Alternative: Use free SEMrush API."
-    },
-    {
-      "parameters": {
-        "url": "https://api.ahrefs.com/v3/site-explorer/metrics",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            {
-              "name": "target",
-              "value": "={{ $('Load Monitoring Targets').item.json.url.replace('https://', '').replace('http://', '') }}"
-            },
-            {
-              "name": "mode",
-              "value": "domain"
-            }
-          ]
-        },
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_AHREFS_API_KEY"
-            }
-          ]
-        },
-        "options": {}
-      },
-      "name": "🔗 Fetch Competitor Backlinks",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        288,
-        512
-      ],
-      "id": "3aaafc0a-2ca0-4c3d-a988-90faf7ca8550",
-      "typeVersion": 4.1
-    },
-    {
-      "parameters": {
-        "model": "llama3.2:latest",
-        "options": {
-          "temperature": 0.4
-        }
-      },
-      "name": "🔗 AI: Backlink Gap Analysis",
-      "type": "@n8n/n8n-nodes-langchain.lmChatOllama",
-      "position": [
-        480,
-        512
-      ],
-      "id": "dcc00450-4e5b-4de8-8f77-556e71335c71",
-      "typeVersion": 1
-    },
-    {
-      "parameters": {
-        "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Backlink Opportunities",
-        "columns": {
-          "mappingMode": "defineBelow",
-          "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Target Site": "={{ $json.target_site }}",
-            "Link Type": "={{ $json.link_type }}",
-            "Outreach Angle": "={{ $json.outreach_angle }}",
-            "Difficulty": "={{ $json.difficulty }}",
-            "Est. DA": "={{ $json.estimated_da }}",
-            "Why Relevant": "={{ $json.why_relevant }}",
-            "Status": "Identified",
-            "Outreach": "Not Started"
-          }
-        },
-        "options": {}
-      },
-      "name": "📋 Queue Backlink Outreach",
-      "type": "n8n-nodes-base.googleSheets",
-      "position": [
-        688,
-        512
-      ],
-      "id": "fe545efe-cb46-4701-864e-55639aae5f5d",
-      "typeVersion": 4
     }
   ],
   "pinData": {},
@@ -360,14 +196,25 @@
       "main": [
         [
           {
-            "node": "🎯 Load Monitoring Targets",
+            "node": "⚙️ Load Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🎯 Load Monitoring Targets": {
+    "⚙️ Load Config": {
+      "main": [
+        [
+          {
+            "node": "🎯 Build Source List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🎯 Build Source List": {
       "main": [
         [
           {
@@ -423,33 +270,6 @@
         [
           {
             "node": "📊 Parse Google Trends",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "📋 Parse Intelligence Report": {
-      "main": [
-        [
-          {
-            "node": "📝 Add to Content Ideas Queue",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "📊 Log Intelligence Report",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "🔗 Fetch Our Backlink Profile": {
-      "main": [
-        [
-          {
-            "node": "🔗 Fetch Competitor Backlinks",
             "type": "main",
             "index": 0
           }
