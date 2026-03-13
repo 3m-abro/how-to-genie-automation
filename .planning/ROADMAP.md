@@ -100,7 +100,7 @@ Plans:
   2. Workflow adapts content to TTS script and produces one audio output per language (VOICE_PROVIDER from config).
   3. Uses Config Loader first; handles empty Multilingual Content rows; column contract documented.
   4. Runs after Multi-Language (e.g. 4 PM); logs outputs to Audio Log / config-driven tab.
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 11-01-PLAN.md — Config Loader, Content Log + Multilingual read/filter, empty-Multilingual branch, column contract and config keys in HOWTOGENIE (VOICE-01, VOICE-03)
@@ -120,7 +120,7 @@ Plans:
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | 2/2 | Complete    | 2026-03-13 | - |
-| 11. Voice & Audio | v2.0 | 0/? | Not started | - |
+| 11. Voice & Audio | 1/2 | In Progress|  | - |
 
 ---
 *v2.0 roadmap created 2026-03-13. Next: `/gsd:plan-phase 7`*
