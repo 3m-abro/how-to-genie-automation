@@ -27,7 +27,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
 
 **Milestone Goal:** Competitor intelligence, voice/audio, content repurposing; single authoritative doc; archive/cleanup with no broken refs. Islamic content deferred.
 
-- [ ] **Phase 7: Docs Consolidation** — Single authoritative Markdown covering workflows, UI, config, schedule, archive
+- [x] **Phase 7: Docs Consolidation** — Single authoritative Markdown covering workflows, UI, config, schedule, archive (completed 2026-03-13)
 - [ ] **Phase 8: Archive & Cleanup** — Unused/superseded assets in archive/; Execute Workflow callers updated; documented
 - [ ] **Phase 9: Competitor Intelligence** — Config-driven competitor workflow (RSS + Reddit → sheet); no hardcoding
 - [ ] **Phase 10: Content Repurposing** — Today's post → 3–5 formats; config-driven; idempotent
@@ -43,7 +43,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
   1. One consolidated Markdown doc exists (e.g. docs/HOWTOGENIE.md) covering all workflows, UI, config keys, schedule, and archive.
   2. Doc is the single authoritative reference; no parallel conflicting doc sets.
   3. Doc includes workflow list and config key reference so it can be updated when adding workflows or config.
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md — Create docs/HOWTOGENIE.md; deprecate other setup docs with pointers; point CLAUDE.md to single reference; human-verify DOCS-02
@@ -101,7 +101,7 @@ Plans:
 | 4. Content Satellites | v1.0 | 2/2 | Complete | 2026-03-12 |
 | 5. Live Dashboards & Monitoring | v1.0 | 4/4 | Complete | 2026-03-12 |
 | 6. Affiliate & SEO Feedback | v1.0 | 4/4 | Complete | 2026-03-13 |
-| 7. Docs Consolidation | v2.0 | 1/1 | Not started | - |
+| 7. Docs Consolidation | 1/1 | Complete   | 2026-03-13 | - |
 | 8. Archive & Cleanup | v2.0 | 0/? | Not started | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | v2.0 | 0/? | Not started | - |

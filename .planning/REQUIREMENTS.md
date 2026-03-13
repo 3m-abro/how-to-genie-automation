@@ -34,8 +34,8 @@ Requirements below are for v2.0. v1.0 requirements are archived in `milestones/v
 
 ### Docs Consolidation
 
-- [ ] **DOCS-01**: One detailed, centralized Markdown doc (e.g. docs/HOWTOGENIE.md) covers all workflows, UI, config keys, schedule, and archive
-- [ ] **DOCS-02**: Doc is the single authoritative reference; no parallel conflicting doc sets; updated when adding workflows or config
+- [x] **DOCS-01**: One detailed, centralized Markdown doc (e.g. docs/HOWTOGENIE.md) covers all workflows, UI, config keys, schedule, and archive
+- [x] **DOCS-02**: Doc is the single authoritative reference; no parallel conflicting doc sets; updated when adding workflows or config
 
 ### Archive & Cleanup
 
@@ -90,8 +90,8 @@ Deferred; not in current roadmap.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DOCS-01 | Phase 7 | Pending |
-| DOCS-02 | Phase 7 | Pending |
+| DOCS-01 | Phase 7 | Complete |
+| DOCS-02 | Phase 7 | Complete |
 | ARCH-01 | Phase 8 | Pending |
 | ARCH-02 | Phase 8 | Pending |
 | ARCH-03 | Phase 8 | Pending |
