@@ -1,5 +1,7 @@
 # HowTo-Genie — Agentic Team Orchestrator
 
+For the full workflow list, schedule, and config reference, see [HowTo-Genie reference](HOWTOGENIE.md).
+
 Single workflow that runs your HowTo-Genie "agents" (sub-workflows) on a schedule. One cron, one router, 12 Execute Workflow nodes + optional logging.
 
 ## After import

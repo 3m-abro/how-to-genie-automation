@@ -6,6 +6,8 @@ HowTo-Genie is a fully automated AI-powered content creation and monetization pl
 
 The system is designed around a single design constraint: the owner should only need to look at it once per week. Everything else is automated.
 
+For the canonical workflow list, schedule, and config key reference, see **docs/HOWTOGENIE.md**.
+
 **Current branch:** `claude/add-claude-documentation-tPTAR`
 **Base branch:** `master` / `main` on remote
 
@@ -29,9 +31,7 @@ The system is designed around a single design constraint: the owner should only 
 │
 ├── files.zip                                  # Archive of above docs
 │
-├── howto-genie-setup-guide.md                 # PRIMARY setup reference (318 lines)
-│                                              # Covers agents, monetization, image pipeline,
-│                                              # social media, checklist, performance, costs
+├── howto-genie-setup-guide.md                 # Deprecated; see docs/HOWTOGENIE.md
 │
 ├── adhd-mission-control.tsx                   # React dashboard: ADHD-optimized single-view
 │                                              # Shows system status, pomodoro timer, wins
