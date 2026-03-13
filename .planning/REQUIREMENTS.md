@@ -39,9 +39,9 @@ Requirements below are for v2.0. v1.0 requirements are archived in `milestones/v
 
 ### Archive & Cleanup
 
-- [ ] **ARCH-01**: Unused or superseded workflows, UI, and other files are identified and either moved to archive/ (with README) or deleted
+- [x] **ARCH-01**: Unused or superseded workflows, UI, and other files are identified and either moved to archive/ (with README) or deleted
 - [x] **ARCH-02**: Before moving any workflow, Execute Workflow callers are listed and updated so no broken workflow IDs remain
-- [ ] **ARCH-03**: Archive location and "what lives where" are documented in the consolidated docs
+- [x] **ARCH-03**: Archive location and "what lives where" are documented in the consolidated docs
 
 ---
 
@@ -92,9 +92,9 @@ Deferred; not in current roadmap.
 |-------------|-------|--------|
 | DOCS-01 | Phase 7 | Complete |
 | DOCS-02 | Phase 7 | Complete |
-| ARCH-01 | Phase 8 | Pending |
+| ARCH-01 | Phase 8 | Complete |
 | ARCH-02 | Phase 8 | Complete |
-| ARCH-03 | Phase 8 | Pending |
+| ARCH-03 | Phase 8 | Complete |
 | COMP-01 | Phase 9 | Pending |
 | COMP-02 | Phase 9 | Pending |
 | COMP-03 | Phase 9 | Pending |
