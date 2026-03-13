@@ -188,6 +188,162 @@
       ],
       "id": "39ad1b04-ba55-4e6e-9e24-31e4f9bb65cf",
       "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "leftValue": "={{ ($json.statusCode >= 200 && $json.statusCode < 300) || (typeof $json.statusCode === 'undefined' && $json && Object.keys($json).length > 0) }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "✅ RSS OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 184, -96 ],
+      "id": "if-rss-001"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { items: [], error: true } }];" },
+      "name": "📭 RSS Empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 184, 24 ],
+      "id": "empty-rss-001"
+    },
+    {
+      "parameters": { "amount": 2, "unit": "seconds" },
+      "name": "⏱ Wait after RSS",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [ 392, -96 ],
+      "id": "wait-rss-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "leftValue": "={{ ($json.statusCode >= 200 && $json.statusCode < 300) || (typeof $json.statusCode === 'undefined' && $json && Object.keys($json).length > 0) }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "✅ Reddit OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 184, 112 ],
+      "id": "if-reddit-001"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { items: [], error: true } }];" },
+      "name": "📭 Reddit Empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 184, 232 ],
+      "id": "empty-reddit-001"
+    },
+    {
+      "parameters": { "amount": 2, "unit": "seconds" },
+      "name": "⏱ Wait after Reddit",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [ 392, 112 ],
+      "id": "wait-reddit-001"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: {} }];" },
+      "name": "▶ Run Google Trends",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ -320, 280 ],
+      "id": "run-trends-001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [
+            { "leftValue": "={{ ($json.statusCode >= 200 && $json.statusCode < 300) || (typeof $json.statusCode === 'undefined' && $json && Object.keys($json).length > 0) }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "✅ Trends OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [ 184, 304 ],
+      "id": "if-trends-001"
+    },
+    {
+      "parameters": { "jsCode": "return [{ json: { items: [], error: true } }];" },
+      "name": "📭 Trends Empty",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 184, 424 ],
+      "id": "empty-trends-001"
+    },
+    {
+      "parameters": { "amount": 2, "unit": "seconds" },
+      "name": "⏱ Wait after Trends",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [ 392, 304 ],
+      "id": "wait-trends-001"
+    },
+    {
+      "parameters": { "jsCode": "return [];" },
+      "name": "📭 Empty trend list",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 80, 16 ],
+      "id": "empty-no-sources-001"
+    },
+    {
+      "parameters": { "mode": "combine", "combineBy": "combineAll" },
+      "name": "🔀 Merge Trends",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [ 600, 80 ],
+      "id": "merge-trends-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const all = $input.all();\nconst list = [];\nfor (const item of all) {\n  if (item.json.error && item.json.items && item.json.items.length === 0) continue;\n  if (item.json.url !== undefined && item.json.url) list.push(item.json);\n  else if (Array.isArray(item.json.items)) list.push(...item.json.items.filter(x => x && x.url));\n}\nconst byUrl = new Map();\nfor (const r of list) {\n  const url = (r.url || '').trim();\n  if (!url) continue;\n  const existing = byUrl.get(url);\n  const date = r.published || r.detected_at || '';\n  if (!existing || (date > (existing.published || existing.detected_at || ''))) byUrl.set(url, r);\n}\nconst sorted = Array.from(byUrl.values()).sort((a, b) => {\n  const da = a.published || a.detected_at || '';\n  const db = b.published || b.detected_at || '';\n  return db.localeCompare(da);\n}).slice(0, 500);\nreturn sorted.map(r => ({ json: { title: r.title || '', url: r.url || '', source: r.source || '', published: r.published || '', detected_at: r.detected_at || '' } }));"
+      },
+      "name": "📋 Dedupe & Sort Trends",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [ 816, 80 ],
+      "id": "dedupe-sort-001"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": { "__rl": true, "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID }}", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "={{ $('⚙️ Load Config').item.json.COMPETITOR_INTEL_TAB }}", "mode": "name" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Title": "={{ $json.title }}",
+            "URL": "={{ $json.url }}",
+            "Source": "={{ $json.source }}",
+            "Published": "={{ $json.published }}",
+            "Detected At": "={{ $json.detected_at }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📊 Write Trend List",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [ 1032, 80 ],
+      "id": "sheets-trend-001"
     }
   ],
   "pinData": {},
@@ -210,6 +366,11 @@
             "node": "🎯 Build Source List",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "▶ Run Google Trends",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -228,53 +389,81 @@
     "🔀 Route by Type": {
       "main": [
         [
-          {
-            "node": "📡 Fetch Competitor RSS Feed",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "📡 Fetch Competitor RSS Feed", "type": "main", "index": 0 }
         ],
         [
-          {
-            "node": "🔥 Fetch Reddit Hot Posts",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "🔥 Fetch Reddit Hot Posts", "type": "main", "index": 0 }
+        ],
+        [
+          { "node": "📭 Empty trend list", "type": "main", "index": 0 }
         ]
       ]
     },
     "📡 Fetch Competitor RSS Feed": {
+      "main": [[ { "node": "✅ RSS OK?", "type": "main", "index": 0 } ]]
+    },
+    "✅ RSS OK?": {
       "main": [
-        [
-          {
-            "node": "📰 Parse Competitor Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [[ { "node": "📰 Parse Competitor Posts", "type": "main", "index": 0 } ]],
+        [[ { "node": "📭 RSS Empty", "type": "main", "index": 0 } ]]
       ]
+    },
+    "📰 Parse Competitor Posts": {
+      "main": [[ { "node": "⏱ Wait after RSS", "type": "main", "index": 0 } ]]
+    },
+    "📭 RSS Empty": {
+      "main": [[ { "node": "⏱ Wait after RSS", "type": "main", "index": 0 } ]]
+    },
+    "⏱ Wait after RSS": {
+      "main": [[ { "node": "🔀 Merge Trends", "type": "main", "index": 0 } ]]
     },
     "🔥 Fetch Reddit Hot Posts": {
+      "main": [[ { "node": "✅ Reddit OK?", "type": "main", "index": 0 } ]]
+    },
+    "✅ Reddit OK?": {
       "main": [
-        [
-          {
-            "node": "💬 Parse Reddit Posts",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [[ { "node": "💬 Parse Reddit Posts", "type": "main", "index": 0 } ]],
+        [[ { "node": "📭 Reddit Empty", "type": "main", "index": 0 } ]]
       ]
     },
+    "💬 Parse Reddit Posts": {
+      "main": [[ { "node": "⏱ Wait after Reddit", "type": "main", "index": 0 } ]]
+    },
+    "📭 Reddit Empty": {
+      "main": [[ { "node": "⏱ Wait after Reddit", "type": "main", "index": 0 } ]]
+    },
+    "⏱ Wait after Reddit": {
+      "main": [[ { "node": "🔀 Merge Trends", "type": "main", "index": 1 } ]]
+    },
+    "▶ Run Google Trends": {
+      "main": [[ { "node": "📈 Fetch Google Trends", "type": "main", "index": 0 } ]]
+    },
     "📈 Fetch Google Trends": {
+      "main": [[ { "node": "✅ Trends OK?", "type": "main", "index": 0 } ]]
+    },
+    "✅ Trends OK?": {
       "main": [
-        [
-          {
-            "node": "📊 Parse Google Trends",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [[ { "node": "📊 Parse Google Trends", "type": "main", "index": 0 } ]],
+        [[ { "node": "📭 Trends Empty", "type": "main", "index": 0 } ]]
       ]
+    },
+    "📊 Parse Google Trends": {
+      "main": [[ { "node": "⏱ Wait after Trends", "type": "main", "index": 0 } ]]
+    },
+    "📭 Trends Empty": {
+      "main": [[ { "node": "⏱ Wait after Trends", "type": "main", "index": 0 } ]]
+    },
+    "⏱ Wait after Trends": {
+      "main": [[ { "node": "🔀 Merge Trends", "type": "main", "index": 2 } ]]
+    },
+    "📭 Empty trend list": {
+      "main": [[ { "node": "🔀 Merge Trends", "type": "main", "index": 3 } ]]
+    },
+    "🔀 Merge Trends": {
+      "main": [[ { "node": "📋 Dedupe & Sort Trends", "type": "main", "index": 0 } ]]
+    },
+    "📋 Dedupe & Sort Trends": {
+      "main": [[ { "node": "📊 Write Trend List", "type": "main", "index": 0 } ]]
     }
   },
   "active": false,
