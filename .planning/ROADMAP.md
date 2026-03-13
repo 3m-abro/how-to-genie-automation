@@ -115,7 +115,7 @@ Plans:
 | 7. Docs Consolidation | 1/1 | Complete   | 2026-03-13 | - |
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
-| 10. Content Repurposing | 2/2 | Complete   | 2026-03-13 | - |
+| 10. Content Repurposing | 2/2 | Complete    | 2026-03-13 | - |
 | 11. Voice & Audio | v2.0 | 0/? | Not started | - |
 
 ---
