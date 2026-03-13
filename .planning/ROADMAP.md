@@ -120,7 +120,7 @@ Plans:
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | 2/2 | Complete    | 2026-03-13 | - |
-| 11. Voice & Audio | 2/2 | Complete   | 2026-03-13 | - |
+| 11. Voice & Audio | 2/2 | Complete    | 2026-03-13 | - |
 
 ---
 *v2.0 roadmap created 2026-03-13. Next: `/gsd:plan-phase 7`*
