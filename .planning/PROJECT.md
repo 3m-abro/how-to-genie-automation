@@ -32,7 +32,7 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 
 ### Active
 
-- [ ] (Next milestone — define via `$gsd-new-milestone`) — e.g. Islamic content, competitor intelligence, voice/audio, content repurposing (v2 requirements)
+- [ ] **v2.0** — Islamic content, competitor intelligence, voice/audio, content repurposing, docs consolidation, archive/cleanup (see Current Milestone below)
 
 ### Out of Scope
 
@@ -40,6 +40,18 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - Custom CMS — WordPress is the publishing target; not replacing it
 - Real-time chat or community features — content creation platform only
 - Manual content editing — automation-first design principle
+
+## Current Milestone: v2.0 Content Expansion & Housekeeping
+
+**Goal:** Add Islamic content specialization, competitor intelligence, voice/audio pipeline, and content repurposing; consolidate docs into one authoritative MD; archive or delete unused workflows, UI, and files.
+
+**Target features:**
+- Islamic content (e.g. AlAdhan API, Hijri-aware scheduling/content)
+- Competitor intelligence & trend monitoring
+- Voice & audio content pipeline (TTS for multilingual)
+- Content repurposing engine (1 post → multiple asset types)
+- Docs: single detailed, centralized markdown (workflows, UI, reference)
+- Archive/cleanup: move unused workflows/UI/files to archive or delete if not needed
 
 ## Context
 
@@ -72,4 +84,4 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 | htg_config.csv as config source | Single file to update for all system parameters; no hardcoded values in workflow JSON | ✓ Good — v1.0 |
 
 ---
-*Last updated: 2026-03-13 after v1.0 milestone*
+*Last updated: 2026-03-13 — Milestone v2.0 started*
