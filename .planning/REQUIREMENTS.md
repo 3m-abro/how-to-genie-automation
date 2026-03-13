@@ -28,7 +28,7 @@ Requirements below are for v2.0. v1.0 requirements are archived in `milestones/v
 ### Content Repurposing
 
 - [x] **REP-01**: Repurposing workflow reads today's post from Content Log (timezone-aware) and produces 3–5 platform-native formats
-- [ ] **REP-02**: Repurposing workflow strips HTML and uses LLM per format; logs to Repurposed Content (and queues) in config-driven tabs
+- [x] **REP-02**: Repurposing workflow strips HTML and uses LLM per format; logs to Repurposed Content (and queues) in config-driven tabs
 - [x] **REP-03**: Repurposing uses Config Loader and WORDPRESS_URL from config; idempotent (no duplicate append same post/date)
 - [x] **REP-04**: Repurposing runs after publish (e.g. Noon); no YOUR_* placeholders
 
@@ -100,7 +100,7 @@ Deferred; not in current roadmap.
 | COMP-03 | Phase 9 | Complete (09-01) |
 | COMP-04 | Phase 9 | Complete (09-01) |
 | REP-01 | Phase 10 | Complete |
-| REP-02 | Phase 10 | Pending |
+| REP-02 | Phase 10 | Complete |
 | REP-03 | Phase 10 | Complete |
 | REP-04 | Phase 10 | Complete |
 | VOICE-01 | Phase 11 | Pending |

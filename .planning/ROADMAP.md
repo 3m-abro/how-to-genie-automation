@@ -30,7 +30,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
 - [x] **Phase 7: Docs Consolidation** — Single authoritative Markdown covering workflows, UI, config, schedule, archive (completed 2026-03-13)
 - [ ] **Phase 8: Archive & Cleanup** — Unused/superseded assets in archive/; Execute Workflow callers updated; documented
 - [x] **Phase 9: Competitor Intelligence** — Config-driven competitor workflow (RSS + Reddit → sheet); no hardcoding (09-01 complete)
-- [ ] **Phase 10: Content Repurposing** — Today's post → 3–5 formats; config-driven; idempotent
+- [x] **Phase 10: Content Repurposing** — Today's post → 3–5 formats; config-driven; idempotent (completed 2026-03-13)
 - [ ] **Phase 11: Voice & Audio** — Content Log + Multilingual → TTS per language; runs after Multi-Language
 
 ## Phase Details
@@ -85,7 +85,7 @@ Plans:
   2. Workflow strips HTML and uses LLM per format; logs to Repurposed Content (and queues) in config-driven tabs.
   3. Uses Config Loader and WORDPRESS_URL from config; idempotent (no duplicate append same post/date).
   4. No YOUR_* placeholders in workflow.
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [x] 10-01-PLAN.md — Config Loader first; timezone-aware today filter; idempotency check; no YOUR_* (REP-01, REP-03, REP-04)
@@ -115,7 +115,7 @@ Plans:
 | 7. Docs Consolidation | 1/1 | Complete   | 2026-03-13 | - |
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
-| 10. Content Repurposing | 1/2 | In Progress|  | - |
+| 10. Content Repurposing | 2/2 | Complete   | 2026-03-13 | - |
 | 11. Voice & Audio | v2.0 | 0/? | Not started | - |
 
 ---
