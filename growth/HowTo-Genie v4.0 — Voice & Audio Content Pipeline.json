@@ -184,7 +184,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Prepare audio jobs for all language versions\nconst allPosts = $input.all();\n\n// Voice configuration per language\nconst voiceConfig = {\n  'en': { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah', gender: 'female', provider: 'elevenlabs' },\n  'es': { voice_id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda', gender: 'female', provider: 'elevenlabs' },\n  'pt-BR': { voice_id: 'GBv7mTt0atIp3Br8iCZE', name: 'Ricardo', gender: 'male', provider: 'elevenlabs' },\n  'de': { voice_id: 'iP95p4xoKVk53GoZ742B', name: 'Klaus', gender: 'male', provider: 'elevenlabs' },\n  'fr': { voice_id: 'zrHiDhphv9ZnVXBqCLjz', name: 'Charlotte', gender: 'female', provider: 'elevenlabs' },\n  'hi': { voice_id: 'hi-IN-Neural2-A', name: 'Aditi', gender: 'female', provider: 'google' },\n  'id': { voice_id: 'id-ID-Standard-B', name: 'Siti', gender: 'female', provider: 'google' },\n  'ar': { voice_id: 'ar-XA-Standard-A', name: 'Layla', gender: 'female', provider: 'google' },\n  'ja': { voice_id: 'ja-JP-Neural2-B', name: 'Yuki', gender: 'female', provider: 'google' }\n};\n\nreturn allPosts.map(post => {\n  const lang = post.json['Language']?.toLowerCase() || 'en';\n  const langCode = lang.includes('spanish') ? 'es' : \n                   lang.includes('portuguese') ? 'pt-BR' : \n                   lang.includes('german') ? 'de' : \n                   lang.includes('french') ? 'fr' : \n                   lang.includes('hindi') ? 'hi' : \n                   lang.includes('indonesian') ? 'id' : \n                   lang.includes('arabic') ? 'ar' : \n                   lang.includes('japanese') ? 'ja' : 'en';\n  \n  return {\n    json: {\n      title: post.json['Translated Title'] || post.json['Title'],\n      url: post.json['URL'],\n      language: langCode,\n      language_name: post.json['Language'] || 'English',\n      voice_config: voiceConfig[langCode] || voiceConfig['en'],\n      content_preview: (post.json['Translated Title'] || '').substring(0, 200)\n    }\n  };\n});"
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst provider = (config.VOICE_PROVIDER || 'elevenlabs').toLowerCase();\nconst allPosts = $input.all();\n\nconst elevenlabsMap = { 'en': { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Sarah' }, 'es': { voice_id: 'XrExE9yKIg1WjnnlVkGX', name: 'Matilda' }, 'pt-BR': { voice_id: 'GBv7mTt0atIp3Br8iCZE', name: 'Ricardo' }, 'de': { voice_id: 'iP95p4xoKVk53GoZ742B', name: 'Klaus' }, 'fr': { voice_id: 'zrHiDhphv9ZnVXBqCLjz', name: 'Charlotte' }, 'hi': { voice_id: 'hi-IN-Neural2-A', name: 'Aditi' }, 'id': { voice_id: 'id-ID-Standard-B', name: 'Siti' }, 'ar': { voice_id: 'ar-XA-Standard-A', name: 'Layla' }, 'ja': { voice_id: 'ja-JP-Neural2-B', name: 'Yuki' } };\nconst googleMap = { 'en': { voice_id: 'en-US-Neural2-D', name: 'en-US' }, 'es': { voice_id: 'es-ES-Neural2-B', name: 'es-ES' }, 'pt-BR': { voice_id: 'pt-BR-Neural2-B', name: 'pt-BR' }, 'de': { voice_id: 'de-DE-Neural2-B', name: 'de-DE' }, 'fr': { voice_id: 'fr-FR-Neural2-A', name: 'fr-FR' }, 'hi': { voice_id: 'hi-IN-Neural2-A', name: 'Aditi' }, 'id': { voice_id: 'id-ID-Standard-B', name: 'Siti' }, 'ar': { voice_id: 'ar-XA-Standard-A', name: 'Layla' }, 'ja': { voice_id: 'ja-JP-Neural2-B', name: 'Yuki' } };\n\nfunction langCode(post) {\n  const lang = post.json['Language']?.toLowerCase() || 'en';\n  if (lang.includes('spanish')) return 'es';\n  if (lang.includes('portuguese')) return 'pt-BR';\n  if (lang.includes('german')) return 'de';\n  if (lang.includes('french')) return 'fr';\n  if (lang.includes('hindi')) return 'hi';\n  if (lang.includes('indonesian')) return 'id';\n  if (lang.includes('arabic')) return 'ar';\n  if (lang.includes('japanese')) return 'ja';\n  return 'en';\n}\n\nreturn allPosts.map(post => {\n  const lc = langCode(post);\n  let voice_config;\n  if (provider === 'local') {\n    voice_config = { provider: 'local', voice_id: lc, name: 'local', endpoint: (config.TTS_SERVER_URL || 'http://localhost:5000').replace(/\\/$/, '') };\n  } else if (provider === 'google') {\n    const v = googleMap[lc] || googleMap['en'];\n    voice_config = { provider: 'google', voice_id: v.voice_id, name: v.name };\n  } else {\n    const v = elevenlabsMap[lc] || elevenlabsMap['en'];\n    voice_config = { provider: 'elevenlabs', voice_id: v.voice_id, name: v.name };\n  }\n  return {\n    json: {\n      title: post.json['Translated Title'] || post.json['Title'],\n      url: post.json['URL'],\n      language: lc,\n      language_name: post.json['Language'] || 'English',\n      voice_config,\n      content_preview: (post.json['Translated Title'] || '').substring(0, 200)\n    }\n  };\n});"
       },
       "name": "🎛️ Configure Voice Settings",
       "type": "n8n-nodes-base.code",
@@ -227,7 +227,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw = $input.first().json.response || '';\nconst voiceConfig = $('Configure Voice Settings').item.json.voice_config;\nconst langData = $('Configure Voice Settings').item.json;\n\nlet audioScript;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  audioScript = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  audioScript = {\n    podcast_title: langData.title,\n    podcast_script: 'Welcome to HowTo-Genie Podcast. ' + langData.content_preview,\n    estimated_duration: '10 minutes',\n    word_count: 1500,\n    parse_error: e.message\n  };\n}\n\n// Clean script for TTS (remove stage directions)\nconst ttsScript = audioScript.podcast_script\n  .replace(/\\[PAUSE\\]/g, '... ')\n  .replace(/\\[EMPHASIS[^\\]]*\\]/g, '')\n  .replace(/\\[.*?\\]/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    ...langData,\n    podcast_title: audioScript.podcast_title,\n    podcast_script: audioScript.podcast_script,\n    tts_script: ttsScript,\n    estimated_duration: audioScript.estimated_duration,\n    word_count: audioScript.word_count,\n    chapters: audioScript.chapters || [],\n    show_notes: audioScript.show_notes || '',\n    keywords: audioScript.keywords || [],\n    affiliate_mentions: audioScript.affiliate_mentions || [],\n    voice_provider: voiceConfig.provider,\n    voice_id: voiceConfig.voice_id,\n    voice_name: voiceConfig.name\n  }\n}];"
+        "jsCode": "const raw = $input.first().json.response || '';\nconst voiceConfig = $('🎛️ Configure Voice Settings').item.json.voice_config;\nconst langData = $('🎛️ Configure Voice Settings').item.json;\n\nlet audioScript;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  audioScript = JSON.parse(match ? (match[1] || match[0]) : raw);\n} catch(e) {\n  audioScript = {\n    podcast_title: langData.title,\n    podcast_script: 'Welcome to HowTo-Genie Podcast. ' + langData.content_preview,\n    estimated_duration: '10 minutes',\n    word_count: 1500,\n    parse_error: e.message\n  };\n}\n\n// Clean script for TTS (remove stage directions)\nconst ttsScript = audioScript.podcast_script\n  .replace(/\\[PAUSE\\]/g, '... ')\n  .replace(/\\[EMPHASIS[^\\]]*\\]/g, '')\n  .replace(/\\[.*?\\]/g, '')\n  .trim();\n\nreturn [{\n  json: {\n    ...langData,\n    podcast_title: audioScript.podcast_title,\n    podcast_script: audioScript.podcast_script,\n    tts_script: ttsScript,\n    estimated_duration: audioScript.estimated_duration,\n    word_count: audioScript.word_count,\n    chapters: audioScript.chapters || [],\n    show_notes: audioScript.show_notes || '',\n    keywords: audioScript.keywords || [],\n    affiliate_mentions: audioScript.affiliate_mentions || [],\n    voice_provider: voiceConfig.provider,\n    voice_id: voiceConfig.voice_id,\n    voice_name: voiceConfig.name\n  }\n}];"
       },
       "name": "📝 Parse Audio Script",
       "type": "n8n-nodes-base.code",
@@ -241,34 +241,99 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
             {
-              "value1": "={{ $json.voice_provider }}",
-              "operation": "equals",
-              "value2": "elevenlabs"
+              "id": "cond-local",
+              "leftValue": "={{ $json.voice_provider }}",
+              "rightValue": "local",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
             }
-          ]
-        }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
       },
-      "name": "🔀 Route by Voice Provider",
+      "name": "🔀 Route: local?",
       "type": "n8n-nodes-base.if",
       "position": [
         -336,
         -48
       ],
       "id": "be51a575-b716-4612-a7f8-d4b832746cf7",
-      "typeVersion": 1
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-eleven",
+              "leftValue": "={{ $json.voice_provider }}",
+              "rightValue": "elevenlabs",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "🔀 Route: elevenlabs?",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        -144,
+        -48
+      ],
+      "id": "a1b2c3d4-voice-route-eleven",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "url": "={{ ($('⚙️ Load Config').item.json.TTS_SERVER_URL || 'http://localhost:5000').replace(/\\/$/, '') }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContent": "={{ $json.tts_script ? $json.tts_script.substring(0, 5000) : '' }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "name": "🌐 Local TTS: Generate Audio",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [
+        -128,
+        -240
+      ],
+      "id": "a1b2c3d4-voice-local-tts",
+      "typeVersion": 4.1,
+      "notes": "POST to local TTS server (Piper etc). URL from TTS_SERVER_URL. Response = binary audio."
     },
     {
       "parameters": {
         "url": "https://api.elevenlabs.io/v1/text-to-speech/={{ $json.voice_id }}",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            {
-              "name": "xi-api-key",
-              "value": "YOUR_ELEVENLABS_API_KEY"
-            },
             {
               "name": "Content-Type",
               "value": "application/json"
@@ -289,16 +354,23 @@
       "name": "🎤 ElevenLabs: Generate Audio",
       "type": "n8n-nodes-base.httpRequest",
       "position": [
-        -128,
+        64,
         -144
       ],
       "id": "8d44f587-479d-45c1-b4a9-7ef03441624c",
       "typeVersion": 4.1,
-      "notes": "ElevenLabs premium voices. 29 languages supported. $22/mo for 100K chars."
+      "credentials": {
+        "httpHeaderAuth": {
+          "name": "ElevenLabs API"
+        }
+      },
+      "notes": "Uses n8n credential 'ElevenLabs API' (Header Auth, name=xi-api-key). 29 languages."
     },
     {
       "parameters": {
-        "url": "https://texttospeech.googleapis.com/v1/text:synthesize?key=YOUR_GOOGLE_API_KEY",
+        "url": "https://texttospeech.googleapis.com/v1/text:synthesize",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "googleApi",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"input\": { \"text\": \"{{ $json.tts_script.substring(0, 5000) }}\" },\n  \"voice\": {\n    \"languageCode\": \"{{ $json.language }}\",\n    \"name\": \"{{ $json.voice_id }}\"\n  },\n  \"audioConfig\": {\n    \"audioEncoding\": \"MP3\",\n    \"pitch\": 0,\n    \"speakingRate\": 1.0\n  }\n}",
@@ -307,12 +379,17 @@
       "name": "🗣️ Google TTS: Generate Audio",
       "type": "n8n-nodes-base.httpRequest",
       "position": [
-        -128,
+        64,
         64
       ],
       "id": "e9da7a05-4cb5-441a-ab86-1d1a861264b5",
       "typeVersion": 4.1,
-      "notes": "Google Cloud TTS. Free tier: 1M chars/month. Supports 100+ languages."
+      "credentials": {
+        "googleApi": {
+          "name": "Google Cloud TTS"
+        }
+      },
+      "notes": "Uses n8n credential 'Google Cloud TTS' (Google API key). Free tier: 1M chars/month."
     },
     {
       "parameters": {
@@ -462,13 +539,10 @@
       "parameters": {
         "url": "https://api.elevenlabs.io/v1/text-to-speech/={{ $json.voice_id }}",
         "sendHeaders": true,
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
         "headerParameters": {
-          "parameters": [
-            {
-              "name": "xi-api-key",
-              "value": "YOUR_ELEVENLABS_API_KEY"
-            }
-          ]
+          "parameters": []
         },
         "sendBody": true,
         "specifyBody": "json",
@@ -598,14 +672,32 @@
       "main": [
         [
           {
-            "node": "🔀 Route by Voice Provider",
+            "node": "🔀 Route: local?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "🔀 Route by Voice Provider": {
+    "🔀 Route: local?": {
+      "main": [
+        [
+          {
+            "node": "🌐 Local TTS: Generate Audio",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "🔀 Route: elevenlabs?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔀 Route: elevenlabs?": {
       "main": [
         [
           {
@@ -617,6 +709,17 @@
         [
           {
             "node": "🗣️ Google TTS: Generate Audio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🌐 Local TTS: Generate Audio": {
+      "main": [
+        [
+          {
+            "node": "🔊 Process Audio File",
             "type": "main",
             "index": 0
           }
