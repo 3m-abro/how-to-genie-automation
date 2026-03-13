@@ -43,7 +43,10 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
   1. One consolidated Markdown doc exists (e.g. docs/HOWTOGENIE.md) covering all workflows, UI, config keys, schedule, and archive.
   2. Doc is the single authoritative reference; no parallel conflicting doc sets.
   3. Doc includes workflow list and config key reference so it can be updated when adding workflows or config.
-**Plans**: TBD
+**Plans:** 1 plan
+
+Plans:
+- [ ] 07-01-PLAN.md — Create docs/HOWTOGENIE.md; deprecate other setup docs with pointers; point CLAUDE.md to single reference; human-verify DOCS-02
 
 ### Phase 8: Archive & Cleanup
 **Goal**: Unused or superseded workflows, UI, and files are safely archived or removed; no broken Execute Workflow references.
@@ -98,7 +101,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
 | 4. Content Satellites | v1.0 | 2/2 | Complete | 2026-03-12 |
 | 5. Live Dashboards & Monitoring | v1.0 | 4/4 | Complete | 2026-03-12 |
 | 6. Affiliate & SEO Feedback | v1.0 | 4/4 | Complete | 2026-03-13 |
-| 7. Docs Consolidation | v2.0 | 0/? | Not started | - |
+| 7. Docs Consolidation | v2.0 | 1/1 | Not started | - |
 | 8. Archive & Cleanup | v2.0 | 0/? | Not started | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | v2.0 | 0/? | Not started | - |
