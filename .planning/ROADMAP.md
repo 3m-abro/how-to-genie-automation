@@ -85,10 +85,10 @@ Plans:
   2. Workflow strips HTML and uses LLM per format; logs to Repurposed Content (and queues) in config-driven tabs.
   3. Uses Config Loader and WORDPRESS_URL from config; idempotent (no duplicate append same post/date).
   4. No YOUR_* placeholders in workflow.
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
-- [ ] 10-01-PLAN.md — Config Loader first; timezone-aware today filter; idempotency check; no YOUR_* (REP-01, REP-03, REP-04)
+- [x] 10-01-PLAN.md — Config Loader first; timezone-aware today filter; idempotency check; no YOUR_* (REP-01, REP-03, REP-04)
 - [ ] 10-02-PLAN.md — Config-driven formats, Parse & Validate per LLM, Assemble and log; config keys and docs (REP-01, REP-02)
 
 ### Phase 11: Voice & Audio
@@ -115,7 +115,7 @@ Plans:
 | 7. Docs Consolidation | 1/1 | Complete   | 2026-03-13 | - |
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
-| 10. Content Repurposing | v2.0 | 0/? | Not started | - |
+| 10. Content Repurposing | 1/2 | In Progress|  | - |
 | 11. Voice & Audio | v2.0 | 0/? | Not started | - |
 
 ---
