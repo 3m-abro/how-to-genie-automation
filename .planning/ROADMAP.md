@@ -56,7 +56,11 @@ Plans:
   1. Unused/superseded workflows, UI, and files are identified and either in archive/ (with README) or deleted.
   2. Every Execute Workflow caller of any moved workflow is listed and updated so no broken workflow IDs remain.
   3. Archive location and "what lives where" are documented in the consolidated docs.
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md — Add verify-archive-refs and caller-audit scripts; update 08-VALIDATION (ARCH-02)
+- [ ] 08-02-PLAN.md — Identify candidates, update callers, move workflows; add archive/README.md; doc updates (ARCH-01, ARCH-02, ARCH-03)
 
 ### Phase 9: Competitor Intelligence
 **Goal**: Competitor workflow runs on schedule, reads RSS + Reddit from config, writes deduplicated trend list to a config-driven Sheet tab with no hardcoding.
