@@ -88,16 +88,30 @@ Deferred; not in current roadmap.
 
 ## Traceability
 
-Filled by roadmapper during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (to be mapped) | — | Pending |
+| DOCS-01 | Phase 7 | Pending |
+| DOCS-02 | Phase 7 | Pending |
+| ARCH-01 | Phase 8 | Pending |
+| ARCH-02 | Phase 8 | Pending |
+| ARCH-03 | Phase 8 | Pending |
+| COMP-01 | Phase 9 | Pending |
+| COMP-02 | Phase 9 | Pending |
+| COMP-03 | Phase 9 | Pending |
+| COMP-04 | Phase 9 | Pending |
+| REP-01 | Phase 10 | Pending |
+| REP-02 | Phase 10 | Pending |
+| REP-03 | Phase 10 | Pending |
+| REP-04 | Phase 10 | Pending |
+| VOICE-01 | Phase 11 | Pending |
+| VOICE-02 | Phase 11 | Pending |
+| VOICE-03 | Phase 11 | Pending |
+| VOICE-04 | Phase 11 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 18 total
-- Mapped to phases: 0
-- Unmapped: 18 (pending roadmap)
+- Mapped to phases: 18
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-13*  
