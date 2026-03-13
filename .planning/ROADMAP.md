@@ -56,7 +56,7 @@ Plans:
   1. Unused/superseded workflows, UI, and files are identified and either in archive/ (with README) or deleted.
   2. Every Execute Workflow caller of any moved workflow is listed and updated so no broken workflow IDs remain.
   3. Archive location and "what lives where" are documented in the consolidated docs.
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 08-01-PLAN.md — Add verify-archive-refs and caller-audit scripts; update 08-VALIDATION (ARCH-02)
@@ -106,7 +106,7 @@ Plans:
 | 5. Live Dashboards & Monitoring | v1.0 | 4/4 | Complete | 2026-03-12 |
 | 6. Affiliate & SEO Feedback | v1.0 | 4/4 | Complete | 2026-03-13 |
 | 7. Docs Consolidation | 1/1 | Complete   | 2026-03-13 | - |
-| 8. Archive & Cleanup | v2.0 | 0/? | Not started | - |
+| 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | v2.0 | 0/? | Not started | - |
 | 11. Voice & Audio | v2.0 | 0/? | Not started | - |
