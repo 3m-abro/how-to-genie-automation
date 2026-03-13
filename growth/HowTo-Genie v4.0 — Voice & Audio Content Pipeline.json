@@ -393,7 +393,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Extract audio data and prepare for distribution\nconst audioData = $input.first().json;\nconst scriptData = $('Parse Audio Script').item.json;\n\nlet audioFile;\nlet audioFormat;\n\nif (audioData.data) {\n  // ElevenLabs returns binary audio\n  audioFile = audioData.data;\n  audioFormat = 'mp3';\n} else if (audioData.audioContent) {\n  // Google TTS returns base64\n  audioFile = Buffer.from(audioData.audioContent, 'base64');\n  audioFormat = 'mp3';\n} else {\n  audioFile = null;\n}\n\nconst fileName = `howtogenie_${scriptData.language}_${Date.now()}.mp3`;\n\nreturn [{\n  json: {\n    ...scriptData,\n    audio_file_name: fileName,\n    audio_format: audioFormat,\n    audio_size_kb: audioFile ? Math.round(audioFile.length / 1024) : 0,\n    audio_ready: !!audioFile,\n    generated_at: new Date().toISOString()\n  },\n  binary: audioFile ? {\n    data: audioFile,\n    fileName: fileName,\n    mimeType: 'audio/mpeg'\n  } : undefined\n}];"
+        "jsCode": "const item = $input.first();\nconst scriptData = $('📝 Parse Audio Script').item.json;\nconst slug = (scriptData.url || '').split('/').filter(Boolean).pop() || (scriptData.title || 'post').replace(/[^a-z0-9-]/gi, '_').slice(0, 50);\nconst lang = scriptData.language || 'en';\nconst ts = Date.now();\nconst fileName = `${slug}_${lang}_${ts}.mp3`;\n\nlet audioFile;\nlet audioFormat = 'mp3';\nif (item.binary && item.binary.data) {\n  audioFile = item.binary.data;\n} else if (item.json && item.json.audioContent) {\n  audioFile = Buffer.from(item.json.audioContent, 'base64');\n} else if (item.json && item.json.data) {\n  audioFile = item.json.data;\n} else {\n  audioFile = null;\n}\n\nreturn [{\n  json: {\n    ...scriptData,\n    audio_file_name: fileName,\n    audio_format: audioFormat,\n    audio_size_kb: audioFile ? Math.round(audioFile.length / 1024) : 0,\n    audio_ready: !!audioFile,\n    generated_at: new Date().toISOString(),\n    voice_provider: scriptData.voice_provider || 'local'\n  },\n  binary: audioFile ? { data: audioFile, fileName, mimeType: 'audio/mpeg' } : undefined\n}];"
       },
       "name": "🔊 Process Audio File",
       "type": "n8n-nodes-base.code",
@@ -406,108 +406,122 @@
     },
     {
       "parameters": {
-        "operation": "upload",
-        "requestOptions": {}
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst basePath = (config.AUDIO_OUTPUT_PATH || '/tmp/htg-audio').replace(/\\/$/, '');\nconst item = $input.first();\nconst j = item.json;\nconst fileName = j.audio_file_name || `audio_${j.language}_${Date.now()}.mp3`;\nconst fullPath = basePath + '/' + fileName;\nlet buf = null;\nif (item.binary && item.binary.data) buf = item.binary.data;\nif (buf && typeof require !== 'undefined') {\n  try { const fs = require('fs'); fs.mkdirSync(basePath, { recursive: true }); fs.writeFileSync(fullPath, buf); } catch (e) { }\n}\nreturn [{ json: { ...j, file_path: fullPath, audio_file_name: fileName } }];"
       },
-      "name": "☁️ Upload to Google Cloud Storage",
-      "type": "n8n-nodes-base.googleCloudStorage",
+      "name": "📁 Write audio to path",
+      "type": "n8n-nodes-base.code",
       "position": [
         272,
         -48
       ],
-      "id": "0568bacd-a4e3-4aec-9dfb-89b2ef2197bf",
-      "typeVersion": 1,
-      "notes": "Stores audio files. Alternative: AWS S3, Cloudflare R2, or Backblaze B2."
+      "id": "a1b2c3d4-voice-write-path",
+      "typeVersion": 2,
+      "notes": "Writes binary to AUDIO_OUTPUT_PATH. Requires writable path; uses Node fs in self-hosted n8n."
     },
     {
       "parameters": {
-        "jsCode": "// Build podcast RSS feed item\nconst audio = $input.first().json;\nconst publicUrl = `https://storage.googleapis.com/howtogenie-audio/${audio.audio_file_name}`;\n\nconst rssItem = `\n<item>\n  <title>${audio.podcast_title}</title>\n  <link>${audio.url}</link>\n  <description><![CDATA[${audio.show_notes}]]></description>\n  <enclosure url=\"${publicUrl}\" length=\"${audio.audio_size_kb * 1024}\" type=\"audio/mpeg\" />\n  <guid isPermaLink=\"false\">${audio.audio_file_name}</guid>\n  <pubDate>${new Date(audio.generated_at).toUTCString()}</pubDate>\n  <itunes:duration>${audio.estimated_duration}</itunes:duration>\n  <itunes:keywords>${audio.keywords.join(', ')}</itunes:keywords>\n  <itunes:explicit>no</itunes:explicit>\n</item>\n`;\n\nreturn [{\n  json: {\n    ...audio,\n    audio_url: publicUrl,\n    rss_item: rssItem,\n    podcast_platforms: [\n      { name: 'Spotify', status: 'ready' },\n      { name: 'Apple Podcasts', status: 'ready' },\n      { name: 'Google Podcasts', status: 'ready' },\n      { name: 'YouTube Music', status: 'ready' },\n      { name: 'Amazon Music', status: 'ready' }\n    ]\n  }\n}];"
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.AUDIO_LOG_TAB || 'Audio Log' }}",
+          "mode": "name"
+        },
+        "options": {}
       },
-      "name": "📻 Build Podcast RSS Feed",
+      "name": "📋 Read Audio Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [
+        -1600,
+        -200
+      ],
+      "id": "a1b2c3d4-voice-read-audiolog",
+      "typeVersion": 4,
+      "notes": "Read once per run for idempotency. Uses GOOGLE_SHEET_ID and AUDIO_LOG_TAB."
+    },
+    {
+      "parameters": {
+        "jsCode": "const rows = $input.all().map(i => i.json);\nconst keys = new Set();\nconst dateKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'date');\nconst langKey = Object.keys(rows[0] || {}).find(k => k.toLowerCase() === 'language');\nconst urlKey = Object.keys(rows[0] || {}).find(k => (k || '').toLowerCase().includes('url') || (k || '').toLowerCase() === 'blog url');\nrows.forEach(r => {\n  const d = (r[dateKey] || r.Date || '').toString().slice(0, 10);\n  const lang = (r[langKey] || r.Language || '').toString();\n  const url = (r[urlKey] || r['Blog URL'] || r.url || '').toString();\n  const slug = url.split('/').filter(Boolean).pop() || '';\n  keys.add((slug || url) + '_' + d + '_' + lang);\n});\nreturn [{ json: { existingKeys: Array.from(keys) } }];"
+      },
+      "name": "🔑 Existing keys",
       "type": "n8n-nodes-base.code",
       "position": [
-        480,
+        -1408,
+        -200
+      ],
+      "id": "a1b2c3d4-voice-existing-keys",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst tz = config.CONTENT_DAY_TIMEZONE || config.TIMEZONE || 'UTC';\nconst contentDate = new Date().toLocaleDateString('en-CA', { timeZone: tz });\nconst j = $input.first().json;\nconst slug = (j.url || '').split('/').filter(Boolean).pop() || '';\nconst idempotencyKey = (slug || j.url || '') + '_' + contentDate + '_' + (j.language || '');\nreturn [{ json: { ...j, idempotency_key: idempotencyKey, log_date: contentDate } }];"
+      },
+      "name": "📝 Prepare log row",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        464,
         -48
       ],
-      "id": "da6ae10a-e3d7-4877-b1c0-983b63725839",
+      "id": "a1b2c3d4-voice-prepare-log",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combinationMode": "multiplex",
+        "options": {}
+      },
+      "name": "🔀 Merge for idempotency",
+      "type": "n8n-nodes-base.merge",
+      "position": [
+        656,
+        -48
+      ],
+      "id": "a1b2c3d4-voice-merge",
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (const it of items) {\n  const j = it.json;\n  const existing = j.existingKeys || [];\n  if (!j.idempotency_key || existing.includes(j.idempotency_key)) continue;\n  const { existingKeys, ...logRow } = j;\n  out.push({ json: logRow });\n}\nreturn out;"
+      },
+      "name": "🔒 Idempotency filter",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        848,
+        -48
+      ],
+      "id": "a1b2c3d4-voice-idempotency",
       "typeVersion": 2,
-      "notes": "Generates RSS feed item for podcast directories."
-    },
-    {
-      "parameters": {
-        "url": "https://api.spotify.com/v1/episodes",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_SPOTIFY_ACCESS_TOKEN"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"name\": \"{{ $json.podcast_title }}\",\n  \"description\": \"{{ $json.show_notes }}\",\n  \"language\": \"{{ $json.language }}\",\n  \"audio_file_url\": \"{{ $json.audio_url }}\",\n  \"external_url\": \"{{ $json.url }}\"\n}",
-        "options": {}
-      },
-      "name": "🎵 Submit to Spotify",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        672,
-        -144
-      ],
-      "id": "f455b4b6-f711-48b9-96a8-4b8b6c47bfe2",
-      "typeVersion": 4.1,
-      "notes": "Spotify for Podcasters API. Auto-publishes episode."
-    },
-    {
-      "parameters": {
-        "url": "https://www.youtube.com/upload/",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_YOUTUBE_ACCESS_TOKEN"
-            }
-          ]
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"snippet\": {\n    \"title\": \"{{ $json.podcast_title }}\",\n    \"description\": \"{{ $json.show_notes }}\\n\\nFull article: {{ $json.url }}\",\n    \"tags\": {{ JSON.stringify($json.keywords) }},\n    \"categoryId\": \"22\"\n  },\n  \"status\": {\n    \"privacyStatus\": \"public\",\n    \"selfDeclaredMadeForKids\": false\n  }\n}",
-        "options": {}
-      },
-      "name": "📺 Upload to YouTube",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        672,
-        64
-      ],
-      "id": "6ef39337-8192-4039-8f4b-cceeef7e9a00",
-      "typeVersion": 4.1,
-      "notes": "YouTube Data API. Creates audio-only video with static image."
+      "notes": "Skips append if row with same post+date+language already in AUDIO_LOG_TAB."
     },
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Audio Content",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.AUDIO_LOG_TAB || 'Audio Log' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Language": "={{ $json.language_name }}",
+            "Date": "={{ $json.log_date || $json.generated_at ? new Date($json.generated_at).toISOString().slice(0,10) : '' }}",
+            "Language": "={{ $json.language_name || $json.language }}",
             "Podcast Title": "={{ $json.podcast_title }}",
             "Duration": "={{ $json.estimated_duration }}",
-            "Word Count": "={{ $json.word_count }}",
-            "Audio URL": "={{ $json.audio_url }}",
-            "Voice Provider": "={{ $json.voice_provider }}",
-            "Voice Name": "={{ $json.voice_name }}",
-            "File Size (KB)": "={{ $json.audio_size_kb }}",
-            "Spotify": "Submitted",
-            "YouTube": "Uploaded",
+            "File Path": "={{ $json.file_path }}",
             "Blog URL": "={{ $json.url }}",
-            "Status": "Published"
+            "Voice Provider": "={{ $json.voice_provider }}",
+            "Status": "OK"
           }
         },
         "options": {}
@@ -515,54 +529,11 @@
       "name": "📊 Log Audio Content",
       "type": "n8n-nodes-base.googleSheets",
       "position": [
-        880,
+        1040,
         -48
       ],
       "id": "d8e56b8e-173f-4c3c-b11d-b2df1d6710b0",
       "typeVersion": 4
-    },
-    {
-      "parameters": {
-        "jsCode": "// Create WhatsApp Voice Note version (60 seconds max)\nconst fullScript = $('Parse Audio Script').item.json.tts_script;\nconst words = fullScript.split(' ');\nconst targetWords = 150; // ~60 seconds at normal pace\n\nconst shortScript = words.slice(0, targetWords).join(' ') + \n  '... For the complete guide, visit the link in bio.';\n\nreturn [{\n  json: {\n    ...$$('Parse Audio Script').item.json,\n    voice_note_script: shortScript,\n    voice_note_duration: '60 seconds',\n    platform: 'WhatsApp/Telegram'\n  }\n}];"
-      },
-      "name": "💬 Create Voice Note Version",
-      "type": "n8n-nodes-base.code",
-      "position": [
-        272,
-        160
-      ],
-      "id": "e1e6bc2d-6f6a-4509-875e-f117cc6c5f5b",
-      "typeVersion": 2,
-      "notes": "Creates 60-second teaser for messaging apps."
-    },
-    {
-      "parameters": {
-        "url": "https://api.elevenlabs.io/v1/text-to-speech/={{ $json.voice_id }}",
-        "sendHeaders": true,
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
-        "headerParameters": {
-          "parameters": []
-        },
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"text\": \"{{ $json.voice_note_script }}\",\n  \"model_id\": \"eleven_multilingual_v2\",\n  \"voice_settings\": { \"stability\": 0.5, \"similarity_boost\": 0.75 }\n}",
-        "options": {
-          "response": {
-            "response": {
-              "responseFormat": "file"
-            }
-          }
-        }
-      },
-      "name": "🎤 Generate Voice Note Audio",
-      "type": "n8n-nodes-base.httpRequest",
-      "position": [
-        480,
-        160
-      ],
-      "id": "e9d3a91e-c6d8-4ecc-bd4c-dcf4f9210ec9",
-      "typeVersion": 4.1
     }
   ],
   "pinData": {},
@@ -583,6 +554,33 @@
         [
           {
             "node": "📄 Get Today's Content",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📋 Read Audio Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📋 Read Audio Log": {
+      "main": [
+        [
+          {
+            "node": "🔑 Existing keys",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "🔑 Existing keys": {
+      "main": [
+        [
+          {
+            "node": "🔀 Merge for idempotency",
             "type": "main",
             "index": 0
           }
@@ -752,55 +750,51 @@
       "main": [
         [
           {
-            "node": "☁️ Upload to Google Cloud Storage",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "💬 Create Voice Note Version",
+            "node": "📁 Write audio to path",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "☁️ Upload to Google Cloud Storage": {
+    "📁 Write audio to path": {
       "main": [
         [
           {
-            "node": "📻 Build Podcast RSS Feed",
+            "node": "📝 Prepare log row",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "📻 Build Podcast RSS Feed": {
+    "📝 Prepare log row": {
       "main": [
         [
           {
-            "node": "🎵 Submit to Spotify",
+            "node": "🔀 Merge for idempotency",
             "type": "main",
-            "index": 0
-          },
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "🔀 Merge for idempotency": {
+      "main": [
+        [
           {
-            "node": "📺 Upload to YouTube",
+            "node": "🔒 Idempotency filter",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "🔒 Idempotency filter": {
+      "main": [
+        [
           {
             "node": "📊 Log Audio Content",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "💬 Create Voice Note Version": {
-      "main": [
-        [
-          {
-            "node": "🎤 Generate Voice Note Audio",
             "type": "main",
             "index": 0
           }
