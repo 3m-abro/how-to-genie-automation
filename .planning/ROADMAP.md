@@ -85,7 +85,11 @@ Plans:
   2. Workflow strips HTML and uses LLM per format; logs to Repurposed Content (and queues) in config-driven tabs.
   3. Uses Config Loader and WORDPRESS_URL from config; idempotent (no duplicate append same post/date).
   4. No YOUR_* placeholders in workflow.
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Config Loader first; timezone-aware today filter; idempotency check; no YOUR_* (REP-01, REP-03, REP-04)
+- [ ] 10-02-PLAN.md — Config-driven formats, Parse & Validate per LLM, Assemble and log; config keys and docs (REP-01, REP-02)
 
 ### Phase 11: Voice & Audio
 **Goal**: Voice workflow reads Content Log and Multilingual Content (timezone-aware), adapts to TTS script, produces one audio per language, runs after Multi-Language, logs to config-driven tab.
