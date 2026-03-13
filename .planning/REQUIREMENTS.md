@@ -13,10 +13,10 @@ Requirements below are for v2.0. v1.0 requirements are archived in `milestones/v
 
 ### Competitor Intelligence
 
-- [ ] **COMP-01**: Competitor workflow runs on schedule (e.g. every 3h) and reads RSS + Reddit from config (COMPETITOR_RSS_FEEDS)
-- [ ] **COMP-02**: Competitor workflow writes deduplicated, recency-ordered trend list to config-driven Sheet tab
-- [ ] **COMP-03**: Competitor workflow uses Config Loader first; delay/IF after each HTTP to avoid 429/blocking
-- [ ] **COMP-04**: No hardcoded YOUR_GOOGLE_SHEET_ID or sheet names; config-gated
+- [x] **COMP-01**: Competitor workflow runs on schedule (e.g. every 3h) and reads RSS + Reddit from config (COMPETITOR_RSS_FEEDS)
+- [x] **COMP-02**: Competitor workflow writes deduplicated, recency-ordered trend list to config-driven Sheet tab
+- [x] **COMP-03**: Competitor workflow uses Config Loader first; delay/IF after each HTTP to avoid 429/blocking
+- [x] **COMP-04**: No hardcoded YOUR_GOOGLE_SHEET_ID or sheet names; config-gated
 
 ### Voice & Audio
 
@@ -95,10 +95,10 @@ Deferred; not in current roadmap.
 | ARCH-01 | Phase 8 | Complete |
 | ARCH-02 | Phase 8 | Complete |
 | ARCH-03 | Phase 8 | Complete |
-| COMP-01 | Phase 9 | Pending |
-| COMP-02 | Phase 9 | Pending |
-| COMP-03 | Phase 9 | Pending |
-| COMP-04 | Phase 9 | Pending |
+| COMP-01 | Phase 9 | Complete (09-01) |
+| COMP-02 | Phase 9 | Complete (09-01) |
+| COMP-03 | Phase 9 | Complete (09-01) |
+| COMP-04 | Phase 9 | Complete (09-01) |
 | REP-01 | Phase 10 | Pending |
 | REP-02 | Phase 10 | Pending |
 | REP-03 | Phase 10 | Pending |

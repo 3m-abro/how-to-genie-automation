@@ -29,7 +29,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
 
 - [x] **Phase 7: Docs Consolidation** — Single authoritative Markdown covering workflows, UI, config, schedule, archive (completed 2026-03-13)
 - [ ] **Phase 8: Archive & Cleanup** — Unused/superseded assets in archive/; Execute Workflow callers updated; documented
-- [ ] **Phase 9: Competitor Intelligence** — Config-driven competitor workflow (RSS + Reddit → sheet); no hardcoding
+- [x] **Phase 9: Competitor Intelligence** — Config-driven competitor workflow (RSS + Reddit → sheet); no hardcoding (09-01 complete)
 - [ ] **Phase 10: Content Repurposing** — Today's post → 3–5 formats; config-driven; idempotent
 - [ ] **Phase 11: Voice & Audio** — Content Log + Multilingual → TTS per language; runs after Multi-Language
 
@@ -71,10 +71,10 @@ Plans:
   2. Workflow writes deduplicated, recency-ordered trend list to config-driven Sheet tab.
   3. Workflow uses Config Loader first; delay/IF after each HTTP to avoid 429/blocking.
   4. No hardcoded YOUR_GOOGLE_SHEET_ID or sheet names; config-gated.
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 
 Plans:
-- [ ] 09-01-PLAN.md — Config Loader first; config-driven RSS/Reddit and COMPETITOR_INTEL_TAB; IF+Wait after HTTP; one deduplicated trend list to sheet (COMP-01–COMP-04)
+- [x] 09-01-PLAN.md — Config Loader first; config-driven RSS/Reddit and COMPETITOR_INTEL_TAB; IF+Wait after HTTP; one deduplicated trend list to sheet (COMP-01–COMP-04)
 
 ### Phase 10: Content Repurposing
 **Goal**: Repurposing workflow reads today's post (timezone-aware), produces 3–5 platform-native formats, logs to config-driven tabs, and is idempotent.
