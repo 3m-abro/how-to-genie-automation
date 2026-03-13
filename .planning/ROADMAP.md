@@ -110,11 +110,11 @@ Plans:
   2. Affiliate Link Manager workflow runs on schedule, fetches Muncheye and CBEngine RSS feeds, and updates the registry with newly scored products without manual intervention
   3. GA4 integration is active: posts above a configurable traffic threshold appear in a "refresh candidates" list that Agent 1 (Topic Research) can read on the next run
   4. SEO Interlinking engine runs every Sunday at 3 AM and writes updated internal link recommendations to a Sheets tab or directly updates WordPress post content
-**Plans:** 3/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [x] 06-01-PLAN.md — Registry & config: 06-CONFIG-KEYS.md, registry row shape (AFF-01)
-- [ ] 06-02-PLAN.md — Affiliate Link Manager: Muncheye/CBEngine RSS → registry tab (AFF-01, AFF-02)
+- [x] 06-02-PLAN.md — Affiliate Link Manager: Muncheye/CBEngine RSS → registry tab (AFF-01, AFF-02)
 - [ ] 06-03-PLAN.md — Refresh Candidates Writer + orchestrator inject into Agent 1 (SEO-01)
 - [ ] 06-04-PLAN.md — SEO Interlinking: Config Loader, config-driven sheet/tab, no YOUR_* (SEO-02)
 
@@ -132,4 +132,4 @@ Note: Phase 4 depends on Phase 1 (not Phase 3) — it can be worked in parallel 
 | 3. Optimization Loops | 2/2 | Complete    | 2026-03-12 |
 | 4. Content Satellites | 2/2 | Complete   | 2026-03-12 |
 | 5. Live Dashboards & Monitoring | 4/4 | Complete   | 2026-03-12 |
-| 6. Affiliate & SEO Feedback | 3/4 | In Progress|  |
+| 6. Affiliate & SEO Feedback | 2/4 | In Progress|  |
