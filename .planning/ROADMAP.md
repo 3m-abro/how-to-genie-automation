@@ -31,7 +31,7 @@ The core 8-agent content pipeline is production-ready. v1.0 MVP shipped. v2.0 ad
 - [ ] **Phase 8: Archive & Cleanup** — Unused/superseded assets in archive/; Execute Workflow callers updated; documented
 - [x] **Phase 9: Competitor Intelligence** — Config-driven competitor workflow (RSS + Reddit → sheet); no hardcoding (09-01 complete)
 - [x] **Phase 10: Content Repurposing** — Today's post → 3–5 formats; config-driven; idempotent (completed 2026-03-13)
-- [ ] **Phase 11: Voice & Audio** — Content Log + Multilingual → TTS per language; runs after Multi-Language
+- [x] **Phase 11: Voice & Audio** — Content Log + Multilingual → TTS per language; runs after Multi-Language (completed 2026-03-13)
 
 ## Phase Details
 
@@ -100,7 +100,7 @@ Plans:
   2. Workflow adapts content to TTS script and produces one audio output per language (VOICE_PROVIDER from config).
   3. Uses Config Loader first; handles empty Multilingual Content rows; column contract documented.
   4. Runs after Multi-Language (e.g. 4 PM); logs outputs to Audio Log / config-driven tab.
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 11-01-PLAN.md — Config Loader, Content Log + Multilingual read/filter, empty-Multilingual branch, column contract and config keys in HOWTOGENIE (VOICE-01, VOICE-03)
@@ -120,7 +120,7 @@ Plans:
 | 8. Archive & Cleanup | 1/2 | In Progress|  | - |
 | 9. Competitor Intelligence | v2.0 | 0/? | Not started | - |
 | 10. Content Repurposing | 2/2 | Complete    | 2026-03-13 | - |
-| 11. Voice & Audio | 1/2 | In Progress|  | - |
+| 11. Voice & Audio | 2/2 | Complete   | 2026-03-13 | - |
 
 ---
 *v2.0 roadmap created 2026-03-13. Next: `/gsd:plan-phase 7`*

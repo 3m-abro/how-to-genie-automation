@@ -21,9 +21,9 @@ Requirements below are for v2.0. v1.0 requirements are archived in `milestones/v
 ### Voice & Audio
 
 - [x] **VOICE-01**: Voice workflow reads today's post from Content Log and Multilingual Content tab (timezone-aware)
-- [ ] **VOICE-02**: Voice workflow adapts content to TTS script and produces one audio output per language (VOICE_PROVIDER from config: local or cloud)
+- [x] **VOICE-02**: Voice workflow adapts content to TTS script and produces one audio output per language (VOICE_PROVIDER from config: local or cloud)
 - [x] **VOICE-03**: Voice workflow uses Config Loader first; handles empty Multilingual Content rows; documents column contract
-- [ ] **VOICE-04**: Voice runs after Multi-Language (e.g. 4 PM); logs outputs to Audio Log / config-driven tab
+- [x] **VOICE-04**: Voice runs after Multi-Language (e.g. 4 PM); logs outputs to Audio Log / config-driven tab
 
 ### Content Repurposing
 
@@ -104,9 +104,9 @@ Deferred; not in current roadmap.
 | REP-03 | Phase 10 | Complete |
 | REP-04 | Phase 10 | Complete |
 | VOICE-01 | Phase 11 | Complete |
-| VOICE-02 | Phase 11 | Pending |
+| VOICE-02 | Phase 11 | Complete |
 | VOICE-03 | Phase 11 | Complete |
-| VOICE-04 | Phase 11 | Pending |
+| VOICE-04 | Phase 11 | Complete |
 
 **Coverage:**
 - v2.0 requirements: 18 total
