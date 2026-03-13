@@ -29,10 +29,14 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - ✓ Revenue and ADHD dashboards connected to live data (Laravel APIs, n8n status) — v1.0
 - ✓ Monitoring: failure alerts (Telegram), weekly summary email — v1.0
 - ✓ Affiliate registry + Affiliate Link Manager (Muncheye RSS); GA4 → topic selection; SEO Interlinking — v1.0
+- ✓ Docs consolidation: single authoritative docs/HOWTOGENIE.md; archive/README; verify-archive-refs and caller-audit — v2.0
+- ✓ Competitor intelligence: config-driven RSS/Reddit → COMPETITOR_INTEL_TAB — v2.0
+- ✓ Content repurposing: timezone-aware, REPURPOSE_FORMATS, idempotent log — v2.0
+- ✓ Voice & audio: Content Log + Multilingual → TTS (local/elevenlabs/google), Audio Log idempotency — v2.0
 
 ### Active
 
-- [ ] **v2.0** — Islamic content, competitor intelligence, voice/audio, content repurposing, docs consolidation, archive/cleanup (see Current Milestone below)
+- [ ] **v2.x / v3** — TBD (run `$gsd-new-milestone` to define next goals)
 
 ### Out of Scope
 
@@ -41,17 +45,11 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - Real-time chat or community features — content creation platform only
 - Manual content editing — automation-first design principle
 
-## Current Milestone: v2.0 Content Expansion & Housekeeping
+## Current State (post v2.0)
 
-**Goal:** Add Islamic content specialization, competitor intelligence, voice/audio pipeline, and content repurposing; consolidate docs into one authoritative MD; archive or delete unused workflows, UI, and files.
+**Shipped:** v1.0 (2026-03-13), v2.0 (2026-03-13).
 
-**Target features:**
-- Islamic content (e.g. AlAdhan API, Hijri-aware scheduling/content)
-- Competitor intelligence & trend monitoring
-- Voice & audio content pipeline (TTS for multilingual)
-- Content repurposing engine (1 post → multiple asset types)
-- Docs: single detailed, centralized markdown (workflows, UI, reference)
-- Archive/cleanup: move unused workflows/UI/files to archive or delete if not needed
+**Next milestone:** Not yet defined. Run `$gsd-new-milestone` to start questioning → research → requirements → roadmap for v2.1 or v3.0.
 
 ## Context
 
@@ -61,7 +59,7 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 - **Niche targets:** productivity, finance, home, health, tech (+ halal filtering enabled)
 - **Revenue model:** AdSense + Adsterra + affiliate commissions (ClickBank, JVZoo, Digistore24)
 - **Target:** $2K–10K+/month passive revenue by Month 12+
-- **Current state:** v1.0 MVP shipped 2026-03-13. Core pipeline + 6 phases complete: reliability, distribution, optimization, satellites, dashboards/monitoring, affiliate/SEO. Laravel app with Revenue + Mission Control APIs; n8n workflows config-gated via htg_config.csv.
+- **Current state:** v1.0 and v2.0 shipped 2026-03-13. Core pipeline + docs (HOWTOGENIE.md), archive/cleanup scripts, competitor workflow, repurposing workflow, voice workflow — all config-gated. Laravel Revenue + Mission Control APIs; no YOUR_* in active workflows.
 - **Schedule design:** Staggered — Islamic content (5 AM) → A/B test (6 AM) → Orchestrator (8 AM) → social/video/translation satellites (10 AM–4 PM) → competitor monitor (every 3h) → viral amplifier (every 6h) → SEO rebuild (Sunday 3 AM)
 
 ## Constraints
@@ -84,4 +82,4 @@ The pipeline must produce and publish at least one monetized, SEO-optimized blog
 | htg_config.csv as config source | Single file to update for all system parameters; no hardcoded values in workflow JSON | ✓ Good — v1.0 |
 
 ---
-*Last updated: 2026-03-13 — Milestone v2.0 started*
+*Last updated: 2026-03-13 — v2.0 milestone complete*

@@ -1,5 +1,18 @@
 # Milestones
 
+## v2.0 Content Expansion & Housekeeping (Shipped: 2026-03-13)
+
+**Phases completed:** 5 phases, 8 plans, 0 tasks
+
+**Key accomplishments:**
+- Docs consolidation: Single authoritative docs/HOWTOGENIE.md; deprecated other setup docs; CLAUDE.md points to it
+- Archive & cleanup: verify-archive-refs and caller-audit scripts; archive/README.md; no broken Execute Workflow refs; documented in HOWTOGENIE
+- Competitor intelligence: Config-driven RSS/Reddit workflow; COMPETITOR_INTEL_TAB; Config Loader first; IF+Wait after HTTP
+- Content repurposing: Config Loader, timezone-aware today, idempotency; REPURPOSE_FORMATS; Parse & Validate per LLM; optional queue tabs
+- Voice & audio: Config Loader first; Content Log + Multilingual; VOICE_PROVIDER (local/elevenlabs/google); Audio Log idempotency; credentials in HOWTOGENIE
+
+---
+
 ## v1.0 MVP (Shipped: 2026-03-13)
 
 **Phases completed:** 6 phases, 20 plans, 0 tasks
