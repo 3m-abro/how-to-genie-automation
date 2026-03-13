@@ -1,0 +1,232 @@
+{
+  "name": "06 — Affiliate Link Manager",
+  "nodes": [
+    {
+      "id": "alm-01-trigger",
+      "name": "🕔 Schedule: Monday 7AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * 1"
+            }
+          ]
+        }
+      },
+      "notes": "Runs Monday 7 AM to refresh affiliate product registry from Muncheye RSS. Per RESEARCH; gate with AFFILIATE_MANAGER_ENABLED in config."
+    },
+    {
+      "id": "alm-02-load-config",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [220, 0],
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "notes": "Runs core/01_Config_Loader. Needs: GOOGLE_SHEET_ID (or SPREADSHEET_ID), AFFILIATE_REGISTRY_TAB, AFFILIATE_MANAGER_ENABLED."
+    },
+    {
+      "id": "alm-03-if-enabled",
+      "name": "🔀 AFFILIATE_MANAGER_ENABLED?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-enabled",
+              "leftValue": "={{ $('⚙️ Load Config').item.json.AFFILIATE_MANAGER_ENABLED }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "notes": "True branch continues to RSS fetch; false branch ends workflow (no error)."
+    },
+    {
+      "id": "alm-04-http-muncheye",
+      "name": "🌐 Fetch Muncheye RSS",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [660, -80],
+      "parameters": {
+        "method": "GET",
+        "url": "https://muncheye.com/category/affiliate/other/feed",
+        "options": {
+          "timeout": 20000
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (compatible; HowToGenie/1.0)"
+            }
+          ]
+        }
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Muncheye category RSS. CBEngine optional (parameterized RSS may require Pro); single source sufficient for AFF-02."
+    },
+    {
+      "id": "alm-05-if-http-ok",
+      "name": "🔀 HTTP OK?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, -80],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-http",
+              "leftValue": "={{ $json.statusCode || $json.status }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "alm-06-parse-muncheye",
+      "name": "📦 Parse Muncheye RSS",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, -160],
+      "parameters": {
+        "jsCode": "const raw = $input.first().json?.body || $input.first().json?.data || $input.first().json?.response || '';\nconst body = typeof raw === 'string' ? raw : (raw && raw.toString ? raw.toString() : '');\nconst today = new Date().toISOString().slice(0, 10);\nconst items = [];\ntry {\n  const itemRegex = /<item[^>]*>([\\s\\S]*?)<\\/item>/gi;\n  let itemMatch;\n  while ((itemMatch = itemRegex.exec(body)) !== null && items.length < 100) {\n    const block = itemMatch[1];\n    const title = (block.match(/<title[^>]*>([\\s\\S]*?)<\\/title>/i) || [])[1];\n    const link = (block.match(/<link[^>]*>([\\s\\S]*?)<\\/link>/i) || block.match(/<link[^>]*href=\"([^\"]+)\"/i) || [])[1];\n    const desc = (block.match(/<description[^>]*>([\\s\\S]*?)<\\/description>/i) || [])[1] || '';\n    const titleText = (title || '').replace(/<!\\[CDATA\\[|\\]\\]>/g, '').replace(/&amp;#39;/g, \"'\").replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').trim();\n    const linkText = (link || '').trim();\n    if (!titleText || !linkText) continue;\n    let niche = 'productivity';\n    const nicheList = ['productivity', 'finance', 'home', 'health', 'tech'];\n    const descL = (desc || '').toLowerCase();\n    for (const n of nicheList) { if (descL.includes(n) || titleText.toLowerCase().includes(n)) { niche = n; break; } }\n    items.push({ product_name: titleText, platform: 'Muncheye', commission: '', url: linkText, niche, score: 0, date_found: today, status: 'active' });\n  }\n} catch (e) { items.length = 0; }\nreturn items.map(i => ({ json: i }));"
+      },
+      "mode": "runOnceForAllItems"
+    },
+    {
+      "id": "alm-07-http-error",
+      "name": "❌ HTTP Error envelope",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 0],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst status = item.statusCode || item.status || '';\nconst msg = item.message || item.error || ('HTTP ' + status);\nreturn [{ json: { success: false, data: null, error: { code: 'HTTP_ERROR', message: String(msg) } } }];"
+      }
+    },
+    {
+      "id": "alm-08-dedupe",
+      "name": "🔁 Dedupe by URL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1320, -160],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(i => i.json);\nconst seen = new Set();\nconst out = [];\nfor (const row of items) {\n  const key = (row.url || '').trim() || (row.product_name || '').trim();\n  if (!key || seen.has(key)) continue;\n  seen.add(key);\n  out.push(row);\n}\nreturn out.map(o => ({ json: o }));"
+      },
+      "mode": "runOnceForAllItems"
+    },
+    {
+      "id": "alm-09-sheets",
+      "name": "📝 Append to Affiliate Registry",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1540, -160],
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.AFFILIATE_REGISTRY_TAB || 'Affiliate Registry' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "product_name": "={{ $json.product_name }}",
+            "platform": "={{ $json.platform }}",
+            "commission": "={{ $json.commission }}",
+            "url": "={{ $json.url }}",
+            "niche": "={{ $json.niche }}",
+            "score": "={{ $json.score }}",
+            "date_found": "={{ $json.date_found }}",
+            "status": "={{ $json.status }}"
+          }
+        },
+        "options": {}
+      },
+      "onError": "continueRegularOutput",
+      "notes": "Registry row shape per 06-CONFIG-KEYS. User creates tab with header row if first run."
+    }
+  ],
+  "connections": {
+    "🕔 Schedule: Monday 7AM": {
+      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
+    },
+    "⚙️ Load Config": {
+      "main": [[{ "node": "🔀 AFFILIATE_MANAGER_ENABLED?", "type": "main", "index": 0 }]]
+    },
+    "🔀 AFFILIATE_MANAGER_ENABLED?": {
+      "main": [
+        [{ "node": "🌐 Fetch Muncheye RSS", "type": "main", "index": 0 }],
+        []
+      ]
+    },
+    "🌐 Fetch Muncheye RSS": {
+      "main": [[{ "node": "🔀 HTTP OK?", "type": "main", "index": 0 }]]
+    },
+    "🔀 HTTP OK?": {
+      "main": [
+        [{ "node": "📦 Parse Muncheye RSS", "type": "main", "index": 0 }],
+        [{ "node": "❌ HTTP Error envelope", "type": "main", "index": 0 }]
+      ]
+    },
+    "📦 Parse Muncheye RSS": {
+      "main": [[{ "node": "🔁 Dedupe by URL", "type": "main", "index": 0 }]]
+    },
+    "🔁 Dedupe by URL": {
+      "main": [[{ "node": "📝 Append to Affiliate Registry", "type": "main", "index": 0 }]]
+    }
+  },
+  "pinData": {},
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "06-02-affiliate-link-manager",
+  "meta": {},
+  "tags": []
+}
