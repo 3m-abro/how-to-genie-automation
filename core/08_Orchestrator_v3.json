@@ -79,7 +79,34 @@
     },
     {
       "parameters": {
-        "jsCode": "// Build context for Agent 0 and Agent 1\nconst redditData = $('📡 Fetch Reddit Trending').item.json;\nconst sheetsData = $('📡 Load Existing Topics').item.json;\n\n// Extract reddit titles and scores\nconst posts = redditData?.data?.children || [];\nconst trendingTopics = posts\n  .filter(p => p?.data?.score > 10)\n  .slice(0, 10)\n  .map(p => `- \"${p.data.title}\" (upvotes: ${p.data.score}, subreddit: r/${p.data.subreddit})`)\n  .join('\\n');\n\n// Extract existing keywords from content log\nconst rows = Array.isArray(sheetsData) ? sheetsData.slice(1) : [];\nconst existingKeywords = rows\n  .map(r => r['Keyword'] || r[2] || '')\n  .filter(Boolean)\n  .slice(0, 50)\n  .join(', ');\n\nreturn [{ json: {\n  reddit_context: trendingTopics || 'No trending data available - use your research',\n  existing_keywords: existingKeywords || 'None yet',\n  today: new Date().toLocaleDateString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }),\n  total_existing: rows.length\n}}];"
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $json.GOOGLE_SHEET_ID || $json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $json.REFRESH_CANDIDATES_TAB || 'Refresh Candidates' }}",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "name": "📡 Load Refresh Candidates",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [-3936, 592],
+      "id": "rc-06-load-refresh-candidates",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "6MuQNoVFMXOhUOOK",
+          "name": "HowTo - Genie | Google Sheets account"
+        }
+      },
+      "notes": "Reads Refresh Candidates tab for Agent 1; high-traffic topics to prioritize or refresh."
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build context for Agent 0 and Agent 1\nconst redditData = $('📡 Fetch Reddit Trending').item.json;\nconst sheetsData = $('📡 Load Existing Topics').item.json;\nlet refresh_candidates = 'None';\ntry {\n  const items = $('📡 Load Refresh Candidates').all();\n  refresh_candidates = items.map(i => i.json && (i.json.post_title || i.json.keyword || i.json['Post Title'] || i.json['Keyword'])).filter(Boolean).join(', ') || 'None';\n} catch(e) {}\n\n// Extract reddit titles and scores\nconst posts = redditData?.data?.children || [];\nconst trendingTopics = posts\n  .filter(p => p?.data?.score > 10)\n  .slice(0, 10)\n  .map(p => `- \"${p.data.title}\" (upvotes: ${p.data.score}, subreddit: r/${p.data.subreddit})`)\n  .join('\\n');\n\n// Extract existing keywords from content log\nconst rows = Array.isArray(sheetsData) ? sheetsData.slice(1) : [];\nconst existingKeywords = rows\n  .map(r => r['Keyword'] || r[2] || '')\n  .filter(Boolean)\n  .slice(0, 50)\n  .join(', ');\n\nreturn [{ json: {\n  reddit_context: trendingTopics || 'No trending data available - use your research',\n  existing_keywords: existingKeywords || 'None yet',\n  refresh_candidates,\n  today: new Date().toLocaleDateString('en-MY', { timeZone: 'Asia/Kuala_Lumpur' }),\n  total_existing: rows.length\n}}];"
       },
       "name": "🔧 Build Research Context",
       "type": "n8n-nodes-base.code",
@@ -117,7 +144,7 @@
           "value": {
             "model": "={{ $('⚙️ Load Config').item.json.OLLAMA_MODEL_SMART || 'llama3.2:latest' }}",
             "system_message": "={{ $('⚙️ Load Config').item.json.PERSONA || 'You are a helpful assistant. Return only valid JSON.' }}",
-            "user_message": "={{ $('📋 Parse Prompt Package').item.json.research_context }}\n\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\n{{ $('💉 Inject Approved Topic').item.json.reddit_context }}\n\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\n{{ $('💉 Inject Approved Topic').item.json.existing_keywords }}\n\nSelect the SINGLE best topic to write about today. Return JSON:\n{\n  \"topic\": \"exact article title\",\n  \"primary_keyword\": \"main SEO keyword\",\n  \"secondary_keywords\": [\"kw1\", \"kw2\", \"kw3\"],\n  \"search_intent\": \"informational|transactional|navigational\",\n  \"affiliate_angle\": \"which products could be recommended\",\n  \"content_outline\": [\"H2 section 1\", \"H2 section 2\", \"...7-9 total\"],\n  \"word_count_target\": 3000,\n  \"is_halal_compliant\": true,\n  \"not_duplicate\": true\n}\n\nReturn only valid JSON.",
+            "user_message": "={{ $('📋 Parse Prompt Package').item.json.research_context }}\n\nREAL TRENDING DATA FROM REDDIT (use this to select topics):\n{{ $('💉 Inject Approved Topic').item.json.reddit_context }}\n\nEXISTING PUBLISHED TOPICS (DO NOT REPEAT THESE):\n{{ $('💉 Inject Approved Topic').item.json.existing_keywords }}\n\nTOPICS TO PRIORITIZE (refresh/amplify):\n{{ $('💉 Inject Approved Topic').item.json.refresh_candidates }}\n\nSelect the SINGLE best topic to write about today. Return JSON:\n{\n  \"topic\": \"exact article title\",\n  \"primary_keyword\": \"main SEO keyword\",\n  \"secondary_keywords\": [\"kw1\", \"kw2\", \"kw3\"],\n  \"search_intent\": \"informational|transactional|navigational\",\n  \"affiliate_angle\": \"which products could be recommended\",\n  \"content_outline\": [\"H2 section 1\", \"H2 section 2\", \"...7-9 total\"],\n  \"word_count_target\": 3000,\n  \"is_halal_compliant\": true,\n  \"not_duplicate\": true\n}\n\nReturn only valid JSON.",
             "temperature": 0.7,
             "num_predict": 4096
           },
@@ -1681,6 +1708,22 @@
           },
           {
             "node": "📡 Fetch Reddit Trending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "📡 Load Refresh Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "📡 Load Refresh Candidates": {
+      "main": [
+        [
+          {
+            "node": "🔧 Build Research Context",
             "type": "main",
             "index": 0
           }
