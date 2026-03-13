@@ -2,17 +2,17 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-current_plan: Not started
-status: completed
-stopped_at: Completed 05-04-PLAN.md
-last_updated: "2026-03-12T14:33:41.268Z"
-last_activity: 2026-03-12
+current_plan: "06-02"
+status: in_progress
+stopped_at: Completed 06-01-PLAN.md
+last_updated: "2026-03-13T02:48:00.000Z"
+last_activity: 2026-03-13
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
-  percent: 88
+  total_plans: 17
+  completed_plans: 17
+  percent: 89
 ---
 
 # Project State
@@ -26,14 +26,14 @@ See: .planning/PROJECT.md (updated 2026-03-12)
 
 ## Current Position
 
-Phase: 5 of 6 (Live Dashboards & Monitoring)
-**Current Plan:** Not started
+Phase: 6 of 6 (Affiliate & SEO Feedback)
+**Current Plan:** 06-02
 **Total Plans in Phase:** 4
-Plan: 2 of 4 in phase (05-01, 05-02 done)
-Status: 05-02 complete; n8n-backed mission control API and ADHD dashboard wired to live data (DASH-02)
-Last activity: 2026-03-12
+Plan: 1 of 4 in phase (06-01 done)
+Status: 06-01 complete; Phase 6 config keys and affiliate registry shape documented (06-CONFIG-KEYS.md)
+Last activity: 2026-03-13
 
-Progress: [█████████░] 88%
+Progress: [█████████░] 89%
 
 ## Performance Metrics
 
@@ -66,6 +66,7 @@ Progress: [█████████░] 88%
 | Phase 05-live-dashboards-monitoring P02 | 8 | 2 tasks | 5 files |
 | Phase 05-live-dashboards-monitoring P03 | 8 | 2 tasks | 4 files |
 | Phase 05-live-dashboards-monitoring P04 | 5 | 2 tasks | 6 files |
+| Phase 06-affiliate-seo-feedback P01 | 1 | 1 task | 1 files |
 
 ## Accumulated Context
 
@@ -88,6 +89,7 @@ Recent decisions affecting current work:
 - [Phase 05-live-dashboards-monitoring]: Failure monitor: N8nFailureMonitorCommand + TelegramAlertService; schedule every 5 min in routes/console.php; Telegram alert per n8n error execution (workflow name, error, timestamp); 24h dedupe cache
 - [Phase 05-live-dashboards-monitoring]: Mission control from n8n workflows + executions; N8nApiService; GET /api/n8n/status returns full payload; ADHD dashboard fetches live data with loading/error state (DASH-02)
 - [Phase 05-live-dashboards-monitoring]: Weekly summary: Sheets (Content Log + Revenue Tracker), last 7 days for posts/top performer; recipient and day/time configurable; Schedule in routes/console.php
+- [Phase 06-affiliate-seo-feedback]: Phase 6 config keys (AFFILIATE_REGISTRY_TAB, REFRESH_CANDIDATES_TAB, INTERNAL_LINKING_LOG_TAB, gates, NICHES) and registry row shape in 06-CONFIG-KEYS.md; Plan 02 references for tab name and row structure.
 
 ### Pending Todos
 
@@ -100,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T14:29:27.339Z
-Stopped at: Completed 05-04-PLAN.md
+Last session: 2026-03-13T02:47:49.000Z
+Stopped at: Completed 06-01-PLAN.md
 Resume file: None
