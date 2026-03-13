@@ -197,7 +197,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ $json.post_url.replace('//', '//your-blog.com/').split('?')[0] }}/",
+        "url": "={{ ($json.post_url || '').replace(/^https?:\\/\\/[^/]+/, ($('⚙️ Load Config').item.json.WORDPRESS_URL || 'https://example.com').replace(/\\/$/, '')).split('?')[0] }}/",
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "wordpressApi",
         "sendBody": true,
@@ -218,8 +218,16 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "Internal Linking Log",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.INTERNAL_LINKING_LOG_TAB || 'Internal Linking Log' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
@@ -264,8 +272,16 @@
     {
       "parameters": {
         "operation": "append",
-        "documentId": "YOUR_GOOGLE_SHEET_ID",
-        "sheetName": "SEO Strategy",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.SEO_STRATEGY_TAB || 'SEO Strategy' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
