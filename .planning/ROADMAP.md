@@ -100,7 +100,11 @@ Plans:
   2. Workflow adapts content to TTS script and produces one audio output per language (VOICE_PROVIDER from config).
   3. Uses Config Loader first; handles empty Multilingual Content rows; column contract documented.
   4. Runs after Multi-Language (e.g. 4 PM); logs outputs to Audio Log / config-driven tab.
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 11-01-PLAN.md — Config Loader, Content Log + Multilingual read/filter, empty-Multilingual branch, column contract and config keys in HOWTOGENIE (VOICE-01, VOICE-03)
+- [ ] 11-02-PLAN.md — VOICE_PROVIDER branch (local/elevenlabs/google), local TTS, Process Audio, write to AUDIO_OUTPUT_PATH, Audio Log idempotency, remove GCS/Spotify/YouTube (VOICE-02, VOICE-04)
 
 ## Progress
 
