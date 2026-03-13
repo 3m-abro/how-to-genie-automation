@@ -3,7 +3,7 @@ phase: 08
 slug: archive-cleanup
 status: draft
 nyquist_compliant: false
-wave_0_complete: false
+wave_0_complete: true
 created: 2026-03-13
 ---
 
@@ -19,7 +19,7 @@ created: 2026-03-13
 |----------|-------|
 | **Framework** | Script + checklist (no Jest/pytest for this phase) |
 | **Config file** | None |
-| **Quick run command** | `scripts/verify-archive-refs.sh` (or equivalent Node script) |
+| **Quick run command** | `scripts/verify-archive-refs.sh` |
 | **Full gate** | Script + checklist: archive/README exists; HOWTOGENIE Archive section present and correct |
 | **Estimated runtime** | ~5–15 seconds |
 
@@ -63,8 +63,10 @@ created: 2026-03-13
 
 ## Wave 0 Requirements
 
-- [ ] Add script (e.g. `scripts/verify-archive-refs.sh` or Node) that: collect archive workflow ids; grep in active dirs; exit 1 if any match.
-- [ ] Checklist or one-line grep for README existence and HOWTOGENIE Archive section.
+- [x] Add script (e.g. `scripts/verify-archive-refs.sh` or Node) that: collect archive workflow ids; grep in active dirs; exit 1 if any match.
+- [x] Checklist or one-line grep for README existence and HOWTOGENIE Archive section.
+
+**Quick run:** From repo root, `./scripts/verify-archive-refs.sh`. Before moving a workflow to archive, run `scripts/caller-audit.sh path/to/workflow.json` to list every active-dir file that references its root id; update or remove those callers before moving.
 
 ---
 
@@ -79,9 +81,9 @@ created: 2026-03-13
 
 ## Validation Sign-Off
 
-- [ ] Script covers ARCH-02 (no broken refs)
-- [ ] Checklist covers ARCH-01 (README) and ARCH-03 (HOWTOGENIE)
-- [ ] Wave 0 script and checklist created
-- [ ] `nyquist_compliant: true` set in frontmatter when Wave 0 complete
+- [x] Script covers ARCH-02 (no broken refs)
+- [x] Checklist covers ARCH-01 (README) and ARCH-03 (HOWTOGENIE)
+- [x] Wave 0 script and checklist created
+- [ ] `nyquist_compliant: true` set in frontmatter when Wave 0 complete (set after full gate run)
 
 **Approval:** pending
