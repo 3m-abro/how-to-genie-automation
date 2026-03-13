@@ -209,6 +209,262 @@
     },
     {
       "parameters": {
+        "jsCode": "const article = $input.first().json;\nconst config = $('⚙️ Load Config').item.json;\nconst raw = (config.REPURPOSE_FORMATS || 'twitter,linkedin,ig_carousel,podcast,community').toString().trim();\nconst enabledFormats = raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];\nconst allFormats = ['twitter','linkedin','ig_carousel','podcast','community'];\nreturn allFormats.map(f => ({ json: { format: f, skip: !enabledFormats.includes(f), ...article } }));"
+      },
+      "name": "Build format list",
+      "type": "n8n-nodes-base.code",
+      "position": [656, 224],
+      "id": "rep02-build-format-list",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            { "conditions": [{ "leftValue": "={{ $json.format }}", "rightValue": "twitter", "operator": { "type": "string", "operation": "equals" } }] },
+            { "conditions": [{ "leftValue": "={{ $json.format }}", "rightValue": "linkedin", "operator": { "type": "string", "operation": "equals" } }] },
+            { "conditions": [{ "leftValue": "={{ $json.format }}", "rightValue": "ig_carousel", "operator": { "type": "string", "operation": "equals" } }] },
+            { "conditions": [{ "leftValue": "={{ $json.format }}", "rightValue": "podcast", "operator": { "type": "string", "operation": "equals" } }] },
+            { "conditions": [{ "leftValue": "={{ $json.format }}", "rightValue": "community", "operator": { "type": "string", "operation": "equals" } }] }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Switch format",
+      "type": "n8n-nodes-base.switch",
+      "position": [768, 224],
+      "id": "rep02-switch-format",
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nlet parsed;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false) parsed = { success: false, data: null, error: parsed.error || { code: '', message: '' } };\n  else if (!parsed.data && parsed.success !== false) parsed = { success: true, data: parsed, error: null };\n} catch (e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: String(e.message) } };\n}\nreturn [{ json: { ...parsed, format: 'twitter' } }];"
+      },
+      "name": "Parse & Validate Twitter",
+      "type": "n8n-nodes-base.code",
+      "position": [960, -80],
+      "id": "rep02-parse-twitter",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nlet parsed;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false) parsed = { success: false, data: null, error: parsed.error || { code: '', message: '' } };\n  else if (!parsed.data && parsed.success !== false) parsed = { success: true, data: parsed, error: null };\n} catch (e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: String(e.message) } };\n}\nreturn [{ json: { ...parsed, format: 'twitter' } }];"
+      },
+      "name": "Parse & Validate LinkedIn",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 80],
+      "id": "rep02-parse-linkedin",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nlet parsed;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false) parsed = { success: false, data: null, error: parsed.error || { code: '', message: '' } };\n  else if (!parsed.data && parsed.success !== false) parsed = { success: true, data: parsed, error: null };\n} catch (e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: String(e.message) } };\n}\nreturn [{ json: { ...parsed, format: 'linkedin' } }];"
+      },
+      "name": "Parse & Validate IG Carousel",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 224],
+      "id": "rep02-parse-ig",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nlet parsed;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false) parsed = { success: false, data: null, error: parsed.error || { code: '', message: '' } };\n  else if (!parsed.data && parsed.success !== false) parsed = { success: true, data: parsed, error: null };\n} catch (e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: String(e.message) } };\n}\nreturn [{ json: { ...parsed, format: 'podcast' } }];"
+      },
+      "name": "Parse & Validate Podcast",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 384],
+      "id": "rep02-parse-podcast",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.response || $input.first().json.message?.content || '';\nlet parsed;\ntry {\n  const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n  parsed = JSON.parse(match ? (match[1] || match[0]) : raw);\n  if (parsed.success === false) parsed = { success: false, data: null, error: parsed.error || { code: '', message: '' } };\n  else if (!parsed.data && parsed.success !== false) parsed = { success: true, data: parsed, error: null };\n} catch (e) {\n  parsed = { success: false, data: null, error: { code: 'parse_error', message: String(e.message) } };\n}\nreturn [{ json: { ...parsed, format: 'community' } }];"
+      },
+      "name": "Parse & Validate Community",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 528],
+      "id": "rep02-parse-community",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Skip this format?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [848, -80],
+      "id": "rep02-if-skip-twitter"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Skip this format? (LinkedIn)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [848, 80],
+      "id": "rep02-if-skip-linkedin"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Skip this format? (IG)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [848, 224],
+      "id": "rep02-if-skip-ig"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Skip this format? (Podcast)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [848, 384],
+      "id": "rep02-if-skip-podcast"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "skip", "leftValue": "={{ $json.skip }}", "rightValue": true, "operator": { "type": "boolean", "operation": "equals" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Skip this format? (Community)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [848, 528],
+      "id": "rep02-if-skip-community"
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst format = item.format;\nreturn [{ json: { format, success: false, data: null, error: { code: 'skipped', message: 'Format not in REPURPOSE_FORMATS' } } }];"
+      },
+      "name": "Placeholder Twitter",
+      "type": "n8n-nodes-base.code",
+      "position": [960, -160],
+      "id": "rep02-placeholder-twitter",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst format = item.format;\nreturn [{ json: { format, success: false, data: null, error: { code: 'skipped', message: 'Format not in REPURPOSE_FORMATS' } } }];"
+      },
+      "name": "Placeholder LinkedIn",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 0],
+      "id": "rep02-placeholder-linkedin",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst format = item.format;\nreturn [{ json: { format, success: false, data: null, error: { code: 'skipped', message: 'Format not in REPURPOSE_FORMATS' } } }];"
+      },
+      "name": "Placeholder IG",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 144],
+      "id": "rep02-placeholder-ig",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst format = item.format;\nreturn [{ json: { format, success: false, data: null, error: { code: 'skipped', message: 'Format not in REPURPOSE_FORMATS' } } }];"
+      },
+      "name": "Placeholder Podcast",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 304],
+      "id": "rep02-placeholder-podcast",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nconst format = item.format;\nreturn [{ json: { format, success: false, data: null, error: { code: 'skipped', message: 'Format not in REPURPOSE_FORMATS' } } }];"
+      },
+      "name": "Placeholder Community",
+      "type": "n8n-nodes-base.code",
+      "position": [960, 448],
+      "id": "rep02-placeholder-community",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "mode": "append",
+        "numberInputs": 5,
+        "options": {}
+      },
+      "name": "Merge format outputs",
+      "type": "n8n-nodes-base.merge",
+      "position": [1160, 224],
+      "id": "rep02-merge-outputs",
+      "typeVersion": 3
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "name": "Merge Twitter branch",
+      "type": "n8n-nodes-base.merge",
+      "position": [1080, -120],
+      "id": "rep02-merge-tw",
+      "typeVersion": 3
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "name": "Merge LinkedIn branch",
+      "type": "n8n-nodes-base.merge",
+      "position": [1080, 40],
+      "id": "rep02-merge-li",
+      "typeVersion": 3
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "name": "Merge IG branch",
+      "type": "n8n-nodes-base.merge",
+      "position": [1080, 184],
+      "id": "rep02-merge-ig",
+      "typeVersion": 3
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "name": "Merge Podcast branch",
+      "type": "n8n-nodes-base.merge",
+      "position": [1080, 344],
+      "id": "rep02-merge-pod",
+      "typeVersion": 3
+    },
+    {
+      "parameters": { "mode": "append", "options": {} },
+      "name": "Merge Community branch",
+      "type": "n8n-nodes-base.merge",
+      "position": [1080, 488],
+      "id": "rep02-merge-com",
+      "typeVersion": 3
+    },
+    {
+      "parameters": {
         "model": "llama3.2:latest",
         "options": {
           "temperature": 0.85
@@ -289,9 +545,9 @@
     },
     {
       "parameters": {
-        "jsCode": "// Collect all 10 repurposed content assets\nconst article = $('Clean & Extract Article').item.json;\n\nconst parseAI = (raw) => {\n  try {\n    const match = raw.match(/```json\\n([\\s\\S]*?)\\n```/) || raw.match(/(\\{[\\s\\S]*\\})/);\n    return JSON.parse(match ? (match[1] || match[0]) : raw);\n  } catch(e) { return { error: e.message }; }\n};\n\nconst twitter = parseAI($('AI: Create Twitter Thread').item.json.response);\nconst linkedin = parseAI($('AI: Create LinkedIn Article').item.json.response);\nconst carousel = parseAI($('AI: Create IG Carousel').item.json.response);\nconst podcast = parseAI($('AI: Create Podcast Script').item.json.response);\nconst community = parseAI($('AI: Create Community Content').item.json.response);\n\nconst contentPackage = {\n  source_article: { title: article.title, url: article.url, word_count: article.word_count },\n  generated_at: new Date().toISOString(),\n  assets: {\n    asset_1_twitter_thread: { type: 'Twitter Thread', tweets: twitter.tweets?.length || 0, data: twitter },\n    asset_2_linkedin_article: { type: 'LinkedIn Article', words: linkedin.article_body?.split(' ').length || 0, data: linkedin },\n    asset_3_ig_carousel: { type: 'Instagram Carousel', slides: carousel.slides?.length || 0, data: carousel },\n    asset_4_podcast_script: { type: 'Podcast Script', duration: podcast.duration_estimate, data: podcast },\n    asset_5_quora_answer: { type: 'Quora Answer', data: community?.quora },\n    asset_6_reddit_post: { type: 'Reddit Post', data: community?.reddit },\n    asset_7_facebook_group: { type: 'Facebook Group Post', data: community?.facebook_group },\n    asset_8_medium_post: { type: 'Medium Republication', data: community?.medium },\n    asset_9_email_snippet: { type: 'Newsletter Snippet', text: linkedin.opening_hook + '...' },\n    asset_10_pinterest_infographic: { type: 'Pinterest Board', data: carousel.slides?.slice(0,5) }\n  },\n  total_assets: 10,\n  total_platforms: ['Twitter/X','LinkedIn','Instagram','Podcast','Quora','Reddit','Facebook Group','Medium','Newsletter','Pinterest']\n};\n\nreturn [{ json: contentPackage }];"
+        "jsCode": "// One row per post: Source URL, Date (content day), per-format columns, Timestamp. Column contract: Source URL, Date, Timestamp, twitter_text, linkedin_text, ig_carousel_json, podcast_script, community_text.\nconst config = $('⚙️ Load Config').item.json;\nconst filterRow = $('Filter today\\'s post').item.json;\nconst mergeItems = $input.all().map(i => i.json);\nconst sourceUrl = filterRow['WP URL'] || filterRow.wp_url || filterRow.url || '';\nconst contentDate = (filterRow.date || filterRow.Date || '').toString().slice(0, 10);\nconst timestamp = new Date().toISOString();\nconst row = { 'Source URL': sourceUrl, 'Date': contentDate, 'Timestamp': timestamp };\nfor (const item of mergeItems) {\n  const f = item.format;\n  if (f === 'twitter') row.twitter_text = item.success && item.data ? (item.data.tweets ? item.data.tweets.map(t => (t.text || t)).join('\\n') : JSON.stringify(item.data)) : (item.error?.message || '');\n  else if (f === 'linkedin') row.linkedin_text = item.success && item.data ? (item.data.article_body || item.data.body || JSON.stringify(item.data)) : (item.error?.message || '');\n  else if (f === 'ig_carousel') row.ig_carousel_json = item.success && item.data ? JSON.stringify(item.data) : (item.error?.message || '');\n  else if (f === 'podcast') row.podcast_script = item.success && item.data ? (item.data.full_script || item.data.script || JSON.stringify(item.data)) : (item.error?.message || '');\n  else if (f === 'community') row.community_text = item.success && item.data ? JSON.stringify(item.data) : (item.error?.message || '');\n}\nreturn [{ json: row }];"
       },
-      "name": "📦 Assemble 10 Content Assets",
+      "name": "📦 Assemble repurposed payload",
       "type": "n8n-nodes-base.code",
       "position": [
         728,
@@ -308,21 +564,22 @@
           "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
           "mode": "id"
         },
-        "sheetName": "Repurposed Content",
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.REPURPOSED_CONTENT_TAB || 'Repurposed Content' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Source Article": "={{ $json.source_article.title }}",
-            "Source URL": "={{ $json.source_article.url }}",
-            "Twitter Tweets": "={{ $json.assets.asset_1_twitter_thread.tweets }}",
-            "LinkedIn Words": "={{ $json.assets.asset_2_linkedin_article.words }}",
-            "IG Slides": "={{ $json.assets.asset_3_ig_carousel.slides }}",
-            "Podcast Duration": "={{ $json.assets.asset_4_podcast_script.duration }}",
-            "Total Assets": "={{ $json.total_assets }}",
-            "Platforms": "={{ $json.total_platforms.join(', ') }}",
-            "Status": "Generated",
-            "Full JSON": "={{ JSON.stringify($json.assets).substring(0,5000) }}"
+            "Source URL": "={{ $json['Source URL'] }}",
+            "Date": "={{ $json['Date'] }}",
+            "Timestamp": "={{ $json['Timestamp'] }}",
+            "twitter_text": "={{ $json.twitter_text || '' }}",
+            "linkedin_text": "={{ $json.linkedin_text || '' }}",
+            "ig_carousel_json": "={{ $json.ig_carousel_json || '' }}",
+            "podcast_script": "={{ $json.podcast_script || '' }}",
+            "community_text": "={{ $json.community_text || '' }}"
           }
         },
         "options": {}
@@ -344,16 +601,19 @@
           "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
           "mode": "id"
         },
-        "sheetName": "Twitter Queue",
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.TWITTER_QUEUE_TAB || '' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Article": "={{ $json.source_article.title }}",
-            "Tweet 1 (Hook)": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[0]?.text }}",
-            "Tweet 2": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[1]?.text }}",
-            "Tweet 3": "={{ $json.assets.asset_1_twitter_thread.data?.tweets?.[2]?.text }}",
-            "Thread Count": "={{ $json.assets.asset_1_twitter_thread.tweets }}",
+            "Date": "={{ $json['Date'] }}",
+            "Source URL": "={{ $json['Source URL'] }}",
+            "Tweet 1 (Hook)": "={{ ($json.twitter_text || '').split('\\n')[0] }}",
+            "Tweet 2": "={{ ($json.twitter_text || '').split('\\n')[1] || '' }}",
+            "Tweet 3": "={{ ($json.twitter_text || '').split('\\n')[2] || '' }}",
             "Status": "Ready to Post"
           }
         },
@@ -376,16 +636,17 @@
           "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
           "mode": "id"
         },
-        "sheetName": "Podcast Queue",
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.PODCAST_QUEUE_TAB || '' }}",
+          "mode": "name"
+        },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "Date": "={{ $now.format('YYYY-MM-DD') }}",
-            "Episode Title": "={{ $json.assets.asset_4_podcast_script.data?.episode_title }}",
-            "Duration": "={{ $json.assets.asset_4_podcast_script.duration }}",
-            "Script Preview": "={{ $json.assets.asset_4_podcast_script.data?.full_script?.substring(0,500) }}",
-            "Show Notes": "={{ $json.assets.asset_4_podcast_script.data?.show_notes }}",
-            "Blog URL": "={{ $json.source_article.url }}",
+            "Date": "={{ $json['Date'] }}",
+            "Source URL": "={{ $json['Source URL'] }}",
+            "Script Preview": "={{ ($json.podcast_script || '').substring(0, 500) }}",
             "Status": "Script Ready — Record Now"
           }
         },
@@ -399,6 +660,36 @@
       ],
       "id": "e2b49d79-8323-434c-ba3f-b7e0a3503249",
       "typeVersion": 4
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "has", "leftValue": "={{ ($('⚙️ Load Config').item.json.TWITTER_QUEUE_TAB || '').toString().trim() }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Has Twitter Queue Tab?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 80],
+      "id": "rep02-if-twitter-tab"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "conditions": [{ "id": "has", "leftValue": "={{ ($('⚙️ Load Config').item.json.PODCAST_QUEUE_TAB || '').toString().trim() }}", "rightValue": "", "operator": { "type": "string", "operation": "notEmpty" } }],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "name": "Has Podcast Queue Tab?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [840, 384],
+      "id": "rep02-if-podcast-tab"
     }
   ],
   "pinData": {},
@@ -494,35 +785,95 @@
       ]
     },
     "📥 Fetch Full Article": {
+      "main": [[{ "node": "🧹 Clean & Extract Article", "type": "main", "index": 0 }]]
+    },
+    "🧹 Clean & Extract Article": {
+      "main": [[{ "node": "Build format list", "type": "main", "index": 0 }]]
+    },
+    "Build format list": {
+      "main": [[{ "node": "Switch format", "type": "main", "index": 0 }]]
+    },
+    "Switch format": {
+      "main": [
+        [{ "node": "Skip this format?", "type": "main", "index": 0 }],
+        [{ "node": "Skip this format? (LinkedIn)", "type": "main", "index": 0 }],
+        [{ "node": "Skip this format? (IG)", "type": "main", "index": 0 }],
+        [{ "node": "Skip this format? (Podcast)", "type": "main", "index": 0 }],
+        [{ "node": "Skip this format? (Community)", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip this format?": {
+      "main": [
+        [{ "node": "Placeholder Twitter", "type": "main", "index": 0 }],
+        [{ "node": "🐦 AI: Create Twitter Thread", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip this format? (LinkedIn)": {
+      "main": [
+        [{ "node": "Placeholder LinkedIn", "type": "main", "index": 0 }],
+        [{ "node": "💼 AI: Create LinkedIn Article", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip this format? (IG)": {
+      "main": [
+        [{ "node": "Placeholder IG", "type": "main", "index": 0 }],
+        [{ "node": "📸 AI: Create IG Carousel", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip this format? (Podcast)": {
+      "main": [
+        [{ "node": "Placeholder Podcast", "type": "main", "index": 0 }],
+        [{ "node": "🎙️ AI: Create Podcast Script", "type": "main", "index": 0 }]
+      ]
+    },
+    "Skip this format? (Community)": {
+      "main": [
+        [{ "node": "Placeholder Community", "type": "main", "index": 0 }],
+        [{ "node": "🌐 AI: Create Community Content", "type": "main", "index": 0 }]
+      ]
+    },
+    "Placeholder Twitter": { "main": [[{ "node": "Merge Twitter branch", "type": "main", "index": 0 }]] },
+    "Placeholder LinkedIn": { "main": [[{ "node": "Merge LinkedIn branch", "type": "main", "index": 0 }]] },
+    "Placeholder IG": { "main": [[{ "node": "Merge IG branch", "type": "main", "index": 0 }]] },
+    "Placeholder Podcast": { "main": [[{ "node": "Merge Podcast branch", "type": "main", "index": 0 }]] },
+    "Placeholder Community": { "main": [[{ "node": "Merge Community branch", "type": "main", "index": 0 }]] },
+    "Parse & Validate Twitter": { "main": [[{ "node": "Merge Twitter branch", "type": "main", "index": 1 }]] },
+    "Parse & Validate LinkedIn": { "main": [[{ "node": "Merge LinkedIn branch", "type": "main", "index": 1 }]] },
+    "Parse & Validate IG Carousel": { "main": [[{ "node": "Merge IG branch", "type": "main", "index": 1 }]] },
+    "Parse & Validate Podcast": { "main": [[{ "node": "Merge Podcast branch", "type": "main", "index": 1 }]] },
+    "Parse & Validate Community": { "main": [[{ "node": "Merge Community branch", "type": "main", "index": 1 }]] },
+    "Merge Twitter branch": { "main": [[{ "node": "Merge format outputs", "type": "main", "index": 0 }]] },
+    "Merge LinkedIn branch": { "main": [[{ "node": "Merge format outputs", "type": "main", "index": 1 }]] },
+    "Merge IG branch": { "main": [[{ "node": "Merge format outputs", "type": "main", "index": 2 }]] },
+    "Merge Podcast branch": { "main": [[{ "node": "Merge format outputs", "type": "main", "index": 3 }]] },
+    "Merge Community branch": { "main": [[{ "node": "Merge format outputs", "type": "main", "index": 4 }]] },
+    "🐦 AI: Create Twitter Thread": { "main": [[{ "node": "Parse & Validate Twitter", "type": "main", "index": 0 }]] },
+    "💼 AI: Create LinkedIn Article": { "main": [[{ "node": "Parse & Validate LinkedIn", "type": "main", "index": 0 }]] },
+    "📸 AI: Create IG Carousel": { "main": [[{ "node": "Parse & Validate IG Carousel", "type": "main", "index": 0 }]] },
+    "🎙️ AI: Create Podcast Script": { "main": [[{ "node": "Parse & Validate Podcast", "type": "main", "index": 0 }]] },
+    "🌐 AI: Create Community Content": { "main": [[{ "node": "Parse & Validate Community", "type": "main", "index": 0 }]] },
+    "Merge format outputs": {
+      "main": [[{ "node": "📦 Assemble repurposed payload", "type": "main", "index": 0 }]]
+    },
+    "📦 Assemble repurposed payload": {
       "main": [
         [
-          {
-            "node": "🧹 Clean & Extract Article",
-            "type": "main",
-            "index": 0
-          }
+          { "node": "📊 Log to Repurposed Content Sheet", "type": "main", "index": 0 },
+          { "node": "Has Twitter Queue Tab?", "type": "main", "index": 0 },
+          { "node": "Has Podcast Queue Tab?", "type": "main", "index": 0 }
         ]
       ]
     },
-    "📦 Assemble 10 Content Assets": {
+    "Has Twitter Queue Tab?": {
       "main": [
-        [
-          {
-            "node": "📊 Log to Repurposed Content Sheet",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "🐦 Save Twitter Thread Queue",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "🎙️ Save Podcast Queue",
-            "type": "main",
-            "index": 0
-          }
-        ]
+        [],
+        [{ "node": "🐦 Save Twitter Thread Queue", "type": "main", "index": 0 }]
+      ]
+    },
+    "Has Podcast Queue Tab?": {
+      "main": [
+        [],
+        [{ "node": "🎙️ Save Podcast Queue", "type": "main", "index": 0 }]
       ]
     }
   },
