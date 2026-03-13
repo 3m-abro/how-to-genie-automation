@@ -1,0 +1,134 @@
+{
+  "name": "06 — Refresh Candidates Writer",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 5 * * *"
+            }
+          ]
+        }
+      },
+      "name": "🕔 Daily 5AM Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [-1200, 48],
+      "id": "rcw-01-trigger",
+      "notes": "Runs daily at 5 AM so refresh candidates are ready before 8 AM orchestrator run."
+    },
+    {
+      "parameters": {
+        "source": "database",
+        "workflowId": {
+          "__rl": true,
+          "value": "REPLACE_WITH_CONFIG_LOADER_ID",
+          "mode": "id"
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "id": "rcw-02-load-config",
+      "name": "⚙️ Load Config",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [-1000, 48],
+      "notes": "Runs core/01_Config_Loader. Needs: GOOGLE_SHEET_ID, REFRESH_CANDIDATES_TAB, GA4_PROPERTY_ID, GOOGLE_ANALYTICS_TOKEN, REFRESH_VIEWS_MIN (or VIRAL_VIEWS_7D_MIN), WORDPRESS_URL."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://analyticsdata.googleapis.com/v1beta/properties/{{ $('⚙️ Load Config').item.json.GA4_PROPERTY_ID }}:runReport",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $('⚙️ Load Config').item.json.GOOGLE_ANALYTICS_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"dateRanges\": [{ \"startDate\": \"7daysAgo\", \"endDate\": \"today\" }],\n  \"dimensions\": [{ \"name\": \"pagePath\" }, { \"name\": \"pageTitle\" }],\n  \"metrics\": [\n    { \"name\": \"screenPageViews\" },\n    { \"name\": \"averageSessionDuration\" },\n    { \"name\": \"engagementRate\" },\n    { \"name\": \"bounceRate\" }\n  ],\n  \"orderBys\": [{ \"metric\": { \"metricName\": \"screenPageViews\" }, \"desc\": true }],\n  \"limit\": 50\n}",
+        "options": { "timeout": 15000 }
+      },
+      "name": "📈 GA4 runReport",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [-800, 48],
+      "id": "rcw-03-ga4",
+      "notes": "GA4 Data API runReport. Property and token from config."
+    },
+    {
+      "parameters": {
+        "jsCode": "const config = $('⚙️ Load Config').item.json;\nconst viewsMin = Number(config.REFRESH_VIEWS_MIN || config.VIRAL_VIEWS_7D_MIN) || 100;\nconst baseUrl = (config.WORDPRESS_URL || '').replace(/\\/$/, '') || '';\nconst today = new Date().toISOString().slice(0, 10);\n\nconst ga4Response = $input.first().json;\nconst rows = ga4Response.rows || [];\nconst out = [];\n\nfor (const row of rows) {\n  const pagePath = (row.dimensionValues && row.dimensionValues[0] && row.dimensionValues[0].value) ? row.dimensionValues[0].value : '';\n  const pageTitle = (row.dimensionValues && row.dimensionValues[1] && row.dimensionValues[1].value) ? row.dimensionValues[1].value : '';\n  const views_7d = Number((row.metricValues && row.metricValues[0] && row.metricValues[0].value) ? row.metricValues[0].value : 0);\n\n  if (pagePath.length <= 1) continue;\n  if (views_7d < viewsMin) continue;\n\n  const post_url = baseUrl ? (baseUrl + (pagePath.startsWith('/') ? pagePath : '/' + pagePath)) : pagePath;\n  const keyword = pageTitle || pagePath.replace(/^\\/+|\\/+$/g, '').replace(/\\//g, ' ').replace(/\\-/g, ' ') || '';\n\n  out.push({\n    date: today,\n    post_url,\n    post_title: pageTitle,\n    views_7d,\n    keyword: keyword\n  });\n}\n\nreturn out.map(o => ({ json: o }));"
+      },
+      "name": "🔧 Filter by threshold & shape rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 48],
+      "id": "rcw-04-filter",
+      "notes": "Filters by REFRESH_VIEWS_MIN (or VIRAL_VIEWS_7D_MIN); outputs date, post_url, post_title, views_7d, keyword for Sheets."
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.GOOGLE_SHEET_ID || $('⚙️ Load Config').item.json.SPREADSHEET_ID }}",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "={{ $('⚙️ Load Config').item.json.REFRESH_CANDIDATES_TAB || 'Refresh Candidates' }}",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "date": "={{ $json.date }}",
+            "post_url": "={{ $json.post_url }}",
+            "post_title": "={{ $json.post_title }}",
+            "views_7d": "={{ $json.views_7d }}",
+            "keyword": "={{ $json.keyword }}"
+          }
+        },
+        "options": {}
+      },
+      "name": "📝 Append to Refresh Candidates tab",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [-400, 48],
+      "id": "rcw-05-sheets",
+      "notes": "Appends qualifying rows to REFRESH_CANDIDATES_TAB from config. Orchestrator reads this tab for Agent 1 context."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "🕔 Daily 5AM Trigger": {
+      "main": [[{ "node": "⚙️ Load Config", "type": "main", "index": 0 }]]
+    },
+    "⚙️ Load Config": {
+      "main": [[{ "node": "📈 GA4 runReport", "type": "main", "index": 0 }]]
+    },
+    "📈 GA4 runReport": {
+      "main": [[{ "node": "🔧 Filter by threshold & shape rows", "type": "main", "index": 0 }]]
+    },
+    "🔧 Filter by threshold & shape rows": {
+      "main": [[{ "node": "📝 Append to Refresh Candidates tab", "type": "main", "index": 0 }]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "06-03-refresh-candidates-writer",
+  "meta": {},
+  "tags": []
+}
