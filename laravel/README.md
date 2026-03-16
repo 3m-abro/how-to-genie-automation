@@ -1,59 +1,124 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# HowTo-Genie Mission Control (Laravel)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Laravel backend for the HowTo-Genie automation platform. Serves the **Mission Control** dashboard, weekly summary (view + email), revenue dashboard API, n8n status/trigger endpoints, and failure alerts. Designed for the “look at it once per week” workflow: dashboard and APIs are cached (5 min) to limit n8n/Sheets calls.
 
-## About Laravel
+Part of the [how-to-genie-automation](../) repo. For the full system (n8n workflows, config, docs), see the root [README](../README.md) and [docs/HOWTOGENIE.md](../docs/HOWTOGENIE.md).
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## What this app does
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+| Feature | Routes / entry points | Purpose |
+|--------|------------------------|---------|
+| **Mission Control dashboard** | `GET /mission-control` | Single-view status: system health, today’s progress, weekly wins, priorities, streak, next actions, quick stats. Data from n8n + Google Sheets + local DB; cached 5 min. |
+| **Weekly summary** | `GET /weekly-summary` | Weekly recap view (posts, views, revenue, top post, action items). |
+| **Weekly summary email** | `WEEKLY_SUMMARY_*` env + scheduler | Optional mailable sent on a chosen weekday/time (SMTP via `MAIL_*`). |
+| **Quick actions** | `POST /api/quick-action/{action}` | Trigger n8n workflows (e.g. run pipeline now). |
+| **n8n trigger** | `POST /api/n8n/trigger/{workflow}` | Webhook-style trigger for a workflow by name. |
+| **n8n status** | `GET /api/n8n/status` | Workflow list and recent executions (for dashboards). |
+| **Revenue dashboard API** | `GET /api/dashboard/revenue` | Revenue/traffic data for the revenue dashboard UI. |
 
-## Learning Laravel
+**Console commands**
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+- `n8n:failure-monitor` — Check n8n executions for failures; optionally send Telegram alerts.
+- `weekly-summary:send` — Send the weekly summary email (run via scheduler or manually).
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+---
 
-## Laravel Sponsors
+## Requirements
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+- **PHP** 8.2+
+- **Composer**
+- **Node/npm** (for Vite assets)
+- **n8n** running (default `http://localhost:5678`); optional API key for listing/triggering.
+- **Google Sheets** (Content Log, Revenue Tracker) — optional; used for dashboard data.
+- **Telegram** (optional) — for failure alerts.
+- **SMTP** (optional) — for weekly summary email.
 
-### Premium Partners
+---
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+## Setup
 
-## Contributing
+1. **From repo root**, enter the Laravel app:
+   ```bash
+   cd laravel
+   ```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+2. **Install dependencies**
+   ```bash
+   composer install
+   cp .env.example .env
+   php artisan key:generate
+   ```
 
-## Code of Conduct
+3. **Environment**
+   - Copy `.env.example` to `.env` and set at least:
+     - `APP_NAME`, `APP_URL`
+     - `N8N_BASE_URL` (default `http://localhost:5678`), `N8N_API_KEY` (optional, for n8n API)
+     - `GOOGLE_SHEET_ID`, `GOOGLE_CONTENT_LOG_TAB`, `GOOGLE_REVENUE_TRACKER_TAB`; `GOOGLE_APPLICATION_CREDENTIALS` path for Sheets API
+   - Optional: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` for alerts; `WEEKLY_SUMMARY_RECIPIENT`, `WEEKLY_SUMMARY_DAY`, `WEEKLY_SUMMARY_TIME` and `MAIL_*` for weekly email.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+4. **Database** (SQLite by default)
+   ```bash
+   touch database/database.sqlite
+   php artisan migrate
+   ```
 
-## Security Vulnerabilities
+5. **Frontend**
+   ```bash
+   npm install
+   npm run build
+   ```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+6. **Run**
+   ```bash
+   php artisan serve
+   ```
+   Visit `http://localhost:8000/mission-control` (or your `APP_URL`).
+
+---
+
+## Env reference (HowTo-Genie)
+
+| Variable | Purpose |
+|----------|---------|
+| `N8N_BASE_URL` | n8n instance URL (default `http://localhost:5678`) |
+| `N8N_API_KEY` | n8n API key (optional; for workflows/executions) |
+| `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` | Telegram alerts (optional) |
+| `GOOGLE_SHEET_ID` | Google Sheets spreadsheet ID |
+| `GOOGLE_CONTENT_LOG_TAB` | Sheet tab name for content log (default `Content Log`) |
+| `GOOGLE_REVENUE_TRACKER_TAB` | Sheet tab for revenue (default `Revenue Tracker`) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to Google service account JSON (Sheets API) |
+| `WEEKLY_SUMMARY_RECIPIENT` | Email address for weekly summary |
+| `WEEKLY_SUMMARY_DAY` | Day of week (0=Sunday … 6=Saturday) |
+| `WEEKLY_SUMMARY_TIME` | Time (e.g. `08:00`) |
+
+---
+
+## Project structure (relevant to Mission Control)
+
+- `app/Http/Controllers/` — `MissionControlController`, `N8nWebhookController`, `DashboardController`
+- `app/Services/` — `N8nApiService`, `GoogleSheetsService`, `TelegramAlertService`
+- `app/Models/` — `ContentLog`, `SystemStatus`, `User`
+- `app/Console/Commands/` — `N8nFailureMonitorCommand`, `WeeklySummaryCommand`
+- `app/Mail/` — `WeeklySummaryMailable`
+- `resources/views/mission-control/` — dashboard and weekly-summary Blade views
+- `config/services.php` — n8n, Telegram, Google, weekly_summary config
+
+---
+
+## Tests
+
+```bash
+composer test
+# or
+php artisan test
+```
+
+Includes Feature tests for Mission Control API, Revenue Dashboard API, Weekly Summary command, and n8n failure monitor command.
+
+---
 
 ## License
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Part of the HowTo-Genie automation repo. See repo root for license or usage terms.
