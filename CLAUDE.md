@@ -6,7 +6,7 @@ HowTo-Genie is a fully automated AI-powered content creation and monetization pl
 
 The system is designed around a single design constraint: the owner should only need to look at it once per week. Everything else is automated.
 
-For the canonical workflow list, schedule, and config key reference, see **docs/HOWTOGENIE.md**.
+For the canonical workflow list, schedule, and config key reference, see **docs/HOWTOGENIE.md**. QC and content-type logic are conceptually aligned with [claude-blog](https://github.com/AgriciDaniel/claude-blog) and [claude-seo](https://github.com/AgriciDaniel/claude-seo) (5-category 100-point rubric, content_type in prompt package); see HOWTOGENIE “Conceptual integration (claude-blog / claude-seo)”.
 
 **Current branch:** `claude/add-claude-documentation-tPTAR`
 **Base branch:** `master` / `main` on remote
