@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "transcripts": {
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/0bcb1de4-f6cd-4ce2-9f3b-62b79c835465/0bcb1de4-f6cd-4ce2-9f3b-62b79c835465.jsonl": {
+      "mtimeMs": 1773299374000,
+      "lastProcessedAt": "2026-03-12T00:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/20f98d1b-7854-42f0-9ef9-12703efed3ca/20f98d1b-7854-42f0-9ef9-12703efed3ca.jsonl": {
+      "mtimeMs": 1772527973000,
+      "lastProcessedAt": "2026-03-12T00:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/46c9add9-5fe5-45a5-a04c-34c84feba6d8/46c9add9-5fe5-45a5-a04c-34c84feba6d8.jsonl": {
+      "mtimeMs": 1773306898000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5d659ffe-a8a9-4e75-aa0c-8817d118e938/5d659ffe-a8a9-4e75-aa0c-8817d118e938.jsonl": {
+      "mtimeMs": 1773308352000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/66743eb8-1b3d-4c82-a7df-bd940fb0f09d/66743eb8-1b3d-4c82-a7df-bd940fb0f09d.jsonl": {
+      "mtimeMs": 1773296584000,
+      "lastProcessedAt": "2026-03-12T00:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/685bd62e-2a45-4a3c-a251-31ef5179d42a/685bd62e-2a45-4a3c-a251-31ef5179d42a.jsonl": {
+      "mtimeMs": 1773326112000,
+      "lastProcessedAt": "2026-03-12T15:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/7b650179-17db-4978-a4bf-b18ec80dd8af/7b650179-17db-4978-a4bf-b18ec80dd8af.jsonl": {
+      "mtimeMs": 1773329091000,
+      "lastProcessedAt": "2026-03-13T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/90f20820-12a6-46d7-bcda-5659777916cf/90f20820-12a6-46d7-bcda-5659777916cf.jsonl": {
+      "mtimeMs": 1773374594000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/30f0086c-74df-4598-b72c-96ac2d1652ac/30f0086c-74df-4598-b72c-96ac2d1652ac.jsonl": {
+      "mtimeMs": 1773375954000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/3a401eaf-7b15-406f-85da-e83088ba88e9/3a401eaf-7b15-406f-85da-e83088ba88e9.jsonl": {
+      "mtimeMs": 1773375211000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5e3c7ac6-0a64-4500-81c8-9d5cf7aea19a/5e3c7ac6-0a64-4500-81c8-9d5cf7aea19a.jsonl": {
+      "mtimeMs": 1773379353000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/99227da7-89c9-47c2-8637-d0b96dbddbb0/99227da7-89c9-47c2-8637-d0b96dbddbb0.jsonl": {
+      "mtimeMs": 1773377100000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/a7fe043b-7509-49af-a0ba-8dae642d9b3b/a7fe043b-7509-49af-a0ba-8dae642d9b3b.jsonl": {
+      "mtimeMs": 1773384404000,
+      "lastProcessedAt": "2026-03-13T08:01:59.339Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/eff200b2-bb51-4fcd-be65-a15d1839079c/eff200b2-bb51-4fcd-be65-a15d1839079c.jsonl": {
+      "mtimeMs": 1773378551000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/ffd55227-3104-461a-9ee3-acf377f0a87d/ffd55227-3104-461a-9ee3-acf377f0a87d.jsonl": {
+      "mtimeMs": 1773377761000,
+      "lastProcessedAt": "2026-03-13T18:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/e10d5aca-13b6-4308-b5bb-a6a0e32fdcfe/e10d5aca-13b6-4308-b5bb-a6a0e32fdcfe.jsonl": {
+      "mtimeMs": 1773370996000,
+      "lastProcessedAt": "2026-03-13T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/bbad0c53-08c8-4bd1-b79a-1e4cabe2f23c/bbad0c53-08c8-4bd1-b79a-1e4cabe2f23c.jsonl": {
+      "mtimeMs": 1773371657000,
+      "lastProcessedAt": "2026-03-13T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/c1d7df72-4e4a-4519-9369-7d66026ef4de/c1d7df72-4e4a-4519-9369-7d66026ef4de.jsonl": {
+      "mtimeMs": 1773371336000,
+      "lastProcessedAt": "2026-03-13T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/9f2acb67-0aa2-4785-8257-d3b6ec03b76a/9f2acb67-0aa2-4785-8257-d3b6ec03b76a.jsonl": {
+      "mtimeMs": 1773369942000,
+      "lastProcessedAt": "2026-03-13T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/955083c0-c62e-4269-8950-0f67271bdf7b/955083c0-c62e-4269-8950-0f67271bdf7b.jsonl": {
+      "mtimeMs": 1772515700000,
+      "lastProcessedAt": "2026-03-12T00:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/9d4c328c-1d8e-472c-b206-da359251d284/9d4c328c-1d8e-472c-b206-da359251d284.jsonl": {
+      "mtimeMs": 1773304037000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/a61a0079-fbe6-453b-a2d2-ea8274bc0690/a61a0079-fbe6-453b-a2d2-ea8274bc0690.jsonl": {
+      "mtimeMs": 1773304910000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/bdb0f2da-558e-4598-b378-266948ac2bd9/bdb0f2da-558e-4598-b378-266948ac2bd9.jsonl": {
+      "mtimeMs": 1773322930000,
+      "lastProcessedAt": "2026-03-12T15:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/bc66c76a-ca9d-475b-81e7-3786c4b9eb4c/bc66c76a-ca9d-475b-81e7-3786c4b9eb4c.jsonl": {
+      "mtimeMs": 1773309233000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5150c18e-fedd-47e1-8e63-e9b4bf128cd3/5150c18e-fedd-47e1-8e63-e9b4bf128cd3.jsonl": {
+      "mtimeMs": 1773314591000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5e0a2c6d-5eb4-4b4f-8b76-745087843517/5e0a2c6d-5eb4-4b4f-8b76-745087843517.jsonl": {
+      "mtimeMs": 1773313795000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5e5fb34a-88c3-4f3b-87e7-1a2f482cc0f8/5e5fb34a-88c3-4f3b-87e7-1a2f482cc0f8.jsonl": {
+      "mtimeMs": 1773320417000,
+      "lastProcessedAt": "2026-03-12T15:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/6f3354ad-e80d-4e4c-ab08-a86c4ae1099a/6f3354ad-e80d-4e4c-ab08-a86c4ae1099a.jsonl": {
+      "mtimeMs": 1773317429000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/cc973c3d-6e57-41e5-b63b-68b88c937069/cc973c3d-6e57-41e5-b63b-68b88c937069.jsonl": {
+      "mtimeMs": 1773311098000,
+      "lastProcessedAt": "2026-03-12T12:00:00.000Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/5557128b-3016-4e51-ad89-38746d561007/5557128b-3016-4e51-ad89-38746d561007.jsonl": {
+      "mtimeMs": 1773385534000,
+      "lastProcessedAt": "2026-03-13T08:01:59.339Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/c3fdd024-05d2-4b8d-84b6-7218f234c931/c3fdd024-05d2-4b8d-84b6-7218f234c931.jsonl": {
+      "mtimeMs": 1773387071000,
+      "lastProcessedAt": "2026-03-13T08:01:59.339Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/f793015e-b949-4acf-b8a6-9c46392a675b/f793015e-b949-4acf-b8a6-9c46392a675b.jsonl": {
+      "mtimeMs": 1773386404000,
+      "lastProcessedAt": "2026-03-13T08:01:59.339Z"
+    },
+    "/home/maqsood/.cursor/projects/home-maqsood-my-projects-how-to-genie-automation/agent-transcripts/fcc83b6e-f1eb-4a01-886b-17d26db1e411/fcc83b6e-f1eb-4a01-886b-17d26db1e411.jsonl": {
+      "mtimeMs": 1773388795000,
+      "lastProcessedAt": "2026-03-13T08:01:59.339Z"
+    }
+  }
+}
